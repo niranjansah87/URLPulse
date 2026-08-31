@@ -4,7 +4,6 @@ import { ArrowRight, Bell, FileText, History, Home, Layers, LayoutGrid, Trending
 import { Button } from "@/components/ui/Button";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import { MarketingFooter } from "./MarketingFooter";
-import landing from "../landing.module.css";
 import styles from "./not-found.module.css";
 
 const SUGGESTIONS = [
@@ -59,8 +58,7 @@ export function NotFoundPage() {
             </div>
           </Reveal>
           <Reveal delay={0.08} className={styles.illustration}>
-            <img className={landing.illoLight} src="/illustration/urlpulse-dashboard-illustration-light.png" alt="" />
-            <img className={landing.illoDark} src="/illustration/not-found-dark.png" alt="" />
+            <img src="/illustration/not-found-dark.png" alt="" />
           </Reveal>
         </section>
 
