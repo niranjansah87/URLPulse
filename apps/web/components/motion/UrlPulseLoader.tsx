@@ -52,9 +52,6 @@ export function UrlPulseLoader({
         <span className={styles.wmUrl}>Url</span>
         <span className={styles.wmPulse}>Pulse</span>
       </div>
-      <span className={styles.caption} aria-hidden>
-        Coming online…
-      </span>
       <span className="sr-only">{label}</span>
     </div>
   );
