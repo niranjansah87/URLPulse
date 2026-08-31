@@ -287,19 +287,16 @@
 .mark {
   height: 28px;
   width: 28px;
-  display: block;
 }
 .sidebarCollapsed {
   width: var(--layout-rail);
 }
+/* Grid centering is not defeatable by flex-basis/shrink quirks: the mark sits
+   dead-center in the collapsed rail regardless. */
 .sidebarCollapsed .brand {
-  justify-content: center;
+  display: grid;
+  place-items: center;
   padding: 0;
-}
-/* Center the mark in the rail: the link fills the brand width and centers it. */
-.sidebarCollapsed .brandLink {
-  width: 100%;
-  justify-content: center;
 }
 .sidebarCollapsed .navItem {
   justify-content: center;
