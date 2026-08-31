@@ -6,6 +6,7 @@ import { createRedis, createCommandRedis } from "./lib/redis";
 import { createDb } from "./lib/db";
 import { checkUrl } from "./lib/http-checker";
 import { createRateLimiter, type RedisEval } from "./lib/rate-limiter";
+import { createConcurrencyLimiter, type RedisSemaphoreClient } from "./lib/concurrency";
 import { createUrlRepository } from "./repositories/urls";
 import { createUrlCheckProcessor } from "./jobs/url-check";
 
@@ -28,6 +29,11 @@ export function startWorker(): Worker<UrlCheckJobData> {
     windowMs: 1000,
     key: "rl:outbound",
   });
+  const concurrency = createConcurrencyLimiter(commandRedis as unknown as RedisSemaphoreClient, {
+    limit: config.MAX_CONCURRENCY,
+    leaseTtlMs: config.CONCURRENCY_LEASE_TTL_MS,
+    key: "sem:outbound",
+  });
 
   const log = {
     info: (obj: object, msg?: string) => console.log(JSON.stringify({ level: "info", msg, ...obj })),
@@ -42,6 +48,7 @@ export function startWorker(): Worker<UrlCheckJobData> {
       maxRedirects: config.HTTP_MAX_REDIRECTS,
       maxBodyBytes: config.HTTP_MAX_BODY_BYTES,
     },
+    concurrency,
     rateLimiter,
     maxAttempts: config.MAX_RETRIES + 1,
     log,

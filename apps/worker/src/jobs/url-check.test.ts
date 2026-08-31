@@ -44,13 +44,25 @@ function repoWith(over: Partial<UrlRepository>): UrlRepository {
   } as UrlRepository;
 }
 
-const passLimiter = { acquire: vi.fn(async () => {}) };
+function passLimiter() {
+  return { acquire: vi.fn(async () => {}) };
+}
+function slotLimiter() {
+  const release = vi.fn(async () => {});
+  return { release, acquire: vi.fn(async () => ({ release })) };
+}
 
-function proc(repo: UrlRepository, checkUrl: () => Promise<UrlCheckResult>, rateLimiter = passLimiter) {
+function proc(
+  repo: UrlRepository,
+  checkUrl: () => Promise<UrlCheckResult>,
+  rateLimiter: { acquire: () => Promise<void> } = passLimiter(),
+  concurrency = slotLimiter(),
+) {
   return createUrlCheckProcessor({
     repo,
     checkUrl,
     checkOptions: OPTS,
+    concurrency,
     rateLimiter,
     maxAttempts: MAX_ATTEMPTS,
     log: noopLog,
@@ -128,9 +140,20 @@ describe("urlCheckProcessor", () => {
         throw new Error("redis down");
       }),
     };
+    const concurrency = slotLimiter();
     await expect(
-      proc(repo, vi.fn(async () => success), rateLimiter)(job({ batchId: BATCH, urlId: URL_ID })),
+      proc(repo, vi.fn(async () => success), rateLimiter, concurrency)(job({ batchId: BATCH, urlId: URL_ID })),
     ).rejects.toThrow("redis down");
     expect(repo.releaseForRetry).toHaveBeenCalledWith(URL_ID);
+    expect(concurrency.release).toHaveBeenCalled(); // slot never leaked
+  });
+
+  it("releases the concurrency slot after a successful check", async () => {
+    const concurrency = slotLimiter();
+    await proc(repoWith({}), vi.fn(async () => success), passLimiter(), concurrency)(
+      job({ batchId: BATCH, urlId: URL_ID }),
+    );
+    expect(concurrency.acquire).toHaveBeenCalledOnce();
+    expect(concurrency.release).toHaveBeenCalledOnce();
   });
 });

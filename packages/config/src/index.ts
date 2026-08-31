@@ -36,6 +36,11 @@ const serverEnvSchema = z.object({
   HTTP_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
   HTTP_MAX_REDIRECTS: z.coerce.number().int().nonnegative().default(5),
   HTTP_MAX_BODY_BYTES: z.coerce.number().int().positive().default(262_144),
+
+  // Distributed concurrency lease TTL (ADR-022). MUST exceed the maximum time a
+  // single check can hold a slot (HTTP_TIMEOUT_MS plus margin) so a live request
+  // never loses its slot, while a crashed worker's slot is reclaimed on expiry.
+  CONCURRENCY_LEASE_TTL_MS: z.coerce.number().int().positive().default(30_000),
 });
 
 export type ServerConfig = z.infer<typeof serverEnvSchema>;
