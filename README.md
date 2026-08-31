@@ -10,6 +10,10 @@
 
 **Bulk URL health monitoring with reliable background processing and real-time progress.**
 
+<video src="https://raw.githubusercontent.com/niranjansah87/URLPulse/main/public/brand/urlpulse-logo-reveal.mp4" width="640" autoplay loop muted playsinline></video>
+
+▶️ [Watch the logo reveal](https://raw.githubusercontent.com/niranjansah87/URLPulse/main/public/brand/urlpulse-logo-reveal.mp4) (if the video does not play inline)
+
 </div>
 
 ---
