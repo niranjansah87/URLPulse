@@ -1,260 +1,254 @@
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./public/brand/logo/horizontal/urlpulse-light.png">
+  <source media="(prefers-color-scheme: light)" srcset="./public/brand/logo/horizontal/urlpulse-dark.png">
+  <img alt="URLPulse" src="./public/brand/logo/horizontal/urlpulse-dark.png" width="360">
+</picture>
+
 # URLPulse
 
-A scalable bulk URL health checker that processes URLs asynchronously and provides real-time progress as checks complete.
+**Bulk URL health monitoring with reliable background processing and real-time progress.**
 
-Built as a technical take-home project using **Next.js, TypeScript, Fastify, PostgreSQL, Redis, and BullMQ**.
+</div>
+
+---
 
 ## Overview
 
-URLPulse allows users to submit a list of URLs or upload a CSV file and monitor the health-checking process in real time.
+URLPulse lets you submit a collection of URLs — pasted directly or uploaded as CSV — and checks each one independently in the background while streaming progress and results to the browser in real time.
 
-For each URL, URLPulse records:
+For every URL, URLPulse records:
 
-* Final HTTP status code
-* Response time
-* Page title, when available
-* Success or failure state
-* Processing status
+- Final HTTP status code
+- Response time
+- Page title, when available
+- Success / failure state and processing status
 
-Each URL is processed independently as a background job, allowing large batches to be handled without blocking the API.
+Each URL is processed as its own background job, so large batches never block the API and individual URLs can succeed, fail, retry, or be cancelled independently.
 
-## Tech Stack
+> **Project status:** This repository currently contains the product and engineering documentation and the brand assets. The application (Next.js web, Fastify API, and BullMQ worker) is being implemented against the design in [`docs/`](./docs/README.md). Features below are marked **implemented** or **planned** accordingly.
 
-### Frontend
+## Key Features
 
-* Next.js
-* React
-* TypeScript
+| Feature | Status |
+|---------|--------|
+| Bulk URL submission (paste) | Planned |
+| CSV upload | Planned |
+| Background processing with BullMQ | Planned |
+| PostgreSQL-backed durable state | Planned |
+| Redis-backed distributed coordination | Planned |
+| Global 10 requests/second outbound HTTP limit | Planned |
+| Maximum 5 URL checks in flight | Planned |
+| Retry with exponential backoff | Planned |
+| Idempotent job processing | Planned |
+| Batch cancellation (queued + in-flight) | Planned |
+| Retry failed URLs only | Planned |
+| Real-time progress via Server-Sent Events | Planned |
+| Refresh-safe state reconstruction | Planned |
+| 30-second batch-list caching with invalidation | Planned |
+| Light and dark UI themes | Planned |
 
-### Backend
-
-* Node.js
-* TypeScript
-* Fastify
-
-### Data & Infrastructure
-
-* PostgreSQL — persistent application state
-* Redis — distributed coordination and job infrastructure
-* BullMQ — background job processing
-
-### Live Updates
-
-* Server-Sent Events (SSE)
-
-### Development
-
-* Docker / Docker Compose
+The engineering design for every item above is documented in [`docs/`](./docs/README.md).
 
 ## Architecture
 
-```text
-                    ┌──────────────────────┐
-                    │       Next.js        │
-                    │        Web UI        │
-                    └──────────┬───────────┘
-                               │
-                               │ HTTP / SSE
-                               ▼
-                    ┌──────────────────────┐
-                    │     Fastify API      │
-                    │                      │
-                    │  Batch Management    │
-                    │  URL Management      │
-                    │  SSE Connections     │
-                    └───────┬───────┬──────┘
-                            │       │
-                            │       │
-                            ▼       ▼
-                   ┌────────────┐ ┌───────────┐
-                   │ PostgreSQL │ │   Redis   │
-                   │            │ │           │
-                   │ Source of  │ │ BullMQ    │
-                   │ truth      │ │ Queues    │
-                   └────────────┘ └─────┬─────┘
-                                       │
-                                       ▼
-                              ┌──────────────────┐
-                              │  Worker Process  │
-                              │                  │
-                              │ Concurrent URL   │
-                              │ health checks    │
-                              └────────┬─────────┘
-                                       │
-                                       ▼
-                                 External URLs
+```mermaid
+flowchart TD
+    Browser["Browser (Next.js UI)"]
+    API["Fastify API"]
+    PG[("PostgreSQL<br/>source of truth")]
+    RD[("Redis<br/>BullMQ + rate limit + pub/sub")]
+    Worker["Worker process"]
+    Ext["External URLs"]
+
+    Browser -->|HTTP + SSE| API
+    API -->|persist batches + URLs| PG
+    API -->|enqueue 1 job / URL| RD
+    RD -->|deliver jobs| Worker
+    Worker -->|global rate limit| Ext
+    Worker -->|write results idempotently| PG
+    Worker -->|publish updates| RD
+    RD -->|fan-out| API
+    API -->|SSE stream| Browser
 ```
 
-The API server and worker process are intentionally separated.
+| Component | Responsibility |
+|-----------|----------------|
+| **Next.js web** | UI for submission, batch list, and live batch detail. A projection of backend state — never authoritative. |
+| **Fastify API** | Accepts submissions, persists state, enqueues jobs, serves reads, streams SSE. Stateless; horizontally scalable. |
+| **Worker** | Separate process. Consumes jobs, performs checks under the global rate limit, writes results idempotently. |
+| **PostgreSQL** | Authoritative application state (batches, URLs, counters). |
+| **Redis** | BullMQ backing store, global rate-limiter coordination, pub/sub fan-out for live updates. |
 
-PostgreSQL is the source of truth for application state, while Redis/BullMQ is responsible for background job orchestration.
+## Core Guarantees
 
-## Key Design Decisions
+### Global rate limit
 
-### PostgreSQL as the source of truth
-
-Batch and URL state is persisted in PostgreSQL before jobs are dispatched.
-
-The UI does not treat local state or BullMQ state as authoritative.
-
-This allows a batch page to be opened directly or refreshed at any point while still reconstructing its complete state.
-
-### Background processing
-
-Each URL is represented as an independent BullMQ job.
-
-This prevents a large batch from blocking the API and allows individual URLs to succeed, fail, retry, or be cancelled independently.
-
-### Global rate limiting
-
-URL checks are subject to a global limit of **10 HTTP requests per second across the entire system**.
-
-The implementation uses Redis-backed coordination so the limit is not accidentally multiplied when multiple worker processes are running.
+URLPulse enforces a maximum of **10 outbound HTTP requests per second across the entire system**. The limiter is Redis-coordinated so the limit holds regardless of how many worker processes are running — it is never `10 × workerCount`. See [`docs/03-backend/rate-limiting.md`](./docs/03-backend/rate-limiting.md).
 
 ### Concurrency
 
-At most **5 URL checks are in flight at the same time**.
+At most **5 URL checks are in flight at once**. Concurrency and the request-rate limit are **separate constraints** — a worker acquires both a concurrency slot and a rate-limit permit before starting an outbound request.
 
-Concurrency is controlled at the worker layer and is designed separately from the global request-rate limit.
+### Source of truth
 
-### Retries
-
-Transient failures are retried up to three times using exponential backoff.
-
-Permanent failures are recorded without unnecessary retries.
+**PostgreSQL is authoritative.** Redis, BullMQ, browser state, and live events are infrastructure and transport — they must not replace durable state. Any batch page can be opened directly or refreshed and fully reconstructed from the API.
 
 ### Idempotency
 
-URL processing is designed to be idempotent so that duplicate job execution does not incorrectly corrupt persisted batch state.
-
-Database state transitions are validated before being applied.
+Jobs are designed for at-least-once delivery. Repeated execution of the same job must not double-count progress or corrupt state; state transitions are applied conditionally in the database. See [`docs/03-backend/retries-and-idempotency.md`](./docs/03-backend/retries-and-idempotency.md).
 
 ### Live updates
 
-URLPulse uses Server-Sent Events to stream completed URL updates to the browser.
+Live progress is delivered over **Server-Sent Events**, chosen because updates are one-directional (server → client) and SSE reconnects natively. Multiple API instances fan out through Redis pub/sub. On connect or reconnect the client refetches the authoritative snapshot from the API, so the transport is never the source of truth. See [`docs/04-frontend/live-updates.md`](./docs/04-frontend/live-updates.md).
 
-The browser can reconnect after a dropped connection and retrieve the authoritative state from the API.
+## Tech Stack
 
-SSE was chosen because the communication pattern is primarily server-to-client progress updates and does not require a bidirectional WebSocket connection.
-
-## Running Locally
-
-### Prerequisites
-
-* Node.js
-* Docker
-* Docker Compose
-
-### Start the application
-
-```bash
-docker compose up --build
-```
-
-The exact command above starts the required application infrastructure and services.
+- **Next.js** + **React** + **TypeScript** — web UI
+- **Fastify** + **TypeScript** — API
+- **PostgreSQL** — durable application state
+- **Redis** — coordination, rate limiting, pub/sub
+- **BullMQ** — background job processing
+- **Docker** / **Docker Compose** — local infrastructure
 
 ## Project Structure
+
+Current repository (design + assets):
+
+```text
+urlpulse/
+├── docs/                 # Product, architecture, backend, frontend, infra, quality
+├── public/               # Brand assets
+│   ├── brand/            #   logo/ (horizontal, vertical) + mark/
+│   ├── icons/            #   favicons, apple-touch, PWA icons
+│   ├── og/               #   Open Graph images
+│   └── site.webmanifest
+├── CLAUDE.md             # Engineering guardrails for contributors and coding agents
+├── LICENSE
+└── README.md
+```
+
+Planned application layout (not yet scaffolded):
 
 ```text
 urlpulse/
 ├── apps/
 │   ├── web/              # Next.js application
 │   └── api/              # Fastify API
-│
 ├── worker/               # BullMQ worker process
-│
 ├── packages/
 │   └── shared/           # Shared TypeScript types
-│
-├── docker-compose.yml
-├── package.json
-├── README.md
-└── LICENSE
+└── docker-compose.yml
 ```
 
-## Core Features
+## Getting Started
 
-* [x] Bulk URL submission
-* [x] CSV upload
-* [x] PostgreSQL persistence
-* [x] Background URL processing
-* [x] BullMQ job queue
-* [x] Redis-backed coordination
-* [x] Global 10 requests/second rate limit
-* [x] Maximum 5 concurrent checks
-* [x] Exponential retry/backoff
-* [x] Real-time progress updates
-* [x] Refresh-safe batch state
-* [x] Batch cancellation
-* [x] Retry failed URLs only
-* [x] 30-second batch-list caching
-* [x] Shared TypeScript types
+> The application is not yet scaffolded, so runnable commands do not exist yet. This section documents the **intended** local workflow; it will be finalized once `apps/`, `worker/`, and `docker-compose.yml` land.
 
-## Horizontal Scaling
+### Prerequisites
 
-The API can be scaled horizontally because application state is not stored in an individual API instance.
+- Node.js (LTS)
+- [pnpm](https://pnpm.io/)
+- Docker + Docker Compose
 
-PostgreSQL remains the source of truth for persisted state, while Redis provides shared coordination for background processing.
+### Clone
 
-Multiple API instances can therefore serve clients without requiring sticky sessions.
+```bash
+git clone https://github.com/niranjansah87/Urlpulse.git
+cd Urlpulse
+```
 
-Workers can also be scaled horizontally while maintaining the global rate-limit requirement through shared Redis coordination.
+### Configure environment
 
-## Trade-offs
+```bash
+cp .env.example .env
+# edit .env as needed
+```
 
-The implementation intentionally focuses on correctness and clarity over unnecessary infrastructure.
+### Start (target workflow)
 
-### SSE instead of WebSockets
+```bash
+docker compose up --build
+```
 
-SSE provides a simpler implementation for one-way progress updates and has built-in browser reconnection semantics.
+Once running, the intended local URLs are:
 
-A WebSocket architecture could be useful if the product later requires more interactive bidirectional communication.
+- Web UI: `http://localhost:3000`
+- API: `http://localhost:4000`
+- PostgreSQL: `localhost:5432`
+- Redis: `localhost:6379`
 
-### PostgreSQL polling vs event-driven updates
+## Environment Variables
 
-Persistent state remains in PostgreSQL, while live updates are delivered separately.
+See [`.env.example`](./.env.example) for the full list. Never commit a real `.env`.
 
-This keeps the database authoritative and prevents the live transport layer from becoming a second source of truth.
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `REDIS_URL` | Redis connection string |
+| `API_PORT` | Fastify API port (default `4000`) |
+| `WEB_PORT` | Next.js port (default `3000`) |
+| `RATE_LIMIT_RPS` | Global outbound request cap (default `10`) |
+| `MAX_CONCURRENCY` | Max URL checks in flight (default `5`) |
+| `MAX_RETRIES` | Retry attempts for transient failures (default `3`) |
 
-### Simplified authentication
+## Development
 
-Authentication and authorization are intentionally out of scope for this assignment.
+> Package scripts do not exist until the workspace is scaffolded. The intended commands are:
 
-## What I Would Improve With More Time
+```bash
+# install dependencies
+pnpm install
 
-Potential future improvements include:
+# run the full stack in development
+pnpm dev
 
-* Authentication and authorization
-* More detailed monitoring and metrics
-* Distributed tracing
-* Better URL validation and SSRF protection
-* Configurable checking policies
-* More comprehensive integration/load testing
-* Production deployment configuration
-* More sophisticated cache invalidation
-* Historical health-check data
+# run individual processes
+pnpm dev:api
+pnpm dev:worker
+pnpm dev:web
+
+# quality gates
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+This README must be updated to remove the "intended" caveats once these scripts exist.
 
 ## Testing
 
-The most important tests focus on the requirements that can easily break under load:
+Testing focuses on the system guarantees most likely to break under load and concurrency:
 
-* Global rate limiting
-* Worker concurrency
-* Retry behavior
-* Idempotent job execution
-* Cancellation of queued jobs
-* Cancellation of in-flight jobs
-* Retry-failed behavior
-* SSE reconnection
-* State consistency after refresh
-* Multiple worker processes
+- Global rate limit (including across **multiple** workers)
+- Concurrency cap (5 in flight)
+- Retry and exponential backoff
+- Idempotent job execution (duplicate delivery)
+- Cancellation of queued and in-flight jobs
+- Retry-failed (only failed URLs re-run)
+- Live-update recovery after dropped SSE connections
+- Batch-list cache behavior and invalidation
 
-## Technical Task
+See [`docs/06-quality/testing.md`](./docs/06-quality/testing.md) and [`docs/06-quality/edge-cases.md`](./docs/06-quality/edge-cases.md).
 
-This project was implemented as a technical take-home exercise for a Full Stack Developer position.
+## Documentation
 
-The implementation follows the requirements provided in the assignment while making explicit architectural decisions where the specification leaves implementation details open.
+Full documentation index: [`docs/README.md`](./docs/README.md).
+
+## Security
+
+See [`SECURITY.md`](./SECURITY.md). URLPulse makes outbound HTTP requests to user-supplied URLs, so **SSRF is a primary consideration** — the security policy separates current controls from recommended production hardening.
+
+## Contributing
+
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md). Changes affecting the database, queues, workers, rate limiting, concurrency, live updates, or API contracts must update the relevant documentation.
 
 ## License
 
-MIT License
+[MIT](./LICENSE)
+
+## Author
+
+**Niranjan Sah** — [niranjansah87.com.np](https://niranjansah87.com.np/) · [github.com/niranjansah87](https://github.com/niranjansah87)
