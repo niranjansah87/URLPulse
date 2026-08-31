@@ -6,6 +6,8 @@ import { emailService } from "./email";
 
 /** Password-reset token lifetime. Kept modest so a leaked link ages out quickly. */
 const RESET_TOKEN_TTL_SECONDS = 60 * 60; // 1 hour
+/** Email-verification token lifetime (matches the "24 hours" reference copy). */
+const VERIFICATION_TOKEN_TTL_SECONDS = 60 * 60 * 24; // 24 hours
 
 /**
  * Better Auth instance for URLPulse.
@@ -62,6 +64,7 @@ export const auth = betterAuth({
       try {
         await emailService.sendPasswordReset({
           to: user.email,
+          name: user.name,
           resetUrl,
           expiresMinutes: RESET_TOKEN_TTL_SECONDS / 60,
         });
@@ -72,10 +75,73 @@ export const auth = betterAuth({
         });
       }
     },
-    onPasswordReset({ user }) {
+    // Runs only after Better Auth confirms the password was changed. Confirm the
+    // change with a success email; never send it on a failed reset.
+    async onPasswordReset({ user }) {
       // Safe audit event: identifier only, never the token or password.
       console.info("[auth] password reset succeeded", { userId: user.id });
-      return Promise.resolve();
+      try {
+        await emailService.sendPasswordResetSuccess({
+          to: user.email,
+          name: user.name,
+          signInUrl: `${apiConfig.WEB_ORIGIN}/login`,
+        });
+      } catch (err) {
+        console.error("[auth] password-changed email delivery failed", {
+          userId: user.id,
+          error: (err as Error).message,
+        });
+      }
+    },
+  },
+  /**
+   * Email verification is wired to Better Auth (real token + expiry), but NOT
+   * auto-sent on sign-up: URLPulse does not gate sign-in on verification
+   * (requireEmailVerification is false), and a welcome email already goes out on
+   * account creation. The verification email is available on demand via Better
+   * Auth's send-verification-email flow. Set `sendOnSignUp: true` to auto-send.
+   */
+  emailVerification: {
+    sendOnSignUp: false,
+    expiresIn: VERIFICATION_TOKEN_TTL_SECONDS,
+    async sendVerificationEmail({ user, url }) {
+      // `url` is assembled by Better Auth from the configured baseURL (trusted),
+      // never a request Host header.
+      try {
+        await emailService.sendVerification({
+          to: user.email,
+          name: user.name,
+          verifyUrl: url,
+          expiresMinutes: VERIFICATION_TOKEN_TTL_SECONDS / 60,
+        });
+      } catch (err) {
+        console.error("[auth] verification email delivery failed", {
+          userId: user.id,
+          error: (err as Error).message,
+        });
+      }
+    },
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        // Fires once, after the new user row commits. Send the welcome email
+        // (best-effort: a delivery failure must never fail account creation).
+        after: async (user) => {
+          try {
+            await emailService.sendWelcome({
+              to: user.email,
+              name: user.name,
+              dashboardUrl: `${apiConfig.WEB_ORIGIN}/batches`,
+            });
+          } catch (err) {
+            console.error("[auth] welcome email delivery failed", {
+              userId: user.id,
+              error: (err as Error).message,
+            });
+          }
+        },
+      },
     },
   },
   /**

@@ -36,6 +36,15 @@ function setCookie(res: { headers: Record<string, unknown> }): string {
   return list.map((c) => String(c).split(";")[0]).join("; ");
 }
 
+// Signup/reset now trigger welcome + password-changed emails. Stub those methods
+// so the suite never sends real email even when RESEND_API_KEY is set; the reset
+// test still spies sendPasswordReset per-test to capture the token.
+beforeAll(() => {
+  vi.spyOn(emailService, "sendWelcome").mockResolvedValue();
+  vi.spyOn(emailService, "sendVerification").mockResolvedValue();
+  vi.spyOn(emailService, "sendPasswordResetSuccess").mockResolvedValue();
+});
+
 describe.skipIf(!ready)("authentication flow (integration)", () => {
   let app: ReturnType<typeof buildServer>;
   const email = `flow_${Date.now()}@example.com`;
