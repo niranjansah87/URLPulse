@@ -5,6 +5,7 @@ import type { BatchRepository } from "../repositories/batches";
 import { ConflictError, NotFoundError, ValidationError } from "../lib/errors";
 
 const noopLog = { info: () => {}, warn: () => {} };
+const USER = "user-1";
 
 function summary(id: string): BatchSummary {
   return {
@@ -20,7 +21,7 @@ function summary(id: string): BatchSummary {
 
 function fakeRepo(over: Partial<BatchRepository> = {}): BatchRepository {
   return {
-    createWithUrls: vi.fn(async (urls: string[]) => ({
+    createWithUrls: vi.fn(async (_userId: string, urls: string[]) => ({
       batch: summary("batch-1"),
       urlIds: urls.map((_, i) => `url-${i}`),
     })),
@@ -44,7 +45,7 @@ describe("batchService.createBatch", () => {
       log: noopLog,
     });
 
-    await service.createBatch({ urls: ["https://a.com", "https://b.com"] });
+    await service.createBatch(USER, { urls: ["https://a.com", "https://b.com"] });
 
     expect(enqueued).toEqual([
       { batchId: "batch-1", urlId: "url-0" },
@@ -56,7 +57,7 @@ describe("batchService.createBatch", () => {
     const repo = fakeRepo();
     const service = createBatchService({ repo, enqueue: async () => {}, log: noopLog });
 
-    await expect(service.createBatch({ urls: ["not-a-url"] })).rejects.toBeInstanceOf(
+    await expect(service.createBatch(USER, { urls: ["not-a-url"] })).rejects.toBeInstanceOf(
       ValidationError,
     );
     expect(repo.createWithUrls).not.toHaveBeenCalled();
@@ -64,7 +65,7 @@ describe("batchService.createBatch", () => {
 
   it("rejects unsupported URL schemes", async () => {
     const service = createBatchService({ repo: fakeRepo(), enqueue: async () => {}, log: noopLog });
-    await expect(service.createBatch({ urls: ["ftp://a.com"] })).rejects.toBeInstanceOf(
+    await expect(service.createBatch(USER, { urls: ["ftp://a.com"] })).rejects.toBeInstanceOf(
       ValidationError,
     );
   });
@@ -79,7 +80,7 @@ describe("batchService.createBatch", () => {
       log: noopLog,
     });
 
-    const batch = await service.createBatch({ urls: ["https://a.com"] });
+    const batch = await service.createBatch(USER, { urls: ["https://a.com"] });
 
     expect(batch.id).toBe("batch-1");
     expect(repo.createWithUrls).toHaveBeenCalledOnce();
@@ -89,14 +90,14 @@ describe("batchService.createBatch", () => {
 describe("batchService.getBatch", () => {
   it("throws NotFoundError for an unknown batch", async () => {
     const service = createBatchService({ repo: fakeRepo(), enqueue: async () => {}, log: noopLog });
-    await expect(service.getBatch("missing")).rejects.toBeInstanceOf(NotFoundError);
+    await expect(service.getBatch(USER, "missing")).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it("returns the persisted batch detail", async () => {
     const detail: BatchDetail = { ...summary("batch-1"), urls: [] };
     const repo = fakeRepo({ getById: vi.fn(async () => detail) });
     const service = createBatchService({ repo, enqueue: async () => {}, log: noopLog });
-    await expect(service.getBatch("batch-1")).resolves.toEqual(detail);
+    await expect(service.getBatch(USER, "batch-1")).resolves.toEqual(detail);
   });
 });
 
@@ -106,7 +107,7 @@ describe("batchService.listBatches cache", () => {
     const cached = { items: [summary("b")], meta: { page: 1, pageSize: 20, total: 1 } };
     const cache = { get: vi.fn(async () => cached), set: vi.fn(), invalidate: vi.fn() };
     const service = createBatchService({ repo, enqueue: async () => {}, cache, log: noopLog });
-    await expect(service.listBatches({ page: 1, pageSize: 20 })).resolves.toEqual(cached);
+    await expect(service.listBatches(USER, { page: 1, pageSize: 20 })).resolves.toEqual(cached);
     expect(repo.list).not.toHaveBeenCalled();
   });
 
@@ -114,7 +115,7 @@ describe("batchService.listBatches cache", () => {
     const repo = fakeRepo({});
     const cache = { get: vi.fn(async () => null), set: vi.fn(), invalidate: vi.fn() };
     const service = createBatchService({ repo, enqueue: async () => {}, cache, log: noopLog });
-    await service.listBatches({ page: 1, pageSize: 20 });
+    await service.listBatches(USER, { page: 1, pageSize: 20 });
     expect(repo.list).toHaveBeenCalledOnce();
     expect(cache.set).toHaveBeenCalledOnce();
   });
@@ -123,7 +124,7 @@ describe("batchService.listBatches cache", () => {
     const repo = fakeRepo({});
     const cache = { get: vi.fn(), set: vi.fn(), invalidate: vi.fn() };
     const service = createBatchService({ repo, enqueue: async () => {}, cache, log: noopLog });
-    await service.createBatch({ urls: ["https://a.com"] });
+    await service.createBatch(USER, { urls: ["https://a.com"] });
     expect(cache.invalidate).toHaveBeenCalledOnce();
   });
 });
@@ -132,7 +133,7 @@ describe("batchService.cancelBatch", () => {
   it("throws NotFoundError when the batch does not exist", async () => {
     const repo = fakeRepo({ cancel: vi.fn(async () => "notfound" as const) });
     const service = createBatchService({ repo, enqueue: async () => {}, log: noopLog });
-    await expect(service.cancelBatch("missing")).rejects.toBeInstanceOf(NotFoundError);
+    await expect(service.cancelBatch(USER, "missing")).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it("returns authoritative state after cancelling", async () => {
@@ -142,7 +143,7 @@ describe("batchService.cancelBatch", () => {
       getById: vi.fn(async () => detail),
     });
     const service = createBatchService({ repo, enqueue: async () => {}, log: noopLog });
-    await expect(service.cancelBatch("batch-1")).resolves.toEqual(detail);
+    await expect(service.cancelBatch(USER, "batch-1")).resolves.toEqual(detail);
   });
 
   it("is idempotent for an already-terminal batch (noop returns current state)", async () => {
@@ -152,7 +153,7 @@ describe("batchService.cancelBatch", () => {
       getById: vi.fn(async () => detail),
     });
     const service = createBatchService({ repo, enqueue: async () => {}, log: noopLog });
-    await expect(service.cancelBatch("batch-1")).resolves.toEqual(detail);
+    await expect(service.cancelBatch(USER, "batch-1")).resolves.toEqual(detail);
   });
 });
 
@@ -160,13 +161,13 @@ describe("batchService.retryFailed", () => {
   it("throws NotFoundError when the batch does not exist", async () => {
     const repo = fakeRepo({ retryFailed: vi.fn(async () => "notfound" as const) });
     const service = createBatchService({ repo, enqueue: async () => {}, log: noopLog });
-    await expect(service.retryFailed("missing")).rejects.toBeInstanceOf(NotFoundError);
+    await expect(service.retryFailed(USER, "missing")).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it("throws ConflictError for a cancelled batch", async () => {
     const repo = fakeRepo({ retryFailed: vi.fn(async () => "cancelled" as const) });
     const service = createBatchService({ repo, enqueue: async () => {}, log: noopLog });
-    await expect(service.retryFailed("batch-1")).rejects.toBeInstanceOf(ConflictError);
+    await expect(service.retryFailed(USER, "batch-1")).rejects.toBeInstanceOf(ConflictError);
   });
 
   it("enqueues one job per claimed failed URL and returns state", async () => {
@@ -181,7 +182,7 @@ describe("batchService.retryFailed", () => {
       enqueue: async (d) => void enqueued.push(d.urlId),
       log: noopLog,
     });
-    await service.retryFailed("batch-1");
+    await service.retryFailed(USER, "batch-1");
     expect(enqueued).toEqual(["u-b", "u-d"]);
   });
 });

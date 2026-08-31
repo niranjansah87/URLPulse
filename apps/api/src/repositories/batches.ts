@@ -59,11 +59,14 @@ export function createBatchRepository(db: Db) {
      * the created batch summary and the new URL ids for enqueueing - enqueue
      * happens after commit, never inside the transaction (ADR-028).
      */
-    async createWithUrls(urls: string[]): Promise<{ batch: BatchSummary; urlIds: string[] }> {
+    async createWithUrls(
+      userId: string,
+      urls: string[],
+    ): Promise<{ batch: BatchSummary; urlIds: string[] }> {
       return db.begin(async (tx) => {
         const [batchRow] = await tx<BatchRow[]>`
-          INSERT INTO batches (status, total_count)
-          VALUES ('PENDING', ${urls.length})
+          INSERT INTO batches (status, total_count, user_id)
+          VALUES ('PENDING', ${urls.length}, ${userId})
           RETURNING id, status, total_count, completed_count, failed_count, cancelled_count, created_at
         `;
         if (!batchRow) throw new Error("batch insert returned no row");
@@ -76,10 +79,10 @@ export function createBatchRepository(db: Db) {
       });
     },
 
-    async getById(id: string): Promise<BatchDetail | null> {
+    async getById(userId: string, id: string): Promise<BatchDetail | null> {
       const [batchRow] = await db<BatchRow[]>`
         SELECT id, status, total_count, completed_count, failed_count, cancelled_count, created_at
-        FROM batches WHERE id = ${id}
+        FROM batches WHERE id = ${id} AND user_id = ${userId}
       `;
       if (!batchRow) return null;
       const urlRows = await db<UrlRow[]>`
@@ -89,18 +92,19 @@ export function createBatchRepository(db: Db) {
       return { ...toBatchSummary(batchRow), urls: urlRows.map(toUrlResult) };
     },
 
-    async list(params: { page: number; pageSize: number }): Promise<{
-      items: BatchSummary[];
-      total: number;
-    }> {
+    async list(
+      userId: string,
+      params: { page: number; pageSize: number },
+    ): Promise<{ items: BatchSummary[]; total: number }> {
       const offset = (params.page - 1) * params.pageSize;
       const countRows = await db<{ count: number }[]>`
-        SELECT count(*)::int AS count FROM batches
+        SELECT count(*)::int AS count FROM batches WHERE user_id = ${userId}
       `;
       const total = countRows[0]?.count ?? 0;
       const rows = await db<BatchRow[]>`
         SELECT id, status, total_count, completed_count, failed_count, cancelled_count, created_at
         FROM batches
+        WHERE user_id = ${userId}
         ORDER BY created_at DESC
         LIMIT ${params.pageSize} OFFSET ${offset}
       `;
@@ -115,9 +119,11 @@ export function createBatchRepository(db: Db) {
      * cancelled_count by the number transitioned. Returns "notfound", "noop"
      * (already terminal; idempotent re-cancel), or "cancelled".
      */
-    async cancel(id: string): Promise<"cancelled" | "noop" | "notfound"> {
+    async cancel(userId: string, id: string): Promise<"cancelled" | "noop" | "notfound"> {
       return db.begin(async (tx) => {
-        const [exists] = await tx<{ id: string }[]>`SELECT id FROM batches WHERE id = ${id}`;
+        const [exists] = await tx<{ id: string }[]>`
+          SELECT id FROM batches WHERE id = ${id} AND user_id = ${userId}
+        `;
         if (!exists) return "notfound";
         const [changed] = await tx<{ id: string }[]>`
           UPDATE batches
@@ -151,9 +157,14 @@ export function createBatchRepository(db: Db) {
      *  - "cancelled": batch is CANCELLED — retry-failed is rejected (ADR-027)
      *  - { claimed }: the URL ids reset (possibly empty), to be enqueued
      */
-    async retryFailed(id: string): Promise<"notfound" | "cancelled" | { claimed: string[] }> {
+    async retryFailed(
+      userId: string,
+      id: string,
+    ): Promise<"notfound" | "cancelled" | { claimed: string[] }> {
       return db.begin(async (tx) => {
-        const [batch] = await tx<{ status: string }[]>`SELECT status FROM batches WHERE id = ${id}`;
+        const [batch] = await tx<{ status: string }[]>`
+          SELECT status FROM batches WHERE id = ${id} AND user_id = ${userId}
+        `;
         if (!batch) return "notfound";
         if (batch.status === "CANCELLED") return "cancelled";
         const claimedRows = await tx<{ id: string }[]>`

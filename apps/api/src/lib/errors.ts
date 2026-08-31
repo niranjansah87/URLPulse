@@ -26,6 +26,18 @@ export class ValidationError extends ApiDomainError {
   }
 }
 
+export class UnauthorizedError extends ApiDomainError {
+  constructor(message = "Authentication required") {
+    super(401, "UNAUTHORIZED", message);
+  }
+}
+
+export class ForbiddenError extends ApiDomainError {
+  constructor(message = "You do not have access to this resource") {
+    super(403, "FORBIDDEN", message);
+  }
+}
+
 export class NotFoundError extends ApiDomainError {
   constructor(message: string) {
     super(404, "NOT_FOUND", message);

@@ -15,8 +15,8 @@ import type { BatchListMeta, BatchSummary, ListBatchesQuery } from "@urlpulse/ty
 export type BatchListValue = { items: BatchSummary[]; meta: BatchListMeta };
 
 export interface BatchListCache {
-  get(query: ListBatchesQuery): Promise<BatchListValue | null>;
-  set(query: ListBatchesQuery, value: BatchListValue): Promise<void>;
+  get(userId: string, query: ListBatchesQuery): Promise<BatchListValue | null>;
+  set(userId: string, query: ListBatchesQuery, value: BatchListValue): Promise<void>;
   invalidate(): Promise<void>;
 }
 
@@ -30,23 +30,26 @@ const PREFIX = "cache:batches:list";
 const VERSION_KEY = "cache:batches:list:ver";
 
 export function createBatchListCache(redis: CacheRedis, ttlSeconds: number): BatchListCache {
-  const keyFor = (version: string, q: ListBatchesQuery): string =>
-    `${PREFIX}:v${version}:${q.page}:${q.pageSize}`;
+  // The cache key includes the owning user id: a batch list is per-user data, so
+  // one user's cached page must never satisfy another user's read (§23). The
+  // version segment provides immediate global invalidation on mutation.
+  const keyFor = (version: string, userId: string, q: ListBatchesQuery): string =>
+    `${PREFIX}:v${version}:u${userId}:${q.page}:${q.pageSize}`;
 
   return {
-    async get(query) {
+    async get(userId, query) {
       try {
         const version = (await redis.get(VERSION_KEY)) ?? "0";
-        const raw = await redis.get(keyFor(version, query));
+        const raw = await redis.get(keyFor(version, userId, query));
         return raw ? (JSON.parse(raw) as BatchListValue) : null;
       } catch {
         return null; // degrade to a DB read
       }
     },
-    async set(query, value) {
+    async set(userId, query, value) {
       try {
         const version = (await redis.get(VERSION_KEY)) ?? "0";
-        await redis.set(keyFor(version, query), JSON.stringify(value), "EX", ttlSeconds);
+        await redis.set(keyFor(version, userId, query), JSON.stringify(value), "EX", ttlSeconds);
       } catch {
         // best-effort; a failed cache write just means the next read is a miss
       }

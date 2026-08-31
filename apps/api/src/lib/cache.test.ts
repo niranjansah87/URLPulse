@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { createBatchListCache, type CacheRedis } from "./cache";
 
+const USER = "user-1";
 const query = { page: 1, pageSize: 20 };
 const value = { items: [], meta: { page: 1, pageSize: 20, total: 0 } };
 
@@ -21,22 +22,29 @@ function memoryRedis(): CacheRedis {
 describe("createBatchListCache", () => {
   it("returns null on a miss and the stored value on a hit", async () => {
     const cache = createBatchListCache(memoryRedis(), 30);
-    expect(await cache.get(query)).toBeNull();
-    await cache.set(query, value);
-    expect(await cache.get(query)).toEqual(value);
+    expect(await cache.get(USER, query)).toBeNull();
+    await cache.set(USER, query, value);
+    expect(await cache.get(USER, query)).toEqual(value);
   });
 
   it("invalidation makes the previously cached page a miss", async () => {
     const cache = createBatchListCache(memoryRedis(), 30);
-    await cache.set(query, value);
+    await cache.set(USER, query, value);
     await cache.invalidate();
-    expect(await cache.get(query)).toBeNull();
+    expect(await cache.get(USER, query)).toBeNull();
   });
 
   it("sets the value with the configured TTL", async () => {
     const redis = memoryRedis();
-    await createBatchListCache(redis, 30).set(query, value);
+    await createBatchListCache(redis, 30).set(USER, query, value);
     expect(redis.set).toHaveBeenCalledWith(expect.any(String), expect.any(String), "EX", 30);
+  });
+
+  it("does not serve one user's cached page to another user", async () => {
+    const cache = createBatchListCache(memoryRedis(), 30);
+    await cache.set(USER, query, value);
+    expect(await cache.get("other-user", query)).toBeNull();
+    expect(await cache.get(USER, query)).toEqual(value);
   });
 
   it("degrades to a miss when Redis fails (never throws)", async () => {
@@ -52,8 +60,8 @@ describe("createBatchListCache", () => {
       }),
     };
     const cache = createBatchListCache(redis, 30);
-    await expect(cache.get(query)).resolves.toBeNull();
-    await expect(cache.set(query, value)).resolves.toBeUndefined();
+    await expect(cache.get(USER, query)).resolves.toBeNull();
+    await expect(cache.set(USER, query, value)).resolves.toBeUndefined();
     await expect(cache.invalidate()).resolves.toBeUndefined();
   });
 });

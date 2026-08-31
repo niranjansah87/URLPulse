@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import type { FastifyRequest } from "fastify";
 import type { BatchRepository } from "../repositories/batches";
+import type { AuthUser } from "../lib/auth";
+import { UnauthorizedError } from "../lib/errors";
 
 // Config is validated at import time; provide safe test values first.
 process.env.DATABASE_URL ??= "postgresql://urlpulse:urlpulse@localhost:5432/urlpulse";
@@ -8,9 +11,25 @@ process.env.REDIS_URL ??= "redis://localhost:6379";
 const { buildServer } = await import("../server");
 const { createBatchService } = await import("../services/batches");
 
+const TEST_USER = {
+  id: "user-1",
+  name: "Test User",
+  email: "test@example.com",
+  emailVerified: true,
+  image: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+} as unknown as AuthUser;
+
+// Injected auth boundary that authenticates every request as TEST_USER, so the
+// validation/routing tests below reach the handler without a real session.
+const authAs = async (req: FastifyRequest): Promise<void> => {
+  req.user = TEST_USER;
+};
+
 let app: ReturnType<typeof buildServer>;
 
-beforeAll(async () => {
+function makeApp(requireAuth = authAs): ReturnType<typeof buildServer> {
   // Inject a service backed by a repo that never touches a DB. The tests below
   // only reach validation/routing, which run before any repo/queue access, so
   // no PostgreSQL or Redis is required.
@@ -28,12 +47,29 @@ beforeAll(async () => {
     log: { info: () => {}, warn: () => {} },
   });
   const eventBus = { start: async () => {}, addClient: () => () => {}, clientCount: () => 0 };
-  app = buildServer({ service, eventBus });
+  return buildServer({ service, eventBus, requireAuth });
+}
+
+beforeAll(async () => {
+  app = makeApp();
   await app.ready();
 });
 
 afterAll(async () => {
   await app.close();
+});
+
+describe("batch routes require authentication", () => {
+  it("rejects an unauthenticated request with 401", async () => {
+    const denied = makeApp(async () => {
+      throw new UnauthorizedError();
+    });
+    await denied.ready();
+    const res = await denied.inject({ method: "GET", url: "/api/batches" });
+    expect(res.statusCode).toBe(401);
+    expect(res.json().error.code).toBe("UNAUTHORIZED");
+    await denied.close();
+  });
 });
 
 // These exercise the wired route + error handler. Validation runs before any DB

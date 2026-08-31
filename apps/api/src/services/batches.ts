@@ -79,13 +79,13 @@ export function createBatchService({
      * one job per URL. Accepts already-extracted URLs from either the JSON body
      * or a parsed CSV - both converge here so validation cannot diverge.
      */
-    async createBatch(input: { urls: unknown }): Promise<BatchSummary> {
+    async createBatch(userId: string, input: { urls: unknown }): Promise<BatchSummary> {
       const parsed = createBatchRequestSchema.safeParse(input);
       if (!parsed.success) {
         throw new ValidationError("Invalid URL input", parsed.error.issues);
       }
 
-      const { batch, urlIds } = await repo.createWithUrls(parsed.data.urls);
+      const { batch, urlIds } = await repo.createWithUrls(userId, parsed.data.urls);
       const jobs = urlIds.map((urlId) => ({ batchId: batch.id, urlId }));
       const enqueued = await enqueueAll(jobs);
       await cache?.invalidate(); // a new batch must appear immediately (INV-13)
@@ -97,8 +97,8 @@ export function createBatchService({
       return batch;
     },
 
-    async getBatch(id: string): Promise<BatchDetail> {
-      const batch = await repo.getById(id);
+    async getBatch(userId: string, id: string): Promise<BatchDetail> {
+      const batch = await repo.getById(userId, id);
       if (!batch) throw new NotFoundError(`Batch ${id} not found`);
       return batch;
     },
@@ -108,27 +108,28 @@ export function createBatchService({
      * already-terminal batch returns the current authoritative state rather than
      * erroring (api.md §14). Returns 404 only when the batch does not exist.
      */
-    async cancelBatch(id: string): Promise<BatchDetail> {
-      const result = await repo.cancel(id);
+    async cancelBatch(userId: string, id: string): Promise<BatchDetail> {
+      const result = await repo.cancel(userId, id);
       if (result === "notfound") throw new NotFoundError(`Batch ${id} not found`);
       log.info({ batchId: id, result }, "batch cancel");
       if (result === "cancelled") {
         await cache?.invalidate();
         await notify(id);
       }
-      const batch = await repo.getById(id);
+      const batch = await repo.getById(userId, id);
       if (!batch) throw new NotFoundError(`Batch ${id} not found`);
       return batch;
     },
 
     async listBatches(
+      userId: string,
       query: ListBatchesQuery,
     ): Promise<{ items: BatchSummary[]; meta: BatchListMeta }> {
-      const cached = await cache?.get(query);
+      const cached = await cache?.get(userId, query);
       if (cached) return cached;
-      const { items, total } = await repo.list(query);
+      const { items, total } = await repo.list(userId, query);
       const value = { items, meta: { page: query.page, pageSize: query.pageSize, total } };
-      await cache?.set(query, value);
+      await cache?.set(userId, query, value);
       return value;
     },
 
@@ -138,8 +139,8 @@ export function createBatchService({
      * with 409 (ADR-027) and a missing batch with 404. Idempotent under
      * concurrent calls (the DB claims each FAILED row once).
      */
-    async retryFailed(id: string): Promise<BatchDetail> {
-      const result = await repo.retryFailed(id);
+    async retryFailed(userId: string, id: string): Promise<BatchDetail> {
+      const result = await repo.retryFailed(userId, id);
       if (result === "notfound") throw new NotFoundError(`Batch ${id} not found`);
       if (result === "cancelled") throw new ConflictError(`Batch ${id} is cancelled and cannot be retried`);
 
@@ -151,7 +152,7 @@ export function createBatchService({
         await notify(id);
       }
 
-      const batch = await repo.getById(id);
+      const batch = await repo.getById(userId, id);
       if (!batch) throw new NotFoundError(`Batch ${id} not found`);
       return batch;
     },

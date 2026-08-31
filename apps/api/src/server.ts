@@ -11,6 +11,10 @@ import { createUrlCheckQueue, enqueueUrlCheck, type UrlCheckQueue } from "./lib/
 import { createEventBus, type EventBus } from "./lib/events";
 import { createBatchListCache, type CacheRedis } from "./lib/cache";
 import { ApiDomainError } from "./lib/errors";
+import { auth, authPool } from "./lib/auth";
+import { apiConfig } from "./lib/env";
+import { createRequireAuth, type RequireAuth } from "./lib/require-auth";
+import { registerAuthRoutes } from "./routes/auth";
 import { createBatchRepository } from "./repositories/batches";
 import { createBatchService, type BatchService } from "./services/batches";
 import { registerHealthRoutes } from "./routes/health";
@@ -22,6 +26,11 @@ export interface ServerOverrides {
   service?: BatchService;
   /** Inject an event bus to avoid opening a Redis subscriber (used in tests). */
   eventBus?: EventBus;
+  /**
+   * Inject the auth boundary to avoid mounting Better Auth / opening its pool
+   * (used in tests). When provided, the Better Auth handler is NOT mounted.
+   */
+  requireAuth?: RequireAuth;
 }
 
 export function buildServer(overrides: ServerOverrides = {}) {
@@ -76,8 +85,29 @@ export function buildServer(overrides: ServerOverrides = {}) {
     void eventBus.start().catch((err) => app.log.error(err, "event bus subscribe failed"));
   }
 
-  app.register(cors, { origin: true });
+  // Credentialed CORS: the web app (a separate origin) must send the session
+  // cookie, so ACAO reflects the request origin (never "*") and credentials are
+  // allowed. In production, restrict to the configured web origin.
+  app.register(cors, {
+    origin: config.NODE_ENV === "production" ? [apiConfig.WEB_ORIGIN] : true,
+    credentials: true,
+  });
   app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024, files: 1 } });
+
+  // Authentication boundary. Tests inject requireAuth and skip mounting the
+  // Better Auth HTTP handler (and its DB pool). The real path mounts /api/auth/*
+  // and resolves sessions from the shared Better Auth instance.
+  let requireAuth: RequireAuth;
+  let closeAuth: () => Promise<void> = async () => {};
+  if (overrides.requireAuth) {
+    requireAuth = overrides.requireAuth;
+  } else {
+    requireAuth = createRequireAuth(auth.api);
+    registerAuthRoutes(app, auth);
+    closeAuth = async () => {
+      await authPool.end().catch(() => undefined);
+    };
+  }
 
   app.setErrorHandler((err: FastifyError, req, reply) => {
     if (err instanceof ApiDomainError) {
@@ -106,13 +136,14 @@ export function buildServer(overrides: ServerOverrides = {}) {
   });
 
   registerHealthRoutes(app, { db, redis });
-  app.register(registerBatchRoutes, { prefix: "/api", service, eventBus });
+  app.register(registerBatchRoutes, { prefix: "/api", service, eventBus, requireAuth });
 
   app.addHook("onClose", async () => {
     if (queue) await queue.close().catch(() => undefined);
     if (subscriber) await subscriber.quit().catch(() => undefined);
     await redis.quit().catch(() => undefined);
     await db.end({ timeout: 5 }).catch(() => undefined);
+    await closeAuth();
   });
 
   return app;
