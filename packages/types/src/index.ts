@@ -59,10 +59,49 @@ export type BatchDetail = z.infer<typeof batchDetailSchema>;
 
 // --- Request shapes ---
 
+/**
+ * A single submittable URL. Whitespace is trimmed (normalization, edge-cases §2)
+ * and the scheme is constrained to http/https (api.md validation; ftp/other are
+ * rejected). JSON and CSV inputs both validate through this schema so the two
+ * paths cannot diverge.
+ */
+export const httpUrlSchema = z
+  .string()
+  .trim()
+  .url()
+  .refine((u) => /^https?:\/\//i.test(u), {
+    message: "URL must use http or https",
+  });
+
 export const createBatchRequestSchema = z.object({
-  urls: z.array(z.string().url()).min(1),
+  urls: z.array(httpUrlSchema).min(1, "at least one URL is required"),
 });
 export type CreateBatchRequest = z.infer<typeof createBatchRequestSchema>;
+
+// --- List query + pagination (api.md §8) ---
+
+export const listBatchesQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+export type ListBatchesQuery = z.infer<typeof listBatchesQuerySchema>;
+
+export interface BatchListMeta {
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+// --- Canonical error codes (api.md §5/§17) ---
+
+export const ERROR_CODES = [
+  "VALIDATION_ERROR",
+  "NOT_FOUND",
+  "CONFLICT",
+  "NOT_IMPLEMENTED",
+  "INTERNAL_ERROR",
+] as const;
+export type ErrorCode = (typeof ERROR_CODES)[number];
 
 // --- API response envelopes (see api.md sections 4-5) ---
 
