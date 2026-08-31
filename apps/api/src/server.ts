@@ -14,6 +14,7 @@ import { ApiDomainError } from "./lib/errors";
 import { auth, authPool } from "./lib/auth";
 import { apiConfig } from "./lib/env";
 import { createRequireAuth, type RequireAuth } from "./lib/require-auth";
+import { createCsrfGuard } from "./lib/csrf";
 import { registerAuthRoutes } from "./routes/auth";
 import { createBatchRepository } from "./repositories/batches";
 import { createBatchService, type BatchService } from "./services/batches";
@@ -135,8 +136,11 @@ export function buildServer(overrides: ServerOverrides = {}) {
     reply.status(404).send(body);
   });
 
+  // CSRF: only the configured web origin may make state-changing batch requests.
+  const csrfGuard = createCsrfGuard([apiConfig.WEB_ORIGIN]);
+
   registerHealthRoutes(app, { db, redis });
-  app.register(registerBatchRoutes, { prefix: "/api", service, eventBus, requireAuth });
+  app.register(registerBatchRoutes, { prefix: "/api", service, eventBus, requireAuth, csrfGuard });
 
   app.addHook("onClose", async () => {
     if (queue) await queue.close().catch(() => undefined);

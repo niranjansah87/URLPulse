@@ -10,6 +10,7 @@ import type { BatchService } from "../services/batches";
 import type { EventBus } from "../lib/events";
 import type { RequireAuth } from "../lib/require-auth";
 import { requireUser } from "../lib/require-auth";
+import type { CsrfGuard } from "../lib/csrf";
 import { NotFoundError, ValidationError } from "../lib/errors";
 import { parseCsvUrls } from "../lib/csv";
 
@@ -17,6 +18,7 @@ interface BatchRoutesOptions {
   service: BatchService;
   eventBus: EventBus;
   requireAuth: RequireAuth;
+  csrfGuard: CsrfGuard;
 }
 
 const SSE_HEARTBEAT_MS = 15_000;
@@ -33,10 +35,11 @@ export async function registerBatchRoutes(
   app: FastifyInstance,
   opts: BatchRoutesOptions,
 ): Promise<void> {
-  const { service, eventBus, requireAuth } = opts;
+  const { service, eventBus, requireAuth, csrfGuard } = opts;
 
-  // Authenticate every batch route. Runs before each handler; on failure it
-  // throws 401 (via the error handler) before any batch logic executes.
+  // Reject cross-site state-changing requests before anything else (CSRF), then
+  // authenticate. On failure each throws (403 / 401) before any batch logic runs.
+  app.addHook("preHandler", csrfGuard);
   app.addHook("preHandler", requireAuth);
 
   // POST /batches — JSON { urls: [...] } or a CSV multipart upload.
@@ -102,11 +105,15 @@ export async function registerBatchRoutes(
 
     reply.hijack();
     const raw = reply.raw;
+    // reply.hijack() bypasses @fastify/cors, so the credentialed EventSource
+    // needs these headers written explicitly or the browser blocks the stream.
+    const origin = req.headers.origin;
     raw.writeHead(200, {
       "content-type": "text/event-stream",
       "cache-control": "no-cache, no-transform",
       connection: "keep-alive",
       "x-accel-buffering": "no",
+      ...(origin ? { "access-control-allow-origin": origin, "access-control-allow-credentials": "true", vary: "Origin" } : {}),
     });
     raw.write(": connected\n\n");
 

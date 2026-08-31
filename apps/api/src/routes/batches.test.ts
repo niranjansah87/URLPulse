@@ -72,12 +72,21 @@ describe("batch routes require authentication", () => {
   });
 });
 
+// The configured web origin (env.ts default). State-changing requests must
+// carry it, mirroring a real browser; the CSRF guard rejects everything else.
+const ORIGIN = "http://localhost:3000";
+
 // These exercise the wired route + error handler. Validation runs before any DB
 // or queue access, so they need no infrastructure.
 
 describe("POST /api/batches validation", () => {
   it("rejects a body with no urls field", async () => {
-    const res = await app.inject({ method: "POST", url: "/api/batches", payload: {} });
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/batches",
+      headers: { origin: ORIGIN },
+      payload: {},
+    });
     expect(res.statusCode).toBe(400);
     expect(res.json().error.code).toBe("VALIDATION_ERROR");
   });
@@ -86,9 +95,33 @@ describe("POST /api/batches validation", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/batches",
+      headers: { origin: ORIGIN },
       payload: { urls: ["not-a-url"] },
     });
     expect(res.statusCode).toBe(400);
+  });
+});
+
+describe("CSRF protection on state-changing routes", () => {
+  it("rejects a POST from a cross-site origin with 403", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/batches",
+      headers: { origin: "https://evil.example" },
+      payload: { urls: ["https://a.com"] },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error.code).toBe("FORBIDDEN");
+  });
+
+  it("rejects a POST with no Origin header with 403", async () => {
+    const res = await app.inject({ method: "POST", url: "/api/batches", payload: { urls: ["https://a.com"] } });
+    expect(res.statusCode).toBe(403);
+  });
+
+  it("allows a safe GET with no Origin header", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/batches/not-a-uuid" });
+    expect(res.statusCode).toBe(404); // reaches the handler, not blocked by CSRF
   });
 });
 
@@ -102,7 +135,11 @@ describe("GET /api/batches/:batchId", () => {
 
 describe("POST /api/batches/:batchId/cancel", () => {
   it("returns 404 for a non-UUID batch id", async () => {
-    const res = await app.inject({ method: "POST", url: "/api/batches/not-a-uuid/cancel" });
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/batches/not-a-uuid/cancel",
+      headers: { origin: ORIGIN },
+    });
     expect(res.statusCode).toBe(404);
     expect(res.json().error.code).toBe("NOT_FOUND");
   });
