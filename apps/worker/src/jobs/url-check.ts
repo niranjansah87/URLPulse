@@ -24,6 +24,8 @@ export interface ProcessorDeps {
   concurrency: ConcurrencyPort;
   /** Global outbound rate limiter (INV-4). Acquired before every request. */
   rateLimiter: RateLimiterPort;
+  /** Publish a batch.updated notification after a committed state change. */
+  publish: (batchId: string) => Promise<void>;
   /** Max attempts per round (initial + retries), = MAX_RETRIES + 1 (INV-5). */
   maxAttempts: number;
   log: ProcessorLogger;
@@ -51,7 +53,7 @@ export class RetryableCheckError extends Error {
  * claimed or terminal and returns without doing work or double-counting.
  */
 export function createUrlCheckProcessor(deps: ProcessorDeps) {
-  const { repo, checkUrl, checkOptions, concurrency, rateLimiter, maxAttempts, log } = deps;
+  const { repo, checkUrl, checkOptions, concurrency, rateLimiter, publish, maxAttempts, log } = deps;
 
   return async function urlCheckProcessor(job: Job<UrlCheckJobData>): Promise<void> {
     const { batchId, urlId } = urlCheckJobDataSchema.parse(job.data);
@@ -99,6 +101,13 @@ export function createUrlCheckProcessor(deps: ProcessorDeps) {
           { jobId: job.id, batchId, urlId, status: result.status, httpStatus: result.httpStatus, outcome },
           "url check complete",
         );
+        // Publish AFTER the DB commit (live-updates.md §7). Best-effort: a failed
+        // notification never fails the job — clients reconcile from PostgreSQL.
+        if (outcome === "applied") {
+          await publish(batchId).catch((err) =>
+            log.warn({ batchId, urlId, err: (err as Error).message }, "batch.updated publish failed"),
+          );
+        }
       } finally {
         await slot.release().catch(() => undefined);
       }

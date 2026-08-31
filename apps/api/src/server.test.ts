@@ -24,7 +24,8 @@ beforeAll(async () => {
     enqueue: async () => {},
     log: { info: () => {}, warn: () => {} },
   });
-  app = buildServer({ service });
+  const eventBus = { start: async () => {}, addClient: () => () => {}, clientCount: () => 0 };
+  app = buildServer({ service, eventBus });
   await app.ready();
 });
 

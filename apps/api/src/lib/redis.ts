@@ -17,3 +17,16 @@ export function createRedis(): Redis {
   });
   return redis;
 }
+
+/**
+ * Dedicated Redis connection for Pub/Sub subscription. A subscriber connection
+ * cannot also issue ordinary commands, so it is kept separate from the
+ * command/BullMQ connection (coding-conventions §8).
+ */
+export function createSubscriberRedis(): Redis {
+  const redis = new Redis(config.REDIS_URL);
+  redis.on("error", (err) => {
+    console.error("[redis:sub] connection error:", err.message);
+  });
+  return redis;
+}

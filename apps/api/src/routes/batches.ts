@@ -1,17 +1,22 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import {
   listBatchesQuerySchema,
+  SSE_EVENT_BATCH_UPDATED,
   type ApiSuccess,
   type BatchDetail,
   type BatchSummary,
 } from "@urlpulse/types";
 import type { BatchService } from "../services/batches";
-import { NotFoundError, NotImplementedError, ValidationError } from "../lib/errors";
+import type { EventBus } from "../lib/events";
+import { NotFoundError, ValidationError } from "../lib/errors";
 import { parseCsvUrls } from "../lib/csv";
 
 interface BatchRoutesOptions {
   service: BatchService;
+  eventBus: EventBus;
 }
+
+const SSE_HEARTBEAT_MS = 15_000;
 
 /**
  * Batch HTTP surface. Endpoint names and the :batchId param follow
@@ -23,7 +28,7 @@ export async function registerBatchRoutes(
   app: FastifyInstance,
   opts: BatchRoutesOptions,
 ): Promise<void> {
-  const { service } = opts;
+  const { service, eventBus } = opts;
 
   // POST /batches — JSON { urls: [...] } or a CSV multipart upload.
   app.post("/batches", async (req, reply) => {
@@ -71,9 +76,39 @@ export async function registerBatchRoutes(
     return body;
   });
 
-  // --- Later milestones ---
-  app.get("/batches/:batchId/events", async () => {
-    throw new NotImplementedError("Live updates (SSE)");
+  // GET /batches/:batchId/events — SSE stream of batch.updated notifications.
+  // Notifications only; the client refetches authoritative state (ADR-005).
+  app.get<{ Params: { batchId: string } }>("/batches/:batchId/events", (req, reply) => {
+    const { batchId } = req.params;
+    if (!isUuid(batchId)) throw new NotFoundError(`Batch ${batchId} not found`);
+
+    reply.hijack();
+    const raw = reply.raw;
+    raw.writeHead(200, {
+      "content-type": "text/event-stream",
+      "cache-control": "no-cache, no-transform",
+      connection: "keep-alive",
+      "x-accel-buffering": "no",
+    });
+    raw.write(": connected\n\n");
+
+    const remove = eventBus.addClient(batchId, (payload) => {
+      raw.write(`event: ${SSE_EVENT_BATCH_UPDATED}\ndata: ${JSON.stringify(payload)}\n\n`);
+    });
+    const heartbeat = setInterval(() => {
+      try {
+        raw.write(": hb\n\n");
+      } catch {
+        // stream gone; close handler will clean up
+      }
+    }, SSE_HEARTBEAT_MS);
+
+    const cleanup = () => {
+      clearInterval(heartbeat);
+      remove(); // deregister so we never leak client references
+    };
+    req.raw.on("close", cleanup);
+    req.raw.on("error", cleanup);
   });
 }
 

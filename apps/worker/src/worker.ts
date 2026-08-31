@@ -1,6 +1,11 @@
 import { fileURLToPath } from "node:url";
 import { Worker } from "bullmq";
-import { URL_CHECK_QUEUE, type UrlCheckJobData } from "@urlpulse/types";
+import {
+  BATCH_EVENTS_CHANNEL,
+  buildBatchUpdatedMessage,
+  URL_CHECK_QUEUE,
+  type UrlCheckJobData,
+} from "@urlpulse/types";
 import { config } from "./lib/env";
 import { createRedis, createCommandRedis } from "./lib/redis";
 import { createDb } from "./lib/db";
@@ -50,6 +55,8 @@ export function startWorker(): Worker<UrlCheckJobData> {
     },
     concurrency,
     rateLimiter,
+    publish: (batchId) =>
+      commandRedis.publish(BATCH_EVENTS_CHANNEL, buildBatchUpdatedMessage(batchId)).then(() => undefined),
     maxAttempts: config.MAX_RETRIES + 1,
     log,
   });

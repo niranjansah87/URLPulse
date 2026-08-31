@@ -3,20 +3,24 @@ import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyError } from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
-import type { ApiError } from "@urlpulse/types";
+import { BATCH_EVENTS_CHANNEL, buildBatchUpdatedMessage, type ApiError } from "@urlpulse/types";
 import { config } from "./lib/env";
 import { createDb } from "./lib/db";
-import { createRedis } from "./lib/redis";
+import { createRedis, createSubscriberRedis } from "./lib/redis";
 import { createUrlCheckQueue, enqueueUrlCheck, type UrlCheckQueue } from "./lib/queue";
+import { createEventBus, type EventBus } from "./lib/events";
 import { ApiDomainError } from "./lib/errors";
 import { createBatchRepository } from "./repositories/batches";
 import { createBatchService, type BatchService } from "./services/batches";
 import { registerHealthRoutes } from "./routes/health";
 import { registerBatchRoutes } from "./routes/batches";
+import type { Redis } from "ioredis";
 
 export interface ServerOverrides {
   /** Inject a pre-built service to avoid creating a real queue (used in tests). */
   service?: BatchService;
+  /** Inject an event bus to avoid opening a Redis subscriber (used in tests). */
+  eventBus?: EventBus;
 }
 
 export function buildServer(overrides: ServerOverrides = {}) {
@@ -44,8 +48,21 @@ export function buildServer(overrides: ServerOverrides = {}) {
     service = createBatchService({
       repo: createBatchRepository(db),
       enqueue: (data) => enqueueUrlCheck(q, data),
+      publish: (batchId) => redis.publish(BATCH_EVENTS_CHANNEL, buildBatchUpdatedMessage(batchId)).then(() => undefined),
       log: app.log,
     });
+  }
+
+  // The event bus fans out cross-instance batch.updated notifications to local
+  // SSE clients. An injected bus (tests) skips opening a Redis subscriber.
+  let subscriber: Redis | undefined;
+  let eventBus: EventBus;
+  if (overrides.eventBus) {
+    eventBus = overrides.eventBus;
+  } else {
+    subscriber = createSubscriberRedis();
+    eventBus = createEventBus(subscriber);
+    void eventBus.start().catch((err) => app.log.error(err, "event bus subscribe failed"));
   }
 
   app.register(cors, { origin: true });
@@ -78,10 +95,11 @@ export function buildServer(overrides: ServerOverrides = {}) {
   });
 
   registerHealthRoutes(app, { db, redis });
-  app.register(registerBatchRoutes, { prefix: "/api", service });
+  app.register(registerBatchRoutes, { prefix: "/api", service, eventBus });
 
   app.addHook("onClose", async () => {
     if (queue) await queue.close().catch(() => undefined);
+    if (subscriber) await subscriber.quit().catch(() => undefined);
     await redis.quit().catch(() => undefined);
     await db.end({ timeout: 5 }).catch(() => undefined);
   });

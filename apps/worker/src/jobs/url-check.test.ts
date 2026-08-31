@@ -65,6 +65,7 @@ function proc(
     checkOptions: OPTS,
     concurrency,
     rateLimiter,
+    publish: async () => {},
     maxAttempts: MAX_ATTEMPTS,
     log: noopLog,
   });

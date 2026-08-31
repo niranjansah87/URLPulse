@@ -18,9 +18,13 @@ export interface ServiceLogger {
 /** Enqueue one URL-check job. Injected so the service is testable without Redis. */
 export type EnqueuePort = (data: UrlCheckJobData) => Promise<void>;
 
+/** Publish a batch.updated notification (best-effort; never fails a mutation). */
+export type PublishPort = (batchId: string) => Promise<void>;
+
 export interface BatchServiceDeps {
   repo: BatchRepository;
   enqueue: EnqueuePort;
+  publish?: PublishPort;
   log: ServiceLogger;
 }
 
@@ -30,7 +34,16 @@ export interface BatchServiceDeps {
  * PostgreSQL is committed first and is the source of truth; a failed enqueue is
  * logged and left for the reconciliation sweep, never hidden by deleting rows.
  */
-export function createBatchService({ repo, enqueue, log }: BatchServiceDeps) {
+export function createBatchService({ repo, enqueue, publish, log }: BatchServiceDeps) {
+  async function notify(batchId: string): Promise<void> {
+    if (!publish) return;
+    // A failed notification must not roll back or fail a committed mutation
+    // (ADR-005): the DB is authoritative and clients reconcile on reconnect.
+    await publish(batchId).catch((err) =>
+      log.warn({ batchId, err: (err as Error).message }, "batch.updated publish failed"),
+    );
+  }
+
   async function enqueueAll(jobs: UrlCheckJobData[]): Promise<number> {
     let enqueued = 0;
     for (const job of jobs) {
@@ -87,6 +100,7 @@ export function createBatchService({ repo, enqueue, log }: BatchServiceDeps) {
       const result = await repo.cancel(id);
       if (result === "notfound") throw new NotFoundError(`Batch ${id} not found`);
       log.info({ batchId: id, result }, "batch cancel");
+      if (result === "cancelled") await notify(id);
       const batch = await repo.getById(id);
       if (!batch) throw new NotFoundError(`Batch ${id} not found`);
       return batch;
@@ -113,6 +127,7 @@ export function createBatchService({ repo, enqueue, log }: BatchServiceDeps) {
       const jobs = result.claimed.map((urlId) => ({ batchId: id, urlId }));
       const enqueued = await enqueueAll(jobs);
       log.info({ batchId: id, retried: result.claimed.length, enqueued }, "retry-failed");
+      if (result.claimed.length > 0) await notify(id);
 
       const batch = await repo.getById(id);
       if (!batch) throw new NotFoundError(`Batch ${id} not found`);

@@ -128,6 +128,19 @@ export type SseBatchUpdated = z.infer<typeof sseBatchUpdatedSchema>;
 
 export const SSE_EVENT_BATCH_UPDATED = "batch.updated" as const;
 
+/** Redis Pub/Sub channel carrying batch.updated notifications across instances. */
+export const BATCH_EVENTS_CHANNEL = "events:batch-updated" as const;
+
+/**
+ * Serialize a batch.updated notification. `version` is a monotonic-ish publish
+ * timestamp used only to drop obviously out-of-order events on the client;
+ * correctness comes from refetching authoritative state (ADR-005).
+ */
+export function buildBatchUpdatedMessage(batchId: string): string {
+  const payload: SseBatchUpdated = { batchId, version: Date.now() };
+  return JSON.stringify(payload);
+}
+
 // --- Queue contract shared by API (producer) and worker (consumer) ---
 
 export const URL_CHECK_QUEUE = "url-check" as const;

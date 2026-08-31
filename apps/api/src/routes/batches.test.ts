@@ -27,7 +27,8 @@ beforeAll(async () => {
     enqueue: async () => {},
     log: { info: () => {}, warn: () => {} },
   });
-  app = buildServer({ service });
+  const eventBus = { start: async () => {}, addClient: () => () => {}, clientCount: () => 0 };
+  app = buildServer({ service, eventBus });
   await app.ready();
 });
 
@@ -71,10 +72,10 @@ describe("POST /api/batches/:batchId/cancel", () => {
   });
 });
 
-describe("unimplemented endpoints", () => {
-  it("returns 501 for the SSE events endpoint", async () => {
-    const res = await app.inject({ method: "GET", url: "/api/batches/x/events" });
-    expect(res.statusCode).toBe(501);
-    expect(res.json().error.code).toBe("NOT_IMPLEMENTED");
+describe("GET /api/batches/:batchId/events", () => {
+  it("returns 404 for a non-UUID batch id", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/batches/not-a-uuid/events" });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error.code).toBe("NOT_FOUND");
   });
 });
