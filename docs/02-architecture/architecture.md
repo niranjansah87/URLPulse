@@ -1,4 +1,4 @@
-# URLPulse — Architecture
+# URLPulse - Architecture
 
 This document explains why each infrastructure component exists, where state lives, how idempotency is guaranteed, how the API, worker, and UI are separated, and how live updates stay resilient.
 
@@ -51,7 +51,7 @@ The recommended architecture is:
 Here is the document.
 
 ````md
-# URLPulse — System Architecture
+# URLPulse - System Architecture
 
 **Version:** 1.0  
 **Status:** Draft  

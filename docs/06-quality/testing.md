@@ -1,4 +1,4 @@
-# URLPulse — Testing Strategy
+# URLPulse - Testing Strategy
 
 **Version:** 1.0  
 **Status:** Draft
@@ -531,7 +531,7 @@ Test important user interactions:
 
 At minimum:
 
-### Scenario A — Happy path
+### Scenario A - Happy path
 
 ```text
 Submit URLs
@@ -541,7 +541,7 @@ Submit URLs
 → final results
 ```
 
-### Scenario B — Partial failures
+### Scenario B - Partial failures
 
 ```text
 Submit
@@ -551,7 +551,7 @@ Submit
 → final completion
 ```
 
-### Scenario C — Cancellation
+### Scenario C - Cancellation
 
 ```text
 Submit
@@ -561,7 +561,7 @@ Submit
 → cancelled state remains
 ```
 
-### Scenario D — Refresh
+### Scenario D - Refresh
 
 ```text
 Submit

@@ -1,4 +1,4 @@
-# URLPulse — Architecture Decision Records
+# URLPulse - Architecture Decision Records
 
 **Version:** 1.0  
 **Status:** Draft
@@ -9,7 +9,7 @@ The purpose is not to document every coding choice. It records decisions that af
 
 ---
 
-# ADR-001 — PostgreSQL Is the Source of Truth
+# ADR-001 - PostgreSQL Is the Source of Truth
 
 ## Decision
 
@@ -37,7 +37,7 @@ Negative:
 
 ---
 
-# ADR-002 — BullMQ for Background Jobs
+# ADR-002 - BullMQ for Background Jobs
 
 ## Decision
 
@@ -63,7 +63,7 @@ Negative:
 
 ---
 
-# ADR-003 — Redis for Distributed Coordination
+# ADR-003 - Redis for Distributed Coordination
 
 ## Decision
 
@@ -94,7 +94,7 @@ Negative:
 
 ---
 
-# ADR-004 — SSE for Live Updates
+# ADR-004 - SSE for Live Updates
 
 ## Decision
 
@@ -123,7 +123,7 @@ Negative:
 
 ---
 
-# ADR-005 — SSE Events Are Notifications, Not State
+# ADR-005 - SSE Events Are Notifications, Not State
 
 ## Decision
 
@@ -143,7 +143,7 @@ The database remains authoritative.
 
 ---
 
-# ADR-006 — Redis-Backed Global Rate Limiter
+# ADR-006 - Redis-Backed Global Rate Limiter
 
 ## Decision
 
@@ -163,7 +163,7 @@ Every outbound request must acquire a shared permit.
 
 ---
 
-# ADR-007 — Distributed Global Concurrency Limit
+# ADR-007 - Distributed Global Concurrency Limit
 
 ## Decision
 
@@ -183,7 +183,7 @@ which violates the requirement.
 
 ---
 
-# ADR-008 — At-Least-Once Processing + Idempotent State Transitions
+# ADR-008 - At-Least-Once Processing + Idempotent State Transitions
 
 ## Decision
 
@@ -207,7 +207,7 @@ The database can, however, guarantee that logical completion is not double-count
 
 ---
 
-# ADR-009 — Conditional Database State Transitions
+# ADR-009 - Conditional Database State Transitions
 
 ## Decision
 
@@ -228,7 +228,7 @@ This prevents duplicate jobs and stale workers from applying the same logical tr
 
 ---
 
-# ADR-010 — Queue Cleanup Is an Optimization
+# ADR-010 - Queue Cleanup Is an Optimization
 
 ## Decision
 
@@ -244,7 +244,7 @@ Database state provides the reliable correctness boundary.
 
 ---
 
-# ADR-011 — Cancellation Is Terminal
+# ADR-011 - Cancellation Is Terminal
 
 ## Decision
 
@@ -256,7 +256,7 @@ Cancellation must remain correct against both queued and in-flight jobs. 
 
 ---
 
-# ADR-012 — Batch List Uses a 30-Second Shared Cache
+# ADR-012 - Batch List Uses a 30-Second Shared Cache
 
 ## Decision
 
@@ -270,7 +270,7 @@ URLPulse requires a 30-second cache while also requiring that creation and state
 
 ---
 
-# ADR-013 — Shared Types Between Client and Server
+# ADR-013 - Shared Types Between Client and Server
 
 ## Decision
 
@@ -289,7 +289,7 @@ Next.js client
 
 ---
 
-# ADR-014 — Next.js Server Components by Default
+# ADR-014 - Next.js Server Components by Default
 
 ## Decision
 
@@ -301,7 +301,7 @@ URLPulse makes deliberate use of Next.js routing, server/client boundaries, and 
 
 ---
 
-# ADR-015 — Separate API and Worker Processes
+# ADR-015 - Separate API and Worker Processes
 
 ## Decision
 
@@ -317,7 +317,7 @@ This also allows worker capacity to scale independently from HTTP traffic.
 
 ---
 
-# ADR-016 — No Authentication
+# ADR-016 - No Authentication
 
 ## Decision
 
@@ -329,7 +329,7 @@ Authentication is out of scope for the current product. 
 
 ---
 
-# ADR-017 — Function Over Visual Complexity
+# ADR-017 - Function Over Visual Complexity
 
 ## Decision
 
@@ -341,7 +341,7 @@ Visual design is not a priority, and charts and polished UI are out of scope for
 
 ---
 
-# ADR-018 — Assumptions Must Be Explicit
+# ADR-018 - Assumptions Must Be Explicit
 
 ## Decision
 
@@ -353,7 +353,7 @@ URLPulse records explicit assumptions rather than silently introducing behavior 
 
 ---
 
-# ADR-019 — Queue/Database Atomicity Trade-Off
+# ADR-019 - Queue/Database Atomicity Trade-Off
 
 ## Decision
 
@@ -387,7 +387,7 @@ At the current stage, the simplest defensible recovery strategy is preferable.
 
 ---
 
-# ADR-020 — Correctness Over Availability for Distributed Limits
+# ADR-020 - Correctness Over Availability for Distributed Limits
 
 ## Decision
 
@@ -399,7 +399,7 @@ Violating a hard system requirement is worse than temporarily pausing processing
 
 ---
 
-# ADR-021 — Global Concurrency Is Never Per-Worker (Consistency Pass)
+# ADR-021 - Global Concurrency Is Never Per-Worker (Consistency Pass)
 
 ## Decision
 
@@ -414,7 +414,7 @@ wording; those are corrected. See ADR-007.
 
 ---
 
-# ADR-022 — Concurrency Slots Are Leased With a TTL
+# ADR-022 - Concurrency Slots Are Leased With a TTL
 
 ## Decision
 
@@ -436,7 +436,7 @@ The `finally` release is the fast path; the TTL is the correctness guarantee.
 
 ---
 
-# ADR-023 — Retryable Failures Reset the URL to PENDING for Re-Claim
+# ADR-023 - Retryable Failures Reset the URL to PENDING for Re-Claim
 
 ## Decision
 
@@ -451,11 +451,11 @@ Earlier docs both (a) claimed URLs with `WHERE status='PENDING'` incrementing `a
 and (b) said a URL "stays PROCESSING during backoff." Those are mutually exclusive: a re-delivery
 would find `PROCESSING` and either wrongly skip or never increment attempts. Resetting to
 `PENDING` makes the claim, the attempt count, and duplicate-delivery idempotency all consistent
-under one rule. Duplicate deliveries still race on the single conditional claim — only one wins.
+under one rule. Duplicate deliveries still race on the single conditional claim - only one wins.
 
 ---
 
-# ADR-024 — retry-failed Resets attempt_count; the 4-Attempt Cap Is Per Round
+# ADR-024 - retry-failed Resets attempt_count; the 4-Attempt Cap Is Per Round
 
 ## Decision
 
@@ -471,7 +471,7 @@ is the behavior tests already assume (a retried URL runs up to 4 attempts again)
 
 ---
 
-# ADR-025 — Batch Terminal Transition: Owner and Precedence
+# ADR-025 - Batch Terminal Transition: Owner and Precedence
 
 ## Decision
 
@@ -493,7 +493,7 @@ the counter update keeps it atomic and idempotent.
 
 ---
 
-# ADR-026 — Cancellation Applies to PENDING and PROCESSING Batches
+# ADR-026 - Cancellation Applies to PENDING and PROCESSING Batches
 
 ## Decision
 
@@ -510,7 +510,7 @@ already asserts `PENDING → CANCELLED`. Bulk-cancelling in-flight URLs makes th
 
 ---
 
-# ADR-027 — retry-failed Is Rejected on a CANCELLED Batch
+# ADR-027 - retry-failed Is Rejected on a CANCELLED Batch
 
 ## Decision
 
@@ -525,7 +525,7 @@ nothing for `retry-failed` to legitimately select.
 
 ---
 
-# ADR-028 — Queue/DB Recovery: Reliable Enqueue + Reconciliation Sweep
+# ADR-028 - Queue/DB Recovery: Reliable Enqueue + Reconciliation Sweep
 
 ## Decision
 
@@ -542,7 +542,7 @@ configuration and must be documented with the worker.
 
 ---
 
-# ADR-029 — Web Serves a Copy of Brand Assets
+# ADR-029 - Web Serves a Copy of Brand Assets
 
 ## Decision
 
@@ -564,17 +564,17 @@ If a brand asset changes, update the root `public/` copy and re-sync `apps/web/p
 
 ---
 
-# ADR-030 — Scaffold Tooling: pnpm Workspace, postgres.js, zod, SQL Migrations
+# ADR-030 - Scaffold Tooling: pnpm Workspace, postgres.js, zod, SQL Migrations
 
 ## Decision
 
-- **pnpm workspace** (no Turborepo/Nx) — the repository is small; a task runner is
+- **pnpm workspace** (no Turborepo/Nx) - the repository is small; a task runner is
   unnecessary. Root scripts use pnpm filtering.
-- **postgres.js** as the PostgreSQL client — lightweight and strongly typed; satisfies
+- **postgres.js** as the PostgreSQL client - lightweight and strongly typed; satisfies
   "no ORM chosen for popularity" (database.md, no ORM was mandated).
 - **zod** for runtime validation and as the single source of shared types in
   `@urlpulse/types` (satisfies ADR-013 and api.md §18).
-- **Plain SQL migrations** applied by a minimal runner — reproducible from empty,
+- **Plain SQL migrations** applied by a minimal runner - reproducible from empty,
   no migration framework dependency (database.md §18).
 
 ## Reason

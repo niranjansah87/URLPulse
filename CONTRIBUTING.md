@@ -55,7 +55,7 @@ New non-trivial logic ships with a test. Prioritize the system guarantees most l
 
 ## Documentation Expectations
 
-Documentation lives in [`docs/`](./docs/README.md). Describe behavior, invariants, and trade-offs — not line-by-line code. Never leave docs describing behavior the code no longer has.
+Documentation lives in [`docs/`](./docs/README.md). Describe behavior, invariants, and trade-offs - not line-by-line code. Never leave docs describing behavior the code no longer has.
 
 ## Architecture Changes
 

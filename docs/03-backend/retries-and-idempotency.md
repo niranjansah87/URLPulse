@@ -1,4 +1,4 @@
-# URLPulse — Retries & Idempotency
+# URLPulse - Retries & Idempotency
 
 **Version:** 1.0  
 **Status:** Draft

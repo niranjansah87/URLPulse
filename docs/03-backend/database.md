@@ -1,4 +1,4 @@
-# URLPulse — Database Design
+# URLPulse - Database Design
 
 **Version:** 1.0  
 **Status:** Draft  
@@ -405,7 +405,7 @@ This allows the application to recover after:
 
 There are two possible approaches:
 
-### Option A — Derived counters
+### Option A - Derived counters
 
 Calculate counts from URL rows.
 
@@ -418,7 +418,7 @@ Disadvantages:
 
 - Potentially more database work
 
-### Option B — Persisted counters
+### Option B - Persisted counters
 
 Store counters on `batches`.
 

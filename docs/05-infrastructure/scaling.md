@@ -1,4 +1,4 @@
-# URLPulse — Scaling & Horizontal Deployment
+# URLPulse - Scaling & Horizontal Deployment
 
 **Version:** 1.0  
 **Status:** Draft
