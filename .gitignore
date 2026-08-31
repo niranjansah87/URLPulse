@@ -14,6 +14,9 @@ build/
 out/
 *.tsbuildinfo
 
+# Generated: mirrored from repo-root public/ by apps/web/scripts/sync-public.mjs
+apps/web/public/
+
 # Environment / secrets
 .env
 .env.local
