@@ -36,12 +36,15 @@ function setCookie(res: { headers: Record<string, unknown> }): string {
   return list.map((c) => String(c).split(";")[0]).join("; ");
 }
 
-// Signup/reset now trigger welcome + password-changed emails. Stub those methods
-// so the suite never sends real email even when RESEND_API_KEY is set; the reset
-// test still spies sendPasswordReset per-test to capture the token.
+// Signup/reset now trigger welcome + verification + password-changed emails. Stub
+// those methods so the suite never sends real email even when RESEND_API_KEY is
+// set; the reset test still spies sendPasswordReset per-test to capture the token.
+// verifySpy is kept so the grace-period test can read the verification link.
+const armVerifySpy = () => vi.spyOn(emailService, "sendVerification").mockResolvedValue();
+let verifySpy: ReturnType<typeof armVerifySpy>;
 beforeAll(() => {
   vi.spyOn(emailService, "sendWelcome").mockResolvedValue();
-  vi.spyOn(emailService, "sendVerification").mockResolvedValue();
+  verifySpy = armVerifySpy();
   vi.spyOn(emailService, "sendPasswordResetSuccess").mockResolvedValue();
 });
 
@@ -243,5 +246,66 @@ describe.skipIf(!ready)("password reset flow (integration)", () => {
       payload: { newPassword, token: "not-a-real-token" },
     });
     expect(res.statusCode).toBeGreaterThanOrEqual(400);
+  });
+});
+
+describe.skipIf(!ready)("email verification grace period (integration)", () => {
+  let app: ReturnType<typeof buildServer>;
+  const email = `verify_${Date.now()}@example.com`;
+  const password = "grace-period-pass-123";
+
+  beforeAll(async () => {
+    // Re-arm the email stubs (a prior describe's restoreAllMocks may have cleared
+    // them) so no real email is sent and the verification link can be captured.
+    vi.spyOn(emailService, "sendWelcome").mockResolvedValue();
+    vi.spyOn(emailService, "sendPasswordResetSuccess").mockResolvedValue();
+    verifySpy = armVerifySpy();
+    const repo = {
+      list: async () => ({ items: [], total: 0 }),
+      getById: async () => null,
+      cancel: async () => "notfound" as const,
+      retryFailed: async () => "notfound" as const,
+      findReconcilableJobs: async () => [],
+      recoverStuck: async () => 0,
+    } as unknown as BatchRepository;
+    const service = createBatchService({ repo, enqueue: async () => {}, log: { info: () => {}, warn: () => {} } });
+    const eventBus = { start: async () => {}, addClient: () => () => {}, clientCount: () => 0 };
+    app = buildServer({ service, eventBus });
+    await app.ready();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  const signIn = () => app.inject({ method: "POST", url: "/api/auth/sign-in/email", payload: { email, password } });
+
+  it("sends a verification email on sign-up", async () => {
+    const before = verifySpy.mock.calls.length;
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/auth/sign-up/email",
+      payload: { email, password, name: "Grace" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(verifySpy.mock.calls.length).toBeGreaterThan(before); // verification email sent on sign-up
+  });
+
+  it("allows at most 3 unverified sign-ins, then blocks with 403", async () => {
+    const codes: number[] = [];
+    for (let i = 0; i < 5; i++) codes.push((await signIn()).statusCode);
+    const ok = codes.filter((c) => c === 200).length;
+    const blocked = codes.filter((c) => c === 403).length;
+    expect(ok).toBeLessThanOrEqual(3); // never more than the grace allowance
+    expect(blocked).toBeGreaterThan(0); // eventually blocked until verified
+  });
+
+  it("unblocks sign-in after the email is verified", async () => {
+    const lastCall = verifySpy.mock.calls.at(-1)?.[0] as { verifyUrl: string } | undefined;
+    const token = new URL(lastCall!.verifyUrl).searchParams.get("token")!;
+    const verify = await app.inject({ method: "GET", url: `/api/auth/verify-email?token=${token}` });
+    expect(verify.statusCode).toBeLessThan(400); // verification succeeds (redirect or 200)
+    const after = await signIn();
+    expect(after.statusCode).toBe(200); // verified users are never blocked
   });
 });

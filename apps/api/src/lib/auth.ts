@@ -1,5 +1,6 @@
 import { Pool } from "pg";
 import { betterAuth } from "better-auth";
+import { APIError } from "better-auth/api";
 import { config } from "./env";
 import { apiConfig } from "./env";
 import { emailService } from "./email";
@@ -8,6 +9,11 @@ import { emailService } from "./email";
 const RESET_TOKEN_TTL_SECONDS = 60 * 60; // 1 hour
 /** Email-verification token lifetime (matches the "24 hours" reference copy). */
 const VERIFICATION_TOKEN_TTL_SECONDS = 60 * 60 * 24; // 24 hours
+/**
+ * Grace period: an unverified user may sign in this many times before
+ * verification becomes mandatory. Enforced in the session.create.before hook.
+ */
+const MAX_UNVERIFIED_LOGINS = 3;
 
 /**
  * Better Auth instance for URLPulse.
@@ -95,14 +101,14 @@ export const auth = betterAuth({
     },
   },
   /**
-   * Email verification is wired to Better Auth (real token + expiry), but NOT
-   * auto-sent on sign-up: URLPulse does not gate sign-in on verification
-   * (requireEmailVerification is false), and a welcome email already goes out on
-   * account creation. The verification email is available on demand via Better
-   * Auth's send-verification-email flow. Set `sendOnSignUp: true` to auto-send.
+   * A verification email is sent on sign-up. Sign-in is NOT hard-gated: an
+   * unverified user may sign in up to MAX_UNVERIFIED_LOGINS times (with a
+   * reminder), after which the session.create.before hook blocks sign-in until
+   * they verify. Verifying auto-signs the user in.
    */
   emailVerification: {
-    sendOnSignUp: false,
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
     expiresIn: VERIFICATION_TOKEN_TTL_SECONDS,
     async sendVerificationEmail({ user, url }) {
       // `url` is assembled by Better Auth from the configured baseURL (trusted),
@@ -123,6 +129,31 @@ export const auth = betterAuth({
     },
   },
   databaseHooks: {
+    session: {
+      create: {
+        /**
+         * Enforce the verification grace period on every sign-in. An unverified
+         * user is allowed through their first MAX_UNVERIFIED_LOGINS sign-ins
+         * (the frontend shows a reminder); the next sign-in is blocked with a
+         * FORBIDDEN + EMAIL_VERIFICATION_REQUIRED code until they verify. Verified
+         * users are never counted or blocked.
+         */
+        before: async (session, ctx) => {
+          if (!ctx) return;
+          const user = await ctx.context.internalAdapter.findUserById(session.userId);
+          if (!user || user.emailVerified) return;
+          const prior = (user as { unverifiedLoginCount?: number }).unverifiedLoginCount ?? 0;
+          const count = prior + 1;
+          await ctx.context.internalAdapter.updateUser(session.userId, { unverifiedLoginCount: count });
+          if (count > MAX_UNVERIFIED_LOGINS) {
+            throw new APIError("FORBIDDEN", {
+              message: "Please verify your email address to continue signing in.",
+              code: "EMAIL_VERIFICATION_REQUIRED",
+            });
+          }
+        },
+      },
+    },
     user: {
       create: {
         // Fires once, after the new user row commits. Send the welcome email
@@ -168,6 +199,11 @@ export const auth = betterAuth({
     // Account deletion is surfaced in the Settings "Danger Zone". Deleting a user
     // cascades to their sessions, accounts, and batches (FK ON DELETE CASCADE).
     deleteUser: { enabled: true },
+    additionalFields: {
+      // Tracks how many times an unverified user has signed in (grace period).
+      // input:false — clients can never set it; only the server increments it.
+      unverifiedLoginCount: { type: "number", defaultValue: 0, input: false, required: false },
+    },
   },
   advanced: {
     // Web (:3000) and API (:4000) are separate origins. In production they are
