@@ -87,7 +87,7 @@ export function NotFoundPage() {
         </Reveal>
       </main>
 
-      <MarketingFooter newsletter={false} />
+      <MarketingFooter />
     </div>
   );
 }

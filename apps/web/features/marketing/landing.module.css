@@ -30,6 +30,13 @@
 .illoDark {
   display: none;
 }
+/* The lockup PNGs ship on opaque white / black; blending drops that box onto any page tone. */
+.logoLight {
+  mix-blend-mode: multiply;
+}
+.logoDark {
+  mix-blend-mode: screen;
+}
 :global(:root[data-theme="dark"]) .logoLight,
 :global(:root[data-theme="dark"]) .illoLight {
   display: none;
@@ -328,7 +335,6 @@
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
-  padding: var(--space-4);
 }
 .productVisual img {
   width: 100%;
@@ -350,85 +356,34 @@
   margin: 0;
   list-style: none;
 }
-.trusted {
-  text-align: center;
-}
-.trustedTitle {
-  font-size: var(--text-md);
-  font-weight: var(--fw-semibold);
-  margin-bottom: var(--space-6);
-}
-.logos {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--space-10);
-  color: var(--color-text-muted);
-  font-size: var(--text-lg);
-  font-weight: var(--fw-semibold);
-}
-
-/* Footer */
+/* Footer (minimal: credit + GitHub) */
 .footer {
   border-top: var(--border-width) solid var(--color-border);
   background: var(--color-surface);
-  padding: var(--space-12) 0 var(--space-6);
+  padding: var(--space-5) 0;
 }
-.footerGrid {
-  display: grid;
-  grid-template-columns: 1.4fr repeat(4, 1fr) 1.4fr;
-  gap: var(--space-8);
-}
-.footerBrandText {
-  margin: var(--space-3) 0 var(--space-4);
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-  max-width: 24ch;
-}
-.social {
+.footerBar {
   display: flex;
-  gap: var(--space-3);
-  color: var(--color-text-muted);
-}
-.footerCol h3 {
-  font-size: var(--text-sm);
-  font-weight: var(--fw-semibold);
-  margin-bottom: var(--space-3);
-}
-.footerCol ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-.footerCol a {
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-}
-.newsletter {
-  display: flex;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
-}
-.newsletter input {
-  flex: 1;
-  min-width: 0;
-  height: var(--control-md);
-  padding: 0 var(--space-3);
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-bg);
-  color: var(--color-text);
-  font: inherit;
-  font-size: var(--text-sm);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
 }
 .copyright {
-  margin-top: var(--space-10);
-  text-align: center;
-  font-size: var(--text-xs);
+  margin: 0;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
+}
+.copyright a {
+  color: var(--color-text-secondary);
+  font-weight: var(--fw-medium);
+}
+.footerGithub {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
 }
 
 @media (max-width: 960px) {
@@ -442,16 +397,10 @@
   .featureBand {
     grid-template-columns: repeat(2, 1fr);
   }
-  .footerGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 @media (max-width: 640px) {
   .featureBand,
   .steps {
-    grid-template-columns: 1fr;
-  }
-  .footerGrid {
     grid-template-columns: 1fr;
   }
   .headline {
