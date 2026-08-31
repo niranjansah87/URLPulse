@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/worker.ts",
-    "start": "tsx src/worker.ts",
+    "dev": "tsx watch --env-file-if-exists=../../.env src/worker.ts",
+    "start": "tsx --env-file-if-exists=../../.env src/worker.ts",
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
