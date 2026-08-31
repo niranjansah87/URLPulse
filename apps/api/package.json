@@ -16,14 +16,17 @@
     "@fastify/multipart": "^9.0.1",
     "@urlpulse/config": "workspace:*",
     "@urlpulse/types": "workspace:*",
+    "better-auth": "^1.7.2",
     "bullmq": "^5.34.5",
     "fastify": "^5.2.0",
     "ioredis": "^5.4.2",
+    "pg": "^8.23.0",
     "postgres": "^3.4.5",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "@types/pg": "^8.23.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
