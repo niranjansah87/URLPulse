@@ -1,4 +1,4 @@
-# URLPulse — Live Updates
+# URLPulse - Live Updates
 
 **Version:** 1.0  
 **Status:** Draft  

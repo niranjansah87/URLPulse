@@ -1,5 +1,5 @@
 
-# URLPulse — Claude Code Instructions
+# URLPulse - Claude Code Instructions
 
 ## 1. Project Overview
 
@@ -323,7 +323,7 @@ Documentation under `docs/` remains the source of design intent.
 - `docs/README.md` is the documentation index.
 - Preserve existing technical reasoning; do not replace detailed documents with shorter generic versions.
 - When behavior affecting database, queues, workers, rate limiting, concurrency, live updates, or API contracts changes, update the relevant document in the same change.
-- Document behavior, invariants, and trade-offs — not line-by-line code.
+- Document behavior, invariants, and trade-offs - not line-by-line code.
 
 ---
 
@@ -360,4 +360,4 @@ pnpm lint | typecheck | test | build
 
 API and worker run under `tsx` (no separate build step this phase). `pnpm build`
 runs `next build` for web and `tsc --noEmit` for the rest. Migrations are plain
-SQL files applied by a minimal runner (`apps/api/src/migrate.ts`) — no ORM.
+SQL files applied by a minimal runner (`apps/api/src/migrate.ts`) - no ORM.

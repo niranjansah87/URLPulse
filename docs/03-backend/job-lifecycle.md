@@ -1,4 +1,4 @@
-# URLPulse — Job Lifecycle
+# URLPulse - Job Lifecycle
 
 **Version:** 1.0  
 **Status:** Draft  

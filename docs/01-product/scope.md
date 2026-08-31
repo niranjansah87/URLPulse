@@ -1,5 +1,5 @@
 
-# URLPulse — Scope
+# URLPulse - Scope
 
 **Version:** 1.0
 **Status:** Draft
@@ -107,7 +107,7 @@ The system limits active URL checks to:
 5 concurrent checks (global, across all workers)
 ```
 
-Concurrency is enforced independently from the global rate limit, and — like the rate limit — is
+Concurrency is enforced independently from the global rate limit, and - like the rate limit - is
 a single global limit coordinated through Redis, not a per-worker limit.
 
 ---
@@ -481,7 +481,7 @@ Avoid it.
 
 # 7. Implementation Priority
 
-## Priority 1 — Core Correctness
+## Priority 1 - Core Correctness
 
 ```text
 Database
@@ -495,7 +495,7 @@ Results
 
 ---
 
-## Priority 2 — Distributed Guarantees
+## Priority 2 - Distributed Guarantees
 
 ```text
 Global rate limiting
@@ -508,7 +508,7 @@ Retry failed
 
 ---
 
-## Priority 3 — User Experience
+## Priority 3 - User Experience
 
 ```text
 Batch list
@@ -521,7 +521,7 @@ Error states
 
 ---
 
-## Priority 4 — Supporting Infrastructure
+## Priority 4 - Supporting Infrastructure
 
 ```text
 Caching
@@ -533,7 +533,7 @@ Scaling validation
 
 ---
 
-## Priority 5 — Polish
+## Priority 5 - Polish
 
 Only after the above is stable:
 

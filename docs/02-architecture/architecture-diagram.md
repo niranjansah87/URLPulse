@@ -1,4 +1,4 @@
-# URLPulse — Architecture Diagram
+# URLPulse - Architecture Diagram
 
 **Version:** 1.0  
 **Status:** Draft
@@ -47,7 +47,7 @@ The required stack is Node.js/TypeScript, Fastify, PostgreSQL, Redis, BullMQ, an
 
 ---
 
-# 2. Request Flow — Batch Creation
+# 2. Request Flow - Batch Creation
 
 ```mermaid
 sequenceDiagram

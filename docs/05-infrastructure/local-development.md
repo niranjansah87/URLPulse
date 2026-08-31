@@ -1,4 +1,4 @@
-# URLPulse — Local Development
+# URLPulse - Local Development
 
 **Version:** 1.0  
 **Status:** Draft

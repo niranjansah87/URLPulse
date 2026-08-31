@@ -1,4 +1,4 @@
-# URLPulse — Edge Cases & Failure Scenarios
+# URLPulse - Edge Cases & Failure Scenarios
 
 **Version:** 1.0  
 **Status:** Draft

@@ -1,4 +1,4 @@
-# URLPulse — Cancellation
+# URLPulse - Cancellation
 
 **Version:** 1.0  
 **Status:** Draft
@@ -248,7 +248,7 @@ The completion transaction must check current state.
 
 The database decides which state transition wins.
 
-### Case A — Completion commits first
+### Case A - Completion commits first
 
 ```text
 Worker:
@@ -260,7 +260,7 @@ CANCEL request
 
 The cancellation endpoint observes the updated state and applies the documented policy for an already-completed batch.
 
-### Case B — Cancellation commits first
+### Case B - Cancellation commits first
 
 ```text
 Cancel:
