@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreHorizontal, RefreshCw, Share2, XCircle } from "lucide-react";
+import { MoreHorizontal, RefreshCw, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Menu } from "@/components/ui/Menu";
 import { ConfirmationDialog } from "@/components/ui/Dialog";
@@ -30,11 +30,6 @@ export function BatchHeaderActions({
   // retry-failed is rejected on cancelled batches (ADR-027) and pointless without failures.
   const canRetry = failedCount > 0 && status !== "CANCELLED";
 
-  const share = () => {
-    if (typeof window === "undefined") return;
-    navigator.clipboard?.writeText(window.location.href).then(() => toast.show({ title: "Link copied", tone: "success" }));
-  };
-
   return (
     <>
       <Menu
@@ -42,13 +37,9 @@ export function BatchHeaderActions({
         triggerLabel="More actions"
         items={[
           { label: "Refresh", icon: <RefreshCw size={14} />, onSelect: () => void onRefresh() },
-          { label: "Copy link", icon: <Share2 size={14} />, onSelect: share },
           { label: "Cancel batch", icon: <XCircle size={14} />, destructive: true, disabled: !canCancel, onSelect: () => setConfirm("cancel") },
         ]}
       />
-      <Button variant="secondary" leftIcon={<Share2 size={16} />} onClick={share}>
-        Share
-      </Button>
       <Button
         variant="primary"
         leftIcon={<RefreshCw size={16} />}

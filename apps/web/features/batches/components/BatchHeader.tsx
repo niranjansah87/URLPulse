@@ -1,6 +1,5 @@
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { StatusBadge } from "@/components/ui/Badge";
-import { NotificationBell } from "@/components/ui/NotificationBell";
 import { formatRelativeTime } from "@/lib/format";
 import type { Batch } from "../types";
 import { batchStatusView } from "../lib/status";
@@ -34,7 +33,6 @@ export function BatchHeader({ batch, actions }: { batch: Batch; actions: HeaderA
             onRetryFailed={actions.onRetryFailed}
             onRefresh={actions.onRefresh}
           />
-          <NotificationBell />
         </div>
       </div>
       <div className={styles.metaRow}>
