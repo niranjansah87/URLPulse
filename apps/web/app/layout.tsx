@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import { Toaster } from "sonner";
 import { ToastProvider } from "@/components/ui/Toast";
 import "./globals.css";
 
@@ -62,6 +63,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           Skip to content
         </a>
         <ToastProvider>{children}</ToastProvider>
+        <Toaster position="top-center" richColors closeButton />
       </body>
     </html>
   );

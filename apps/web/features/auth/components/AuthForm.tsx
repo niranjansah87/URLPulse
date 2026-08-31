@@ -3,6 +3,8 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { motion } from "motion/react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { authClient } from "../client";
 import styles from "./auth.module.css";
@@ -14,7 +16,19 @@ function safeNext(value: string | null): string {
   return value && value.startsWith("/") && !value.startsWith("//") ? value : "/batches";
 }
 
-/** Email + password sign-in / sign-up against the Better Auth routes on the API. */
+/** A signed-in session with the user's verification state (Better Auth shape). */
+interface SignInData {
+  user?: { emailVerified?: boolean };
+}
+
+/**
+ * Email + password sign-in / sign-up against the Better Auth routes on the API.
+ *
+ * Verification flow: a verification email is sent on sign-up. An unverified user
+ * may still sign in a few times — each shows a reminder toast — after which the
+ * API blocks sign-in (403 EMAIL_VERIFICATION_REQUIRED); we then resend the link
+ * and tell them to check their inbox. Verified users sign in normally.
+ */
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -24,18 +38,53 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  async function resendVerification(address: string) {
+    try {
+      await authClient.sendVerificationEmail({ email: address, callbackURL: "/batches" });
+    } catch {
+      // best-effort; the toast below still tells the user to check their inbox
+    }
+  }
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     setBusy(true);
+    const address = email.trim();
     try {
-      const result =
-        mode === "signup"
-          ? await authClient.signUp.email({ name: name.trim(), email: email.trim(), password })
-          : await authClient.signIn.email({ email: email.trim(), password });
+      if (mode === "signup") {
+        const result = await authClient.signUp.email({ name: name.trim(), email: address, password });
+        if (result.error) {
+          setError(result.error.message || "Sign-up failed. Please try again.");
+          return;
+        }
+        toast.success("Account created", {
+          description: "Check your inbox to verify your email address.",
+        });
+        router.replace(safeNext(params.get("next")));
+        router.refresh();
+        return;
+      }
+
+      const result = await authClient.signIn.email({ email: address, password });
       if (result.error) {
+        // Grace period exhausted: verification now required. Resend and inform.
+        if (result.error.code === "EMAIL_VERIFICATION_REQUIRED" || result.error.status === 403) {
+          await resendVerification(address);
+          toast.info("Please verify your email", {
+            description: "We've sent a new verification link to your inbox.",
+          });
+          return;
+        }
         setError(result.error.message || "Sign-in failed. Check your details and try again.");
         return;
+      }
+
+      // Signed in. Remind unverified users (they still have a few sign-ins left).
+      if ((result.data as SignInData | undefined)?.user?.emailVerified === false) {
+        toast.warning("Verify your email", {
+          description: "Please verify your email address to keep full access.",
+        });
       }
       router.replace(safeNext(params.get("next")));
       router.refresh();
@@ -47,7 +96,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
   };
 
   return (
-    <form className={styles.form} onSubmit={submit} noValidate>
+    <motion.form
+      className={styles.form}
+      onSubmit={submit}
+      noValidate
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+    >
       {mode === "signup" ? (
         <label className={styles.field}>
           <span className={styles.label}>Full name</span>
@@ -104,6 +160,6 @@ export function AuthForm({ mode }: { mode: Mode }) {
           </>
         )}
       </p>
-    </form>
+    </motion.form>
   );
 }
