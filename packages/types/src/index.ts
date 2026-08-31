@@ -104,6 +104,8 @@ export interface BatchListMeta {
 
 export const ERROR_CODES = [
   "VALIDATION_ERROR",
+  "UNAUTHORIZED",
+  "FORBIDDEN",
   "NOT_FOUND",
   "CONFLICT",
   "NOT_IMPLEMENTED",
