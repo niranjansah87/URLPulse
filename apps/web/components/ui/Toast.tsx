@@ -58,9 +58,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               role={t.tone === "error" ? "alert" : "status"}
               className={styles.toast}
               data-tone={t.tone}
-              initial={reduce ? { opacity: 1 } : { opacity: 0, y: 8, scale: 0.98 }}
+              initial={reduce ? { opacity: 1 } : { opacity: 0, y: -8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={reduce ? { opacity: 0 } : { opacity: 0, y: 6, scale: 0.98 }}
+              exit={reduce ? { opacity: 0 } : { opacity: 0, y: -6, scale: 0.98 }}
               transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }}
             >
               <span className={styles.icon}>{ICON[t.tone]}</span>
