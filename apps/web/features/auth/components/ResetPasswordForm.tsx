@@ -3,18 +3,18 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { ArrowLeft, ArrowRight, Info } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { authClient } from "../client";
+import { PasswordInput } from "./PasswordInput";
+import { MIN_PASSWORD } from "../lib/password-strength";
 import styles from "./auth.module.css";
-
-const MIN_PASSWORD = 8;
 
 /**
  * Set a new password from a reset link. The token comes from the URL query (read
- * once, kept only in memory — never persisted to localStorage or app state beyond
- * the request). Better Auth validates and single-use-consumes the token; an
- * invalid/expired token surfaces as a clear terminal state. On success the user
- * is sent to /login to sign in with the new password (no auto-login).
+ * once, kept only in memory). Better Auth validates and single-use-consumes the
+ * token; an invalid/expired token surfaces as a clear terminal state. On success
+ * the user is sent to /login to sign in with the new password (no auto-login).
  */
 export function ResetPasswordForm() {
   const params = useSearchParams();
@@ -62,12 +62,12 @@ export function ResetPasswordForm() {
   if (invalidToken) {
     return (
       <div className={styles.form}>
-        <p className={styles.error} role="alert" style={{ margin: 0 }}>
+        <p className={styles.error} role="alert">
           This password reset link is invalid or has expired.
         </p>
-        <p className={styles.switch}>
-          <Link href="/forgot-password">Request a new link</Link>
-        </p>
+        <Link href="/forgot-password" className={styles.backLink}>
+          Request a new link <ArrowRight size={16} aria-hidden />
+        </Link>
       </div>
     );
   }
@@ -75,46 +75,43 @@ export function ResetPasswordForm() {
   if (done) {
     return (
       <div className={styles.form}>
-        <p className={styles.subtitle} role="status" style={{ margin: 0 }}>
+        <p className={styles.success} role="status">
           Password updated successfully. Sign in with your new password.
         </p>
-        <Button type="button" variant="accent" size="lg" style={{ width: "100%" }} onClick={() => { window.location.href = "/login"; }}>
-          Go to sign in
-        </Button>
+        <Link href="/login" className={styles.backLink}>
+          <ArrowLeft size={16} aria-hidden /> Back to login
+        </Link>
       </div>
     );
   }
 
   return (
     <form className={styles.form} onSubmit={submit} noValidate>
-      <label className={styles.field}>
-        <span className={styles.label}>New password</span>
-        <input
-          className={styles.input}
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={MIN_PASSWORD}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          aria-describedby="pw-hint"
-        />
-        <span id="pw-hint" className={styles.hint}>
-          At least {MIN_PASSWORD} characters.
+      <PasswordInput
+        label="New password"
+        value={password}
+        onChange={setPassword}
+        placeholder="Enter a new password"
+        autoComplete="new-password"
+        showStrength
+        showChecklist
+      />
+
+      <PasswordInput
+        label="Confirm new password"
+        value={confirm}
+        onChange={setConfirm}
+        placeholder="Re-enter your new password"
+        autoComplete="new-password"
+        invalid={confirm.length > 0 && confirm !== password}
+      />
+
+      <div className={styles.note} data-tone="accent">
+        <span className={styles.noteIcon}>
+          <Info size={20} strokeWidth={1.75} />
         </span>
-      </label>
-      <label className={styles.field}>
-        <span className={styles.label}>Confirm new password</span>
-        <input
-          className={styles.input}
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={MIN_PASSWORD}
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-        />
-      </label>
+        <span className={styles.noteText}>Make sure both passwords match.</span>
+      </div>
 
       {error ? (
         <p className={styles.error} role="alert">
@@ -122,13 +119,16 @@ export function ResetPasswordForm() {
         </p>
       ) : null}
 
-      <Button type="submit" variant="accent" size="lg" disabled={busy} aria-busy={busy} style={{ width: "100%" }}>
-        {busy ? "Resetting…" : "Reset password"}
+      <Button type="submit" variant="accent" size="lg" className={styles.submit} disabled={busy} aria-busy={busy}>
+        {busy ? "Resetting…" : "Reset Password"}
+        <ArrowRight size={18} aria-hidden />
       </Button>
 
-      <p className={styles.switch}>
-        <Link href="/login">Back to sign in</Link>
-      </p>
+      <div className={styles.divider}>or</div>
+
+      <Link href="/login" className={styles.backLink}>
+        <ArrowLeft size={16} aria-hidden /> Back to login
+      </Link>
     </form>
   );
 }
