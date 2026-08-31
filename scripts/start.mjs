@@ -83,20 +83,21 @@ function prompt(question, { secret = false } = {}) {
   return new Promise((resolve) => {
     const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
     if (secret) {
-      // Mute echo: intercept the output stream while the answer is typed.
-      const mutableOut = rl.output;
+      // Suppress echo of typed characters. rl still prints the question (muted
+      // is only set after question() writes it), then nothing until Enter.
       let muted = false;
-      mutableOut.write = ((orig) => (chunk, enc, cb) => {
-        if (muted && typeof chunk === "string") {
-          // allow the prompt itself and newlines through
-          if (!chunk.includes("\n") && !chunk.includes(question)) return cb ? cb() : true;
-        }
-        return orig.call(mutableOut, chunk, enc, cb);
-      })(mutableOut.write.bind(mutableOut));
+      rl._writeToOutput = (str) => {
+        if (!muted || str.includes(question) || str.includes("\n")) process.stdout.write(str);
+      };
+      rl.question(question, (answer) => {
+        process.stdout.write("\n");
+        rl.close();
+        resolve(answer.trim());
+      });
       muted = true;
+      return;
     }
     rl.question(question, (answer) => {
-      if (secret) process.stdout.write("\n");
       rl.close();
       resolve(answer.trim());
     });
