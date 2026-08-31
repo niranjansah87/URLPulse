@@ -16,6 +16,9 @@ function summary(id: string): BatchSummary {
     failedCount: 0,
     cancelledCount: 0,
     createdAt: new Date().toISOString(),
+    startedAt: null,
+    completedAt: null,
+    updatedAt: new Date().toISOString(),
   };
 }
 

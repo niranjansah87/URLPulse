@@ -15,6 +15,9 @@ interface BatchRow {
   failed_count: number;
   cancelled_count: number;
   created_at: Date;
+  started_at: Date | null;
+  completed_at: Date | null;
+  updated_at: Date;
 }
 
 interface UrlRow {
@@ -25,6 +28,8 @@ interface UrlRow {
   response_time_ms: number | null;
   page_title: string | null;
   error_message: string | null;
+  started_at: Date | null;
+  completed_at: Date | null;
 }
 
 function toBatchSummary(row: BatchRow): BatchSummary {
@@ -36,6 +41,9 @@ function toBatchSummary(row: BatchRow): BatchSummary {
     failedCount: row.failed_count,
     cancelledCount: row.cancelled_count,
     createdAt: row.created_at.toISOString(),
+    startedAt: row.started_at?.toISOString() ?? null,
+    completedAt: row.completed_at?.toISOString() ?? null,
+    updatedAt: row.updated_at.toISOString(),
   };
 }
 
@@ -48,6 +56,8 @@ function toUrlResult(row: UrlRow): UrlResult {
     responseTimeMs: row.response_time_ms,
     pageTitle: row.page_title,
     error: row.error_message,
+    startedAt: row.started_at?.toISOString() ?? null,
+    completedAt: row.completed_at?.toISOString() ?? null,
   };
 }
 
@@ -67,7 +77,7 @@ export function createBatchRepository(db: Db) {
         const [batchRow] = await tx<BatchRow[]>`
           INSERT INTO batches (status, total_count, user_id)
           VALUES ('PENDING', ${urls.length}, ${userId})
-          RETURNING id, status, total_count, completed_count, failed_count, cancelled_count, created_at
+          RETURNING id, status, total_count, completed_count, failed_count, cancelled_count, created_at, started_at, completed_at, updated_at
         `;
         if (!batchRow) throw new Error("batch insert returned no row");
         const rows = urls.map((url) => ({ batch_id: batchRow.id, url }));
@@ -81,12 +91,12 @@ export function createBatchRepository(db: Db) {
 
     async getById(userId: string, id: string): Promise<BatchDetail | null> {
       const [batchRow] = await db<BatchRow[]>`
-        SELECT id, status, total_count, completed_count, failed_count, cancelled_count, created_at
+        SELECT id, status, total_count, completed_count, failed_count, cancelled_count, created_at, started_at, completed_at, updated_at
         FROM batches WHERE id = ${id} AND user_id = ${userId}
       `;
       if (!batchRow) return null;
       const urlRows = await db<UrlRow[]>`
-        SELECT id, url, status, http_status, response_time_ms, page_title, error_message
+        SELECT id, url, status, http_status, response_time_ms, page_title, error_message, started_at, completed_at
         FROM urls WHERE batch_id = ${id} ORDER BY id
       `;
       return { ...toBatchSummary(batchRow), urls: urlRows.map(toUrlResult) };
@@ -102,7 +112,7 @@ export function createBatchRepository(db: Db) {
       `;
       const total = countRows[0]?.count ?? 0;
       const rows = await db<BatchRow[]>`
-        SELECT id, status, total_count, completed_count, failed_count, cancelled_count, created_at
+        SELECT id, status, total_count, completed_count, failed_count, cancelled_count, created_at, started_at, completed_at, updated_at
         FROM batches
         WHERE user_id = ${userId}
         ORDER BY created_at DESC

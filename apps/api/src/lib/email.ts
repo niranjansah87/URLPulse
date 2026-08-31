@@ -8,8 +8,11 @@ import { apiConfig } from "./env";
  * password reset, password reset success) + a Resend-backed service. Templates
  * share the header, card, CTA button, security notice, and footer, so they read
  * as one product — matching the brand references (light card on a light ground,
- * URLPulse blue CTA, navy headings) while staying email-client safe (tables +
- * inline CSS, no JS, no web fonts, emoji hero instead of heavy images).
+ * URLPulse blue CTA, navy headings, the horizontal brand logo in the header)
+ * while staying email-client safe (tables + inline CSS, no JS, no web fonts, an
+ * emoji hero instead of a heavy per-template illustration). The logo is the one
+ * embedded image and degrades to its "URLPulse" alt text when images are
+ * blocked; every headline/CTA remains text.
  *
  * Boundaries: this module only DELIVERS email. Better Auth owns tokens, expiry,
  * hashing, and sessions; callers pass already-built, trusted URLs (derived from
@@ -30,6 +33,14 @@ const C = {
 };
 
 const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
+/**
+ * Absolute asset origin for images embedded in email (email clients require
+ * absolute HTTPS URLs and never resolve relative paths). The horizontal brand
+ * logo is served from the web app's public dir.
+ */
+const ASSET_ORIGIN = apiConfig.WEB_ORIGIN.replace(/\/$/, "");
+const LOGO_URL = `${ASSET_ORIGIN}/brand/logo/horizontal/urlpulse-light.png`;
 
 export interface RenderedEmail {
   subject: string;
@@ -132,7 +143,7 @@ function renderEmail(content: EmailContent): { html: string; text: string } {
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
             <tr>
               <td style="padding:0 4px 20px;">
-                <span style="font-size:20px;font-weight:800;letter-spacing:-0.02em;color:${C.brandDark};">URL</span><span style="font-size:20px;font-weight:800;letter-spacing:-0.02em;color:${C.blue};">Pulse</span>
+                <img src="${LOGO_URL}" alt="URLPulse" height="28" style="height:28px;display:block;border:0;outline:none;text-decoration:none;" />
               </td>
             </tr>
             <tr>
@@ -159,7 +170,10 @@ function renderEmail(content: EmailContent): { html: string; text: string } {
               <td style="padding:24px 8px 0;text-align:center;">
                 ${footerHelpHtml}
                 <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:${C.navy};">URLPulse</p>
-                <p style="margin:0 0 10px;font-size:12px;line-height:1.5;color:${C.muted};">${FOOTER_TAGLINE}</p>
+                <p style="margin:0 0 12px;font-size:12px;line-height:1.5;color:${C.muted};">${FOOTER_TAGLINE}</p>
+                <p style="margin:0 0 12px;">
+                  <a href="${ASSET_ORIGIN}" target="_blank" rel="noopener" style="font-size:12px;font-weight:600;color:${C.blue};text-decoration:none;">Visit URLPulse &rarr;</a>
+                </p>
                 <p style="margin:0;font-size:12px;color:${C.muted};">© ${year} URLPulse. All rights reserved.</p>
               </td>
             </tr>
@@ -182,7 +196,7 @@ function renderEmail(content: EmailContent): { html: string; text: string } {
   ];
   if (expiryNote) textLines.push("", expiryNote);
   if (security) textLines.push("", security);
-  textLines.push("", "—", "URLPulse", FOOTER_TAGLINE, `© ${year} URLPulse. All rights reserved.`);
+  textLines.push("", "—", "URLPulse", FOOTER_TAGLINE, ASSET_ORIGIN, `© ${year} URLPulse. All rights reserved.`);
   const text = textLines.join("\n");
 
   return { html, text };

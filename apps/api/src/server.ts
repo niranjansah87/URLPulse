@@ -18,9 +18,12 @@ import { createCsrfGuard } from "./lib/csrf";
 import { registerAuthRoutes } from "./routes/auth";
 import { createBatchRepository } from "./repositories/batches";
 import { createBatchService, type BatchService } from "./services/batches";
+import { createAlertRepository } from "./repositories/alerts";
+import { createAlertService } from "./services/alerts";
+import { createSettingsRepository } from "./repositories/settings";
 import { registerHealthRoutes } from "./routes/health";
 import { registerBatchRoutes } from "./routes/batches";
-import { createSettingsRepository } from "./repositories/settings";
+import { registerAlertRoutes } from "./routes/alerts";
 import { registerSettingsRoutes } from "./routes/settings";
 import type { Redis } from "ioredis";
 
@@ -174,6 +177,12 @@ export function buildServer(overrides: ServerOverrides = {}) {
     requireAuth,
     csrfGuard,
     allowedOrigins,
+  });
+  app.register(registerAlertRoutes, {
+    prefix: "/api",
+    service: createAlertService(createAlertRepository(db)),
+    requireAuth,
+    csrfGuard,
   });
   app.register(registerSettingsRoutes, {
     prefix: "/api",
