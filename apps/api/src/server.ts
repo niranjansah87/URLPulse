@@ -36,7 +36,20 @@ export interface ServerOverrides {
 
 export function buildServer(overrides: ServerOverrides = {}) {
   const app = Fastify({
-    logger: true,
+    // Bound the JSON body so a malicious/oversized request cannot exhaust memory
+    // (multipart CSV has its own 5MB limit below). Comfortably fits a max batch.
+    bodyLimit: 4 * 1024 * 1024,
+    logger: {
+      // Never log credentials even if a future change starts logging headers.
+      redact: {
+        paths: [
+          'req.headers.authorization',
+          'req.headers.cookie',
+          'res.headers["set-cookie"]',
+        ],
+        remove: true,
+      },
+    },
     // Correlate logs across a request: honor an inbound X-Request-Id (e.g. from
     // a gateway) or generate one. Fastify stamps every log line with reqId.
     genReqId: (req) => {
