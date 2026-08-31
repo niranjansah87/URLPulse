@@ -17,6 +17,8 @@ type Mode = "manual" | "file";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const PREFS_KEY = "urlpulse-batch-defaults";
+/** URLs a guest tried in the landing demo, carried through signup (StartBatchPanel). */
+const PENDING_URLS_KEY = "urlpulse-pending-urls";
 
 /** User preference only — the backend applies its documented system settings today. */
 interface Prefs {
@@ -69,6 +71,29 @@ export function CreateBatchForm() {
     } catch {
       /* ignore bad storage */
     }
+  }, []);
+
+  // Pick up URLs a guest tried in the landing demo (stashed before signup), then
+  // clear them so they only prefill once.
+  useEffect(() => {
+    let urls: string[] = [];
+    try {
+      const stored = localStorage.getItem(PENDING_URLS_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as unknown;
+        if (Array.isArray(parsed)) urls = parsed.filter((u): u is string => typeof u === "string" && u.trim().length > 0);
+      }
+      localStorage.removeItem(PENDING_URLS_KEY);
+    } catch {
+      /* ignore bad storage */
+    }
+    if (urls.length > 0) {
+      setMode("manual");
+      setText(urls.join("\n"));
+      toast.show({ title: "We kept your URLs", body: "Picked up from the demo — review and create your batch.", tone: "success" });
+    }
+    // Run once on mount; toast is stable for the session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const updatePrefs = (patch: Partial<Prefs>) => {

@@ -263,7 +263,7 @@ function DemoResults({ results, reduce, onReset }: { results: DemoCheckResult[];
       </ul>
 
       <div className={styles.demoCta}>
-        <Link href="/signup" className={styles.demoCtaLink}>
+        <Link href="/signup?next=/batches/new" className={styles.demoCtaLink}>
           <Button variant="accent" size="lg" className={styles.panelSubmit}>
             Sign up to monitor more
             <ArrowRight size={16} aria-hidden />
