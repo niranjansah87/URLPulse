@@ -9,6 +9,7 @@ import { createDb } from "./lib/db";
 import { createRedis, createSubscriberRedis } from "./lib/redis";
 import { createUrlCheckQueue, enqueueUrlCheck, type UrlCheckQueue } from "./lib/queue";
 import { createEventBus, type EventBus } from "./lib/events";
+import { createBatchListCache, type CacheRedis } from "./lib/cache";
 import { ApiDomainError } from "./lib/errors";
 import { createBatchRepository } from "./repositories/batches";
 import { createBatchService, type BatchService } from "./services/batches";
@@ -49,6 +50,7 @@ export function buildServer(overrides: ServerOverrides = {}) {
       repo: createBatchRepository(db),
       enqueue: (data) => enqueueUrlCheck(q, data),
       publish: (batchId) => redis.publish(BATCH_EVENTS_CHANNEL, buildBatchUpdatedMessage(batchId)).then(() => undefined),
+      cache: createBatchListCache(redis as unknown as CacheRedis, config.BATCH_LIST_CACHE_SECONDS),
       stuckProcessingMs: config.STUCK_PROCESSING_MS,
       log: app.log,
     });

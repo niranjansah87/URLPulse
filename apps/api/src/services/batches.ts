@@ -7,6 +7,7 @@ import {
   type UrlCheckJobData,
 } from "@urlpulse/types";
 import type { BatchRepository } from "../repositories/batches";
+import type { BatchListCache } from "../lib/cache";
 import { ConflictError, NotFoundError, ValidationError } from "../lib/errors";
 
 /** Minimal logger surface (satisfied by Fastify's `app.log`). */
@@ -25,6 +26,7 @@ export interface BatchServiceDeps {
   repo: BatchRepository;
   enqueue: EnqueuePort;
   publish?: PublishPort;
+  cache?: BatchListCache;
   /** Age after which a PROCESSING URL is considered stuck and reclaimed. */
   stuckProcessingMs?: number;
   log: ServiceLogger;
@@ -40,6 +42,7 @@ export function createBatchService({
   repo,
   enqueue,
   publish,
+  cache,
   stuckProcessingMs = 60_000,
   log,
 }: BatchServiceDeps) {
@@ -85,6 +88,7 @@ export function createBatchService({
       const { batch, urlIds } = await repo.createWithUrls(parsed.data.urls);
       const jobs = urlIds.map((urlId) => ({ batchId: batch.id, urlId }));
       const enqueued = await enqueueAll(jobs);
+      await cache?.invalidate(); // a new batch must appear immediately (INV-13)
 
       log.info(
         { batchId: batch.id, urlCount: urlIds.length, enqueued },
@@ -108,7 +112,10 @@ export function createBatchService({
       const result = await repo.cancel(id);
       if (result === "notfound") throw new NotFoundError(`Batch ${id} not found`);
       log.info({ batchId: id, result }, "batch cancel");
-      if (result === "cancelled") await notify(id);
+      if (result === "cancelled") {
+        await cache?.invalidate();
+        await notify(id);
+      }
       const batch = await repo.getById(id);
       if (!batch) throw new NotFoundError(`Batch ${id} not found`);
       return batch;
@@ -117,8 +124,12 @@ export function createBatchService({
     async listBatches(
       query: ListBatchesQuery,
     ): Promise<{ items: BatchSummary[]; meta: BatchListMeta }> {
+      const cached = await cache?.get(query);
+      if (cached) return cached;
       const { items, total } = await repo.list(query);
-      return { items, meta: { page: query.page, pageSize: query.pageSize, total } };
+      const value = { items, meta: { page: query.page, pageSize: query.pageSize, total } };
+      await cache?.set(query, value);
+      return value;
     },
 
     /**
@@ -135,7 +146,10 @@ export function createBatchService({
       const jobs = result.claimed.map((urlId) => ({ batchId: id, urlId }));
       const enqueued = await enqueueAll(jobs);
       log.info({ batchId: id, retried: result.claimed.length, enqueued }, "retry-failed");
-      if (result.claimed.length > 0) await notify(id);
+      if (result.claimed.length > 0) {
+        await cache?.invalidate();
+        await notify(id);
+      }
 
       const batch = await repo.getById(id);
       if (!batch) throw new NotFoundError(`Batch ${id} not found`);
