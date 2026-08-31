@@ -2,12 +2,12 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
+import { ArrowLeft, ArrowRight, Info, Mail } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { authClient } from "../client";
 import styles from "./auth.module.css";
 
-const GENERIC_SENT =
-  "If an account exists for that email, you'll receive a password reset link shortly.";
+const GENERIC_SENT = "If an account exists for that email, you'll receive a password reset link shortly.";
 
 /**
  * Request a password reset. Anti-enumeration: a valid submission always shows the
@@ -47,12 +47,13 @@ export function ForgotPasswordForm() {
   if (sent) {
     return (
       <div className={styles.form}>
-        <p className={styles.subtitle} role="status" style={{ margin: 0 }}>
+        <p className={styles.success} role="status">
           {GENERIC_SENT}
         </p>
-        <p className={styles.switch}>
-          <Link href="/login">Back to sign in</Link>
-        </p>
+        <div className={styles.divider}>or</div>
+        <Link href="/login" className={styles.backLink}>
+          <ArrowLeft size={16} aria-hidden /> Back to login
+        </Link>
       </div>
     );
   }
@@ -60,16 +61,29 @@ export function ForgotPasswordForm() {
   return (
     <form className={styles.form} onSubmit={submit} noValidate>
       <label className={styles.field}>
-        <span className={styles.label}>Email</span>
-        <input
-          className={styles.input}
-          type="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        <span className={styles.label}>Email address</span>
+        <span className={styles.inputWrap}>
+          <span className={styles.inputIcon}>
+            <Mail size={18} />
+          </span>
+          <input
+            className={styles.input}
+            type="email"
+            autoComplete="email"
+            placeholder="Enter your email address"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </span>
       </label>
+
+      <div className={styles.note} data-tone="accent">
+        <span className={styles.noteIcon}>
+          <Info size={20} strokeWidth={1.75} />
+        </span>
+        <span className={styles.noteText}>Make sure to check your spam or junk folder if you don&apos;t see the email in your inbox.</span>
+      </div>
 
       {error ? (
         <p className={styles.error} role="alert">
@@ -77,13 +91,16 @@ export function ForgotPasswordForm() {
         </p>
       ) : null}
 
-      <Button type="submit" variant="accent" size="lg" disabled={busy} aria-busy={busy} style={{ width: "100%" }}>
-        {busy ? "Sending…" : "Send reset link"}
+      <Button type="submit" variant="accent" size="lg" className={styles.submit} disabled={busy} aria-busy={busy}>
+        {busy ? "Sending…" : "Send Reset Link"}
+        <ArrowRight size={18} aria-hidden />
       </Button>
 
-      <p className={styles.switch}>
-        Remembered it? <Link href="/login">Back to sign in</Link>
-      </p>
+      <div className={styles.divider}>or</div>
+
+      <Link href="/login" className={styles.backLink}>
+        <ArrowLeft size={16} aria-hidden /> Back to login
+      </Link>
     </form>
   );
 }

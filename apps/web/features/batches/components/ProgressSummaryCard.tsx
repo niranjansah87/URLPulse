@@ -82,6 +82,7 @@ export function ProgressSummaryCard({ batch }: { batch: Batch }) {
         <MetaItem label="Timeout" value={batch.config.timeoutSeconds === null ? "—" : `${batch.config.timeoutSeconds} seconds`} />
         <MetaItem label="Retry Attempts" value={batch.config.retryAttempts === null ? "—" : `${batch.config.retryAttempts} attempts`} />
         <MetaItem label="Started At" value={batch.startedAt ? formatDateTime(batch.startedAt) : "—"} />
+        <MetaItem label="Completed At" value={batch.completedAt ? formatDateTime(batch.completedAt) : "—"} />
         <MetaItem label="Created By" value={batch.createdBy ?? "—"} />
       </div>
     </Card>

@@ -48,7 +48,7 @@ export function BatchDetailView({ initial }: { initial: BatchDetailData }) {
           <ProgressSummaryCard batch={batch} />
         </Reveal>
         <Reveal delay={0.05}>
-          <UrlResultsSection urls={urls} checkedAt={batch.updatedAt} />
+          <UrlResultsSection urls={urls} />
         </Reveal>
       </div>
       <div className={styles.rightCol}>
@@ -67,7 +67,7 @@ export function BatchDetailView({ initial }: { initial: BatchDetailData }) {
 
   const tabs: TabItem[] = [
     { id: "overview", label: "Overview", content: overview },
-    { id: "url-results", label: "URL Results", content: <UrlResultsSection urls={urls} checkedAt={batch.updatedAt} /> },
+    { id: "url-results", label: "URL Results", content: <UrlResultsSection urls={urls} /> },
     { id: "statistics", label: "Statistics", content: <Placeholder title="Statistics" /> },
     { id: "logs", label: "Logs", content: <Placeholder title="Logs" /> },
     { id: "settings", label: "Settings", content: <Placeholder title="Settings" /> },

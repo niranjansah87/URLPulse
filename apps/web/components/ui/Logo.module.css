@@ -17,18 +17,18 @@
   width: auto;
 }
 
-/* Wordmark wrapper — collapses toward the mark on hover so the text appears to
-   slide inside it, and expands back out on un-hover. */
+/* Wordmark wrapper — the text slides toward the mark and fades on hover. The
+   wrapper keeps a FIXED width (it does not collapse), so the logo's overall
+   footprint never changes on hover. That is what prevents a centered logo (the
+   sidebar) or a centered nav (the landing header) from jumping — the earlier
+   width-collapsing animation reflowed its neighbours. overflow:hidden clips the
+   text as it slides in, so it still reads as retracting into the mark. */
 .textWrap {
   display: inline-block;
   overflow: hidden;
-  max-width: 220px;
   margin-left: 9px;
   opacity: 1;
-  transition:
-    max-width 0.38s cubic-bezier(0.22, 1, 0.36, 1),
-    margin-left 0.38s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.26s ease;
+  transition: opacity 0.26s ease;
 }
 .text {
   display: block;
@@ -37,13 +37,11 @@
 }
 .logo:hover .textWrap,
 .logo:focus-visible .textWrap {
-  max-width: 0;
-  margin-left: 0;
   opacity: 0;
 }
 .logo:hover .text,
 .logo:focus-visible .text {
-  transform: translateX(-14px);
+  transform: translateX(-12px);
 }
 
 .logo:focus-visible {

@@ -2,7 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { API_ORIGIN } from "./api";
 
-const SERVER_AUTH_ORIGIN = (process.env.API_INTERNAL_URL ?? `${API_ORIGIN}/api`).replace(/\/api\/?$/, "");
+const SERVER_AUTH_ORIGIN = (process.env.API_INTERNAL_URL ?? `${API_ORIGIN.replace("://localhost", "://127.0.0.1")}/api`).replace(/\/api\/?$/, "");
 
 /**
  * Server-side auth helpers. Server Components have no browser cookie jar, so

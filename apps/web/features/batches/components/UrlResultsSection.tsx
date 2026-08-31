@@ -42,11 +42,7 @@ function toCsv(rows: UrlResult[]): string {
   return [header.join(","), ...body].join("\n");
 }
 
-function isTerminal(status: UrlStatus): boolean {
-  return status === "SUCCESS" || status === "FAILED" || status === "CANCELLED";
-}
-
-export function UrlResultsSection({ urls, checkedAt }: { urls: UrlResult[]; checkedAt: string }) {
+export function UrlResultsSection({ urls }: { urls: UrlResult[] }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterValue>("all");
   const [page, setPage] = useState(1);
@@ -136,7 +132,6 @@ export function UrlResultsSection({ urls, checkedAt }: { urls: UrlResult[]; chec
               <tbody>
                 {pageRows.map((u) => {
                   const view = urlStatusView(u.status);
-                  const terminal = isTerminal(u.status);
                   return (
                     <tr key={u.id}>
                       <td>
@@ -159,7 +154,7 @@ export function UrlResultsSection({ urls, checkedAt }: { urls: UrlResult[]; chec
                         {formatDuration(u.responseTimeMs)}
                       </td>
                       <td style={{ color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
-                        {terminal ? formatDateTime(checkedAt) : "—"}
+                        {u.completedAt ? formatDateTime(u.completedAt) : "—"}
                       </td>
                       <td className={styles.rowActions}>
                         <Menu

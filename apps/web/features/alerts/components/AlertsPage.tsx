@@ -11,7 +11,6 @@ import {
   Filter,
   Info,
   MoreVertical,
-  Trash2,
   type LucideIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -31,9 +30,8 @@ import { formatRelativeTime } from "@/lib/format";
 import type { Tone } from "@/features/batches/lib/status";
 import ui from "@/components/ui/ui.module.css";
 import { useAlertsStore } from "../hooks/useAlertsStore";
-import { MOCK_NOW } from "../mocks/alerts";
 import type { Alert, AlertSeverity } from "../types";
-import { countAlerts, formatDatePart, formatTimePart, SEVERITY_VIEW, STATUS_VIEW } from "../lib/view";
+import { formatDatePart, formatTimePart, SEVERITY_VIEW, STATUS_VIEW } from "../lib/view";
 import styles from "../alerts.module.css";
 
 type TabValue = "all" | AlertSeverity | "resolved";
@@ -73,30 +71,20 @@ function matchesTab(a: Alert, tab: TabValue): boolean {
   return a.severity === tab && a.status !== "resolved";
 }
 
-// Deterministic 7-point trend series for the metric sparklines (mock).
-const TREND = {
-  critical: [1, 1, 2, 1, 2, 3, 3],
-  warning: [6, 7, 9, 8, 10, 11, 12],
-  info: [4, 5, 5, 6, 7, 7, 8],
-  resolved: [12, 14, 15, 18, 20, 22, 24],
-};
-
 export function AlertsPage() {
-  const { alerts, acknowledge, resolve, remove } = useAlertsStore();
+  const { alerts, counts, loading, acknowledge, resolve } = useAlertsStore();
   const [tab, setTab] = useState<TabValue>("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<"newest" | "oldest">("newest");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const counts = useMemo(() => countAlerts(alerts), [alerts]);
-
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = alerts.filter(
       (a) =>
         matchesTab(a, tab) &&
-        (q === "" || [a.title, a.detail, a.batchName, a.batchId, a.url].some((s) => s.toLowerCase().includes(q))),
+        (q === "" || [a.title, a.detail, a.batchId, a.url].some((s) => s.toLowerCase().includes(q))),
     );
     list.sort((a, b) => (sort === "newest" ? b.detectedAt.localeCompare(a.detectedAt) : a.detectedAt.localeCompare(b.detectedAt)));
     return list;
@@ -145,10 +133,10 @@ export function AlertsPage() {
       <div className={styles.layout}>
         <div className={styles.mainCol}>
           <Stagger className={styles.metrics}>
-            <StaggerItem><MetricCard icon={<AlertCircle size={20} />} label="Critical" value={counts.critical} tone="error" sub="Needs immediate attention" trend={TREND.critical} /></StaggerItem>
-            <StaggerItem><MetricCard icon={<AlertTriangle size={20} />} label="Warning" value={counts.warning} tone="warning" sub="Needs attention" trend={TREND.warning} /></StaggerItem>
-            <StaggerItem><MetricCard icon={<Info size={20} />} label="Info" value={counts.info} tone="accent" sub="FYI only" trend={TREND.info} /></StaggerItem>
-            <StaggerItem><MetricCard icon={<CheckCircle2 size={20} />} label="Resolved" value={counts.resolved} tone="success" sub="Last 7 days" trend={TREND.resolved} /></StaggerItem>
+            <StaggerItem><MetricCard icon={<AlertCircle size={20} />} label="Critical" value={counts.critical} tone="error" sub="Needs immediate attention" /></StaggerItem>
+            <StaggerItem><MetricCard icon={<AlertTriangle size={20} />} label="Warning" value={counts.warning} tone="warning" sub="Needs attention" /></StaggerItem>
+            <StaggerItem><MetricCard icon={<Info size={20} />} label="Info" value={counts.info} tone="accent" sub="FYI only" /></StaggerItem>
+            <StaggerItem><MetricCard icon={<CheckCircle2 size={20} />} label="Resolved" value={counts.resolved} tone="success" sub="Unresolved cleared" /></StaggerItem>
           </Stagger>
 
           <Reveal delay={0.1}>
@@ -177,7 +165,9 @@ export function AlertsPage() {
                 </label>
               </div>
 
-              {alerts.length === 0 ? (
+              {loading ? (
+                <EmptyState title="Loading alerts…" body="Fetching your latest alerts." />
+              ) : alerts.length === 0 ? (
                 <EmptyState title="No alerts" body="You're all caught up. New alerts will appear here as URLs change health." />
               ) : filtered.length === 0 ? (
                 <EmptyState title="No matching alerts" body="Try a different search or switch to another tab." />
@@ -215,8 +205,9 @@ export function AlertsPage() {
                                 </span>
                               </td>
                               <td>
-                                <div className={styles.batchName}>{a.batchName}</div>
-                                <div className={styles.batchId}>#{a.batchId}</div>
+                                <Link href={`/batches/${a.batchId}`} className={cn(styles.batchId, ui.mono)} title={a.batchId}>
+                                  #{a.batchId.slice(0, 8)}
+                                </Link>
                               </td>
                               <td>
                                 <span className={cn(styles.url, ui.mono)} title={a.url}>{a.url}</span>
@@ -235,7 +226,6 @@ export function AlertsPage() {
                                     { label: "Acknowledge", icon: <CheckCircle2 size={14} />, onSelect: () => acknowledge(a.id), disabled: a.status !== "new" },
                                     { label: "Resolve", icon: <CheckCircle2 size={14} />, onSelect: () => resolve(a.id), disabled: a.status === "resolved" },
                                     { label: "Copy URL", icon: <Copy size={14} />, onSelect: () => navigator.clipboard?.writeText(a.url) },
-                                    { label: "Delete", icon: <Trash2 size={14} />, destructive: true, onSelect: () => remove(a.id) },
                                   ]}
                                 />
                               </td>
@@ -287,7 +277,7 @@ export function AlertsPage() {
                         <div className={styles.recentTitle}>{a.title}</div>
                         <div className={styles.recentUrl}>{a.url}</div>
                       </div>
-                      <span className={styles.recentTime}>{formatRelativeTime(a.detectedAt, new Date(MOCK_NOW)).replace(" minutes", "m").replace(" hours", "h").replace(" days", "d")}</span>
+                      <span className={styles.recentTime}>{formatRelativeTime(a.detectedAt, new Date()).replace(" minutes", "m").replace(" hours", "h").replace(" days", "d")}</span>
                     </div>
                   );
                 })}

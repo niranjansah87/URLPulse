@@ -102,6 +102,24 @@
   }
 }
 
+/* Desktop: three columns (logo | centered links | actions) so the centered nav
+   is positioned independently of the logo's width. The logo's hover animation
+   changes its width; a flexbox row would re-center the links and make them jump.
+   The grid center column stays put. */
+@media (min-width: 881px) {
+  .navRow {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+  }
+  .navLinks {
+    margin: 0;
+    justify-self: center;
+  }
+  .navActions {
+    justify-self: end;
+  }
+}
+
 /* Hero */
 .hero {
   display: grid;

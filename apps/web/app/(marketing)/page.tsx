@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Activity, AtSign, BarChart3, Bell, Check, Clock, Code, ListChecks, ShieldCheck, Users, Zap } from "lucide-react";
+import { Activity, BarChart3, Bell, Check, Clock, ListChecks, ShieldCheck, Zap } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
+import { MarketingFooter } from "@/features/marketing/components/MarketingFooter";
 import { MarketingNav } from "@/features/marketing/components/MarketingNav";
 import { StartBatchPanel } from "@/features/marketing/components/StartBatchPanel";
 import styles from "@/features/marketing/landing.module.css";
@@ -49,15 +50,6 @@ const BULLETS = [
   { Icon: BarChart3, title: "Detailed Results", text: "Status code, response time, and page title for every URL." },
   { Icon: Activity, title: "History & Insights", text: "Track performance over time and spot issues early." },
   { Icon: Bell, title: "Alerts", text: "Get notified when something breaks." },
-];
-
-const LOGOS = ["Acme", "Vertex", "Sitemark", "Brandly", "Boldline", "Northwind"];
-
-const FOOTER: { title: string; links: { label: string; href: string }[] }[] = [
-  { title: "Product", links: [{ label: "Features", href: "#features" }, { label: "How it works", href: "#how-it-works" }, { label: "Pricing", href: "#pricing" }, { label: "Updates", href: "/" }] },
-  { title: "Resources", links: [{ label: "Docs", href: "#docs" }, { label: "API Reference", href: "#docs" }, { label: "Blog", href: "/" }, { label: "Status", href: "/" }] },
-  { title: "Company", links: [{ label: "About", href: "/" }, { label: "Careers", href: "/" }, { label: "Contact", href: "/" }] },
-  { title: "Legal", links: [{ label: "Terms of Service", href: "/" }, { label: "Privacy Policy", href: "/" }] },
 ];
 
 export default function LandingPage() {
@@ -152,8 +144,7 @@ export default function LandingPage() {
           <Reveal>
             <div className={styles.product}>
               <div className={styles.productVisual}>
-                <img className={styles.illoLight} src="/illustration/urlpulse-dashboard-illustration-light.png" alt="URLPulse dashboard illustration" />
-                <img className={styles.illoDark} src="/illustration/urlpulse-dashboard-illustration-dark.png" alt="URLPulse dashboard illustration" />
+                <img src="/illustration/dashboard-dark.png" alt="URLPulse dashboard: batches, progress, overall health and live activity" />
               </div>
               <div>
                 <h2 className={styles.productTitle}>
@@ -180,65 +171,9 @@ export default function LandingPage() {
             </div>
           </Reveal>
         </section>
-
-        <section className={`${styles.container} ${styles.section} ${styles.trusted}`} id="pricing">
-          <Reveal>
-            <h2 className={styles.trustedTitle}>Trusted by teams who care about uptime</h2>
-            <div className={styles.logos} aria-label="Customer logos">
-              {LOGOS.map((l) => (
-                <span key={l}>{l}</span>
-              ))}
-            </div>
-          </Reveal>
-        </section>
       </main>
 
-      <footer className={styles.footer}>
-        <div className={styles.container}>
-          <div className={styles.footerGrid}>
-            <div>
-              <img className={`${styles.logo} ${styles.logoLight}`} src="/brand/logo/horizontal/urlpulse-light.png" alt="URLPulse" />
-              <img className={`${styles.logo} ${styles.logoDark}`} src="/brand/logo/horizontal/urlpulse-dark.png" alt="URLPulse" />
-              <p className={styles.footerBrandText}>Real-time URL monitoring for teams who care about uptime.</p>
-              <div className={styles.social}>
-                {/* lucide ships no brand marks; generic glyphs with accessible names. */}
-                <a href="https://github.com/niranjansah87/URLPulse" aria-label="GitHub">
-                  <Code size={18} />
-                </a>
-                <a href="/" aria-label="Twitter">
-                  <AtSign size={18} />
-                </a>
-                <a href="/" aria-label="LinkedIn">
-                  <Users size={18} />
-                </a>
-              </div>
-            </div>
-            {FOOTER.map((col) => (
-              <div key={col.title} className={styles.footerCol}>
-                <h3>{col.title}</h3>
-                <ul>
-                  {col.links.map((l) => (
-                    <li key={l.label}>
-                      <a href={l.href}>{l.label}</a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-            <div className={styles.footerCol}>
-              <h3>Stay in the loop</h3>
-              <p className={styles.featureText}>Get product updates and monitoring tips delivered to your inbox.</p>
-              <div className={styles.newsletter}>
-                <input type="email" placeholder="Coming soon" aria-label="Email address" disabled />
-                <Button variant="accent" disabled title="Newsletter coming soon">
-                  Subscribe
-                </Button>
-              </div>
-            </div>
-          </div>
-          <p className={styles.copyright}>© 2025 URLPulse. All rights reserved.</p>
-        </div>
-      </footer>
+      <MarketingFooter />
     </>
   );
 }

@@ -33,6 +33,7 @@ export interface Batch {
   createdBy: string | null;
   createdAt: string; // ISO
   startedAt: string | null; // ISO
+  completedAt: string | null; // ISO
   updatedAt: string; // ISO
 }
 

@@ -221,3 +221,10 @@
   font-size: var(--text-sm);
   font-weight: var(--fw-medium);
 }
+
+.batchName {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}

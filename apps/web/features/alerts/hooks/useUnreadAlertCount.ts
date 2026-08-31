@@ -1,11 +1,26 @@
 "use client";
 
-import { UNREAD_ALERT_COUNT } from "../mocks/alerts";
+import { useEffect, useState } from "react";
+import type { AlertCounts } from "@urlpulse/types";
+import { api } from "@/lib/api";
 
 /**
- * Unread alert count for the bell/sidebar badge. Alerts have no backend yet, so
- * this reads the isolated mock seed; swap for an API hook when alerts land.
+ * Unread (new) alert count for the bell/sidebar badge, from the authoritative
+ * counts endpoint. Best-effort: a failed fetch leaves the badge at 0.
  */
 export function useUnreadAlertCount(): number {
-  return UNREAD_ALERT_COUNT;
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    let active = true;
+    api
+      .get<AlertCounts>("/alerts/counts")
+      .then((r) => {
+        if (active) setUnread(r.data.unread);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
+  return unread;
 }

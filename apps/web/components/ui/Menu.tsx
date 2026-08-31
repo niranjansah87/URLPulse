@@ -28,6 +28,8 @@ interface MenuProps {
   /** Icon-only trigger (IconButton) — provide an accessible name. */
   iconTrigger?: ReactNode;
   triggerLabel?: string;
+  /** Arbitrary trigger content (e.g. a profile pill) — provide an accessible name. */
+  customTrigger?: ReactNode;
 }
 
 export function Menu({
@@ -40,6 +42,7 @@ export function Menu({
   size = "md",
   iconTrigger,
   triggerLabel,
+  customTrigger,
 }: MenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -62,7 +65,18 @@ export function Menu({
 
   return (
     <div ref={rootRef} className={styles.root}>
-      {iconTrigger ? (
+      {customTrigger ? (
+        <button
+          type="button"
+          className={styles.plainTrigger}
+          aria-label={triggerLabel}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+        >
+          {customTrigger}
+        </button>
+      ) : iconTrigger ? (
         <IconButton
           label={triggerLabel ?? "Open menu"}
           aria-haspopup="menu"

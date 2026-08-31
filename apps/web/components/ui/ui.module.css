@@ -624,3 +624,46 @@
 .btn[data-variant="accent"]:hover:not(:disabled) {
   background: var(--color-accent-hover);
 }
+
+.metricTileBody .metricLabel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.metricTileBody .metricSub {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.metricTileTrend {
+  width: 64px;
+  flex: 0 1 64px;
+  min-width: 40px;
+}
+
+.metricTileBody .metricSub {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.metricTileTrend {
+  width: 56px;
+  flex: 0 0 56px;
+}
+
+/* Narrow metric tiles: never clip the label; drop the decorative sparkline first. */
+.metricCardTile {
+  container-type: inline-size;
+}
+.metricTileBody .metricLabel {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+@container (max-width: 230px) {
+  .metricTileTrend {
+    display: none;
+  }
+}

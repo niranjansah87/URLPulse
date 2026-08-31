@@ -15,7 +15,7 @@ export const API_ORIGIN = API_BASE.replace(/\/api$/, "");
  * Node may resolve `localhost` to ::1 while the API binds IPv4). Browser calls
  * always use the public API_BASE.
  */
-const SERVER_API_BASE = (process.env.API_INTERNAL_URL ?? API_BASE).replace(/\/$/, "");
+const SERVER_API_BASE = (process.env.API_INTERNAL_URL ?? API_BASE.replace("://localhost", "://127.0.0.1")).replace(/\/$/, "");
 function baseFor(): string {
   return typeof window === "undefined" ? SERVER_API_BASE : API_BASE;
 }

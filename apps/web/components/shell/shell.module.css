@@ -19,9 +19,9 @@
 .brand {
   display: flex;
   align-items: center;
-  height: 64px;
+  justify-content: center;
+  height: 80px;
   padding: 0 var(--space-6);
-  border-bottom: var(--border-width) solid var(--color-border);
 }
 .logo {
   height: 26px;
@@ -30,6 +30,12 @@
 }
 .logoDark {
   display: none;
+}
+.logoLight {
+  mix-blend-mode: multiply;
+}
+.logoDark {
+  mix-blend-mode: screen;
 }
 :global(:root[data-theme="dark"]) .logoLight {
   display: none;
@@ -162,7 +168,32 @@
   align-items: center;
   gap: var(--space-3);
 }
-.menuBtn {
+/* Profile pill trigger in the header. */
+.headerProfile {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 3px var(--space-2) 3px 3px;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-text);
+  transition: background-color var(--dur-fast) var(--ease-standard);
+}
+.headerProfile:hover {
+  background: var(--color-bg);
+}
+.headerProfileName {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Menu button lives in the header on mobile; the sidebar is always shown on
+   desktop. The `.header` prefix outranks IconButton's own `display:inline-flex`
+   so the button truly hides on large screens. */
+.header .menuBtn {
   display: none;
 }
 .content {
@@ -212,6 +243,9 @@
   .main {
     margin-left: 0;
   }
+  .header .menuBtn {
+    display: inline-flex;
+  }
   .mobileBar {
     display: flex;
     align-items: center;
@@ -237,6 +271,9 @@
   .headerSearch {
     display: none;
   }
+  .headerProfileName {
+    display: none;
+  }
   .content {
     padding: var(--layout-gutter-sm);
   }
@@ -258,6 +295,11 @@
 .sidebarCollapsed .brand {
   justify-content: center;
   padding: 0;
+}
+/* Center the mark in the rail: the link fills the brand width and centers it. */
+.sidebarCollapsed .brandLink {
+  width: 100%;
+  justify-content: center;
 }
 .sidebarCollapsed .navItem {
   justify-content: center;
@@ -310,11 +352,11 @@
   object-fit: cover;
 }
 
-/* --- Footer: segmented theme + collapse --- */
+/* --- Footer: collapse control --- */
 .footerActions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-2);
   padding-top: var(--space-2);
 }
@@ -372,4 +414,25 @@
 }
 .collapseBtn:hover {
   background: var(--color-bg);
+}
+
+/* Single icon theme toggle (header). */
+.themeToggle {
+  width: var(--control-sm);
+  height: var(--control-sm);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard);
+}
+.themeToggle:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
 }

@@ -1,9 +1,17 @@
 /*
- * Branded loading screen. Delayed fade-in (250ms) means fast Suspense
- * fallbacks unmount before this ever paints — no flicker on quick navigation.
+ * UrlPulseLoader — a living recreation of the brand logo reveal
+ * (public/brand/urlpulse-logo-reveal.mp4). One shared timeline (--upl-T) drives
+ * every element on infinite, in-lockstep keyframes, so the mark assembles,
+ * synchronises, reveals the wordmark, then recedes and reconstructs seamlessly.
+ *
+ * Base (no-animation) state is the COMPLETE mark: strokes drawn, node/link/
+ * wordmark visible. Reduced motion simply disables the animations and this
+ * finished logo remains. Only opacity / transform / stroke-dashoffset animate.
  */
 
 .root {
+  --upl-T: 4200ms;
+  --upl-stroke: 5;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -18,33 +26,102 @@
   justify-content: center;
 }
 
-.badge {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 172px;
-  height: 96px;
+.mark {
+  width: clamp(96px, 22vw, 132px);
+  height: auto;
+}
+.icon {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: upl-breath var(--upl-T) var(--ease-standard) infinite;
 }
 
-/* Circular health indicator; the pulse line passes through it. */
+/* --- ring: traces itself, then un-draws during the recede --- */
 .ring {
-  position: absolute;
-  width: 88px;
-  height: 88px;
-  border-radius: var(--radius-pill);
-  border: 1.5px solid var(--color-border);
+  stroke: var(--color-accent);
+  stroke-width: var(--upl-stroke);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 100 100;
+  stroke-dashoffset: 0;
+  animation: upl-ring var(--upl-T) var(--ease-standard) infinite;
 }
 
+/* --- heartbeat: drawn from the centre outward, holds, un-draws --- */
 .wave {
-  position: relative;
-  z-index: 1;
+  stroke: var(--color-accent);
+  stroke-width: var(--upl-stroke);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 100 100;
+  stroke-dashoffset: 0;
+  animation: upl-wave var(--upl-T) var(--ease-standard) infinite;
 }
 
-.brand {
+/* --- the synchronising pulse: a bright lit segment that runs the wave once --- */
+.trace {
+  stroke: var(--color-accent-hover);
+  stroke-width: calc(var(--upl-stroke) + 0.5);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 16 120;
+  stroke-dashoffset: 136;
+  opacity: 0;
+  animation: upl-trace var(--upl-T) var(--ease-standard) infinite;
+}
+
+.node {
+  fill: var(--color-accent);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: upl-node var(--upl-T) var(--ease-standard) infinite;
+}
+.halo {
+  fill: var(--color-accent);
+  opacity: 0.16;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: upl-halo var(--upl-T) var(--ease-standard) infinite;
+}
+
+/* --- URL link: assembles into the ring gap, with a connection glow --- */
+.link {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: upl-link var(--upl-T) var(--ease-standard) infinite;
+}
+.link rect {
+  fill: none;
+  stroke: var(--color-text);
+  stroke-width: 3;
+}
+
+/* --- wordmark: brought online left→right by the pulse --- */
+.wordmark {
+  font-size: var(--text-lg);
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.01em;
+  line-height: 1;
+  clip-path: inset(0 0 0 0);
+  animation: upl-word var(--upl-T) var(--ease-standard) infinite;
+}
+.wmUrl {
+  color: var(--color-text);
+}
+.wmPulse {
+  color: var(--color-accent);
+}
+
+.caption {
   font-size: var(--text-sm);
   font-weight: var(--fw-medium);
   letter-spacing: 0.04em;
   color: var(--color-text-muted);
+  animation: upl-caption var(--upl-T) var(--ease-standard) infinite;
 }
 
 @keyframes upl-appear {
@@ -53,9 +130,170 @@
   }
 }
 
+/* Whole-icon breath synchronised with the final pulse. */
+@keyframes upl-breath {
+  0%, 52% {
+    transform: scale(1);
+  }
+  59% {
+    transform: scale(1.025);
+  }
+  66%, 100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes upl-ring {
+  0%, 8% {
+    stroke-dashoffset: 100;
+  }
+  30%, 82% {
+    stroke-dashoffset: 0;
+  }
+  97%, 100% {
+    stroke-dashoffset: 100;
+  }
+}
+
+@keyframes upl-wave {
+  0%, 3% {
+    stroke-dashoffset: 100;
+  }
+  22%, 84% {
+    stroke-dashoffset: 0;
+  }
+  98%, 100% {
+    stroke-dashoffset: 100;
+  }
+}
+
+@keyframes upl-trace {
+  0%, 50% {
+    stroke-dashoffset: 136;
+    opacity: 0;
+  }
+  52% {
+    opacity: 0.9;
+  }
+  64% {
+    stroke-dashoffset: 16;
+    opacity: 0.9;
+  }
+  68%, 100% {
+    stroke-dashoffset: 16;
+    opacity: 0;
+  }
+}
+
+@keyframes upl-node {
+  0%, 28% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  36%, 86% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  94%, 100% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+}
+
+@keyframes upl-halo {
+  0%, 52% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  60% {
+    opacity: 0.24;
+    transform: scale(1.15);
+  }
+  70% {
+    opacity: 0.1;
+    transform: scale(1);
+  }
+  86%, 100% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@keyframes upl-link {
+  0%, 34% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  /* snaps into the ring gap, slightly overshooting — the connection lock-in */
+  46% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  50% {
+    transform: scale(1);
+  }
+  54%, 82% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  92%, 100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+
+@keyframes upl-word {
+  0%, 56% {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0.4;
+  }
+  74%, 84% {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+  }
+  93% {
+    clip-path: inset(0 0 0 0);
+    opacity: 0;
+  }
+  94%, 100% {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0;
+  }
+}
+
+@keyframes upl-caption {
+  0%, 60% {
+    opacity: 0;
+  }
+  74%, 84% {
+    opacity: 1;
+  }
+  92%, 100% {
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .root {
-    animation: none;
     opacity: 1;
+    animation: none;
+  }
+  .icon,
+  .ring,
+  .wave,
+  .trace,
+  .node,
+  .halo,
+  .link,
+  .wordmark,
+  .caption {
+    animation: none;
+  }
+  /* Base state already renders the complete mark; just hide the transient pulse. */
+  .trace {
+    opacity: 0;
+  }
+  .halo {
+    opacity: 0.16;
   }
 }

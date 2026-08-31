@@ -38,7 +38,7 @@ export function BatchHeader({ batch, actions }: { batch: Batch; actions: HeaderA
         </div>
       </div>
       <div className={styles.metaRow}>
-        <span>Started {started}</span>
+        <span>{started}</span>
         <span className={styles.metaSep}>•</span>
         <span>
           {progressCount(batch.statistics)} / {batch.statistics.total} URLs

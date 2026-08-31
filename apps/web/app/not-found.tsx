@@ -1,22 +1,8 @@
-import Link from "next/link";
-import { Compass } from "lucide-react";
-import { EmptyState } from "@/components/ui/feedback";
-import { Button } from "@/components/ui/Button";
+import type { Metadata } from "next";
+import { NotFoundPage } from "@/features/marketing/components/NotFoundPage";
 
-/** Root not-found (outside any frame): centered, minimal, on-brand. */
+export const metadata: Metadata = { title: "Page not found", robots: { index: false, follow: false } };
+
 export default function NotFound() {
-  return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "var(--space-6)" }}>
-      <EmptyState
-        icon={<Compass size={28} strokeWidth={1.5} />}
-        title="Page not found"
-        body="The page you're looking for doesn't exist or has moved."
-        action={
-          <Link href="/batches">
-            <Button variant="secondary">Back to batches</Button>
-          </Link>
-        }
-      />
-    </div>
-  );
+  return <NotFoundPage />;
 }

@@ -46,18 +46,18 @@ function activityFrom(urls: UrlResult[]): ActivityEvent[] {
   const events: ActivityEvent[] = [];
   for (const u of urls) {
     if (u.status === "SUCCESS") {
-      events.push({ id: u.id, kind: "checked", url: u.url, httpStatus: u.httpStatus, responseTimeMs: u.responseTimeMs, message: null, at: null });
+      events.push({ id: u.id, kind: "checked", url: u.url, httpStatus: u.httpStatus, responseTimeMs: u.responseTimeMs, message: null, at: u.completedAt });
     } else if (u.status === "FAILED") {
-      events.push({ id: u.id, kind: "failed", url: u.url, httpStatus: u.httpStatus, responseTimeMs: null, message: u.error, at: null });
+      events.push({ id: u.id, kind: "failed", url: u.url, httpStatus: u.httpStatus, responseTimeMs: null, message: u.error, at: u.completedAt });
     } else if (u.status === "PROCESSING") {
-      events.push({ id: u.id, kind: "checking", url: u.url, httpStatus: null, responseTimeMs: null, message: null, at: null });
+      events.push({ id: u.id, kind: "checking", url: u.url, httpStatus: null, responseTimeMs: null, message: null, at: u.startedAt });
     }
     if (events.length >= 5) break;
   }
   return events;
 }
 
-export function toBatchDetailData(d: BatchDetail, fetchedAt: string = new Date().toISOString()): BatchDetailData {
+export function toBatchDetailData(d: BatchDetail): BatchDetailData {
   const batch: Batch = {
     id: d.id,
     name: batchDisplayName(d.id),
@@ -66,8 +66,9 @@ export function toBatchDetailData(d: BatchDetail, fetchedAt: string = new Date()
     config: { checkIntervalMinutes: null, timeoutSeconds: SYSTEM_TIMEOUT_SECONDS, retryAttempts: SYSTEM_RETRY_ATTEMPTS },
     createdBy: null,
     createdAt: d.createdAt,
-    startedAt: d.status === "PENDING" ? null : d.createdAt,
-    updatedAt: fetchedAt,
+    startedAt: d.startedAt,
+    completedAt: d.completedAt,
+    updatedAt: d.updatedAt,
   };
   return { batch, urls: d.urls, activity: activityFrom(d.urls) };
 }

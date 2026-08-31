@@ -3,15 +3,10 @@
 import { Logo } from "@/components/ui/Logo";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
-import { Bell, ChevronDown, ChevronsLeft, ChevronsRight, History, LayoutGrid, LogOut, PlusCircle, Settings, type LucideIcon } from "lucide-react";
-import { Menu } from "@/components/ui/Menu";
-import { authClient } from "@/features/auth/client";
+import { ChevronsLeft, ChevronsRight, History, LayoutGrid, PlusCircle, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { useCurrentUser } from "@/features/auth/useCurrentUser";
-import { useUnreadAlertCount } from "@/features/alerts/hooks/useUnreadAlertCount";
-import { ThemeToggle } from "./ThemeToggle";
 import styles from "./shell.module.css";
 
 interface NavEntry {
@@ -21,11 +16,9 @@ interface NavEntry {
 }
 
 const NAV: NavEntry[] = [
-  { label: "Batches", href: "/batches", icon: LayoutGrid },
+  { label: "Dashboard", href: "/batches", icon: LayoutGrid },
   { label: "Create Batch", href: "/batches/new", icon: PlusCircle },
   { label: "History", href: "/history", icon: History },
-  { label: "Alerts", href: "/alerts", icon: Bell },
-  { label: "Settings", href: "/settings", icon: Settings },
 ];
 
 const COLLAPSE_KEY = "urlpulse-sidebar-collapsed";
@@ -40,10 +33,7 @@ export function Sidebar({
   onToggleCollapsed: () => void;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
   const reduce = useReducedMotion();
-  const { user, status } = useCurrentUser();
-  const unread = useUnreadAlertCount();
 
   const isActive = (entry: NavEntry) => {
     if (entry.href === "/batches") return pathname.startsWith("/batches") && !pathname.startsWith("/batches/new");
@@ -59,7 +49,7 @@ export function Sidebar({
             <img className={cn(styles.mark, styles.logoDark)} src="/brand/mark/urlpulse-dark.png" alt="URLPulse" />
           </Link>
         ) : (
-          <Logo href="/batches" size="md" className={styles.brandLink} />
+          <Logo href="/batches" size="lg" className={styles.brandLink} />
         )}
       </div>
 
@@ -67,7 +57,6 @@ export function Sidebar({
         {NAV.map((entry) => {
           const active = isActive(entry);
           const Icon = entry.icon;
-          const badge = entry.href === "/alerts" && unread > 0 ? unread : null;
           return (
             <Link
               key={entry.href}
@@ -86,51 +75,13 @@ export function Sidebar({
               ) : null}
               <Icon size={18} strokeWidth={1.75} aria-hidden className={styles.navIcon} />
               {!collapsed ? <span className={styles.navLabel}>{entry.label}</span> : null}
-              {badge !== null ? (
-                <span className={styles.navBadge} aria-label={`${badge} unread`}>
-                  {badge}
-                </span>
-              ) : null}
             </Link>
           );
         })}
       </nav>
 
       <div className={styles.sidebarFooter}>
-        <div className={styles.profile} title={status === "unavailable" ? "Demo account (auth service unavailable)" : undefined}>
-          <span className={styles.avatar} aria-hidden>
-            {user?.image ? <img src={user.image} alt="" className={styles.avatarImg} /> : (user?.initials ?? "…")}
-          </span>
-          {!collapsed ? (
-            <span className={styles.profileText}>
-              <span className={styles.profileName}>{status === "loading" ? "Loading…" : (user?.name ?? "Signed out")}</span>
-              <span className={styles.profileEmail}>{user?.email ?? ""}</span>
-            </span>
-          ) : null}
-          {!collapsed ? (
-            <Menu
-              iconTrigger={<ChevronDown size={16} />}
-              triggerLabel="Account menu"
-              align="end"
-              items={[
-                { label: "Settings", icon: <Settings size={14} />, href: "/settings" },
-                {
-                  label: "Sign out",
-                  icon: <LogOut size={14} />,
-                  disabled: status !== "authenticated",
-                  onSelect: () => {
-                    void authClient.signOut().then(() => {
-                      router.replace("/login");
-                      router.refresh();
-                    });
-                  },
-                },
-              ]}
-            />
-          ) : null}
-        </div>
         <div className={cn(styles.footerActions, collapsed && styles.footerActionsCollapsed)}>
-          {!collapsed ? <ThemeToggle /> : null}
           <button
             type="button"
             className={styles.collapseBtn}

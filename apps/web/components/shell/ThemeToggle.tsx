@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion, useReducedMotion } from "motion/react";
 import { Moon, Sun } from "lucide-react";
 import styles from "./shell.module.css";
 
@@ -21,14 +20,12 @@ function resolvedIsDark(theme: Theme): boolean {
 }
 
 /**
- * Segmented light/dark control (sidebar footer, per the references). The active
- * pill slides between the two icons; theme tokens transition via CSS. Until a
- * choice is stored the app follows the system preference.
+ * Single light/dark toggle button. Shows the current theme's icon and flips it
+ * on click. Until a choice is stored the app follows the system preference.
  */
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>("system");
   const [mounted, setMounted] = useState(false);
-  const reduce = useReducedMotion();
 
   useEffect(() => {
     const stored = (localStorage.getItem(STORAGE_KEY) as Theme | null) ?? "system";
@@ -38,7 +35,8 @@ export function ThemeToggle() {
 
   const dark = mounted ? resolvedIsDark(theme) : false;
 
-  const choose = (next: "light" | "dark") => {
+  const toggle = () => {
+    const next: Theme = dark ? "light" : "dark";
     setTheme(next);
     apply(next);
     try {
@@ -48,31 +46,16 @@ export function ThemeToggle() {
     }
   };
 
+  const Icon = dark ? Moon : Sun;
   return (
-    <div role="group" aria-label="Theme" className={styles.segmented}>
-      {(["light", "dark"] as const).map((opt) => {
-        const active = opt === "dark" ? dark : !dark;
-        const Icon = opt === "dark" ? Moon : Sun;
-        return (
-          <button
-            key={opt}
-            type="button"
-            aria-pressed={active}
-            aria-label={opt === "dark" ? "Dark theme" : "Light theme"}
-            className={styles.segment}
-            onClick={() => choose(opt)}
-          >
-            {active ? (
-              <motion.span
-                layoutId="theme-pill"
-                className={styles.segmentPill}
-                transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 40 }}
-              />
-            ) : null}
-            <Icon size={16} strokeWidth={1.75} className={styles.segmentIcon} aria-hidden />
-          </button>
-        );
-      })}
-    </div>
+    <button
+      type="button"
+      className={styles.themeToggle}
+      aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
+      aria-pressed={dark}
+      onClick={toggle}
+    >
+      <Icon size={18} strokeWidth={1.75} aria-hidden />
+    </button>
   );
 }

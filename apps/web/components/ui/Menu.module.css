@@ -2,6 +2,22 @@
   position: relative;
   display: inline-flex;
 }
+/* Unstyled wrapper so an arbitrary trigger (e.g. a profile pill) stays clickable
+   and focusable without inheriting button chrome. */
+.plainTrigger {
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-pill);
+}
+.plainTrigger:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
 .menu {
   position: absolute;
   top: calc(100% + var(--space-1));

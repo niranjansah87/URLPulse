@@ -1,14 +1,3 @@
-export type AlertSeverity = "critical" | "warning" | "info";
-export type AlertStatus = "new" | "acknowledged" | "resolved";
-
-export interface Alert {
-  id: string;
-  title: string;
-  detail: string;
-  batchId: string;
-  batchName: string;
-  url: string;
-  severity: AlertSeverity;
-  status: AlertStatus;
-  detectedAt: string; // ISO
-}
+// Alerts share their shape with the backend contract; re-export the canonical
+// zod-inferred types so the client and server cannot drift.
+export type { Alert, AlertSeverity, AlertStatus, AlertType } from "@urlpulse/types";
