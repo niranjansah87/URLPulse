@@ -19,6 +19,13 @@ const apiEnvSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(16, "BETTER_AUTH_SECRET must be at least 16 characters").optional(),
   BETTER_AUTH_URL: z.string().url().default("http://localhost:4000"),
   WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
+
+  // Resend transactional email (password-reset delivery). RESEND_API_KEY is
+  // required in production so reset emails can actually be sent; when unset in
+  // development/test the email service no-ops (logs a safe line, never the token)
+  // so local flows and the suite run without a provider.
+  RESEND_API_KEY: z.string().min(1).optional(),
+  RESEND_FROM_EMAIL: z.string().min(1).default("URLPulse <onboarding@resend.dev>"),
 });
 
 function loadApiConfig(source: Record<string, string | undefined> = process.env) {
@@ -30,8 +37,9 @@ function loadApiConfig(source: Record<string, string | undefined> = process.env)
     throw new Error(`Invalid URLPulse API configuration:\n${issues}`);
   }
   const { BETTER_AUTH_SECRET, ...rest } = result.data;
-  if (!BETTER_AUTH_SECRET && config.NODE_ENV === "production") {
-    throw new Error("BETTER_AUTH_SECRET is required in production");
+  if (config.NODE_ENV === "production") {
+    if (!BETTER_AUTH_SECRET) throw new Error("BETTER_AUTH_SECRET is required in production");
+    if (!rest.RESEND_API_KEY) throw new Error("RESEND_API_KEY is required in production");
   }
   return { ...rest, BETTER_AUTH_SECRET: BETTER_AUTH_SECRET ?? DEV_AUTH_SECRET };
 }

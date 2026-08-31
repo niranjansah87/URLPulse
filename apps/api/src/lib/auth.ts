@@ -2,6 +2,10 @@ import { Pool } from "pg";
 import { betterAuth } from "better-auth";
 import { config } from "./env";
 import { apiConfig } from "./env";
+import { emailService } from "./email";
+
+/** Password-reset token lifetime. Kept modest so a leaked link ages out quickly. */
+const RESET_TOKEN_TTL_SECONDS = 60 * 60; // 1 hour
 
 /**
  * Better Auth instance for URLPulse.
@@ -39,6 +43,60 @@ export const auth = betterAuth({
     enabled: true,
     // Email verification workflows are intentionally out of scope (minimal auth).
     requireEmailVerification: false,
+    // Matches the frontend's minimum; enforced server-side regardless of the UI.
+    minPasswordLength: 8,
+    // Token lifetime; Better Auth stores it in the verification table, consumes
+    // it atomically on reset (single-use, replay-safe), and rejects it when expired.
+    resetPasswordTokenExpiresIn: RESET_TOKEN_TTL_SECONDS,
+    // A password change should not leave old, possibly-stolen sessions valid.
+    revokeSessionsOnPasswordReset: true,
+    /**
+     * Send the reset email. The reset URL is built from the trusted, configured
+     * WEB_ORIGIN — never from a request Host header — so it cannot be poisoned
+     * into an open redirect. Failures are caught and logged safely (never the
+     * token) and never rethrown, so the public forget-password response stays
+     * generic and cannot be used to tell whether an account exists.
+     */
+    async sendResetPassword({ user, token }) {
+      const resetUrl = `${apiConfig.WEB_ORIGIN}/reset-password?token=${encodeURIComponent(token)}`;
+      try {
+        await emailService.sendPasswordReset({
+          to: user.email,
+          resetUrl,
+          expiresMinutes: RESET_TOKEN_TTL_SECONDS / 60,
+        });
+      } catch (err) {
+        console.error("[auth] password reset email delivery failed", {
+          userId: user.id,
+          error: (err as Error).message,
+        });
+      }
+    },
+    onPasswordReset({ user }) {
+      // Safe audit event: identifier only, never the token or password.
+      console.info("[auth] password reset succeeded", { userId: user.id });
+      return Promise.resolve();
+    },
+  },
+  /**
+   * Abuse protection for the security-sensitive auth endpoints. Storage is the
+   * shared PostgreSQL database, so the limit holds across every API instance
+   * (no in-memory per-process limiter). Better Auth enables rate limiting in
+   * production; it is enabled here in every environment except tests. Password
+   * reset is tightly capped to prevent email flooding / Resend abuse.
+   */
+  rateLimit: {
+    enabled: config.NODE_ENV !== "test",
+    storage: "database",
+    window: 60,
+    max: 100,
+    customRules: {
+      "/request-password-reset": { window: 300, max: 3 },
+      "/forget-password": { window: 300, max: 3 },
+      "/reset-password": { window: 300, max: 5 },
+      "/sign-in/email": { window: 60, max: 10 },
+      "/sign-up/email": { window: 300, max: 5 },
+    },
   },
   user: {
     // Account deletion is surfaced in the Settings "Danger Zone". Deleting a user

@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import postgres from "postgres";
 import type { BatchRepository } from "../repositories/batches";
+import { emailService } from "../lib/email";
 
 /**
  * End-to-end authentication against a real PostgreSQL and the real Better Auth
@@ -117,5 +118,121 @@ describe.skipIf(!ready)("authentication flow (integration)", () => {
 
     const signOut = await app.inject({ method: "POST", url: "/api/auth/sign-out", headers: { cookie } });
     expect(signOut.statusCode).toBe(200);
+  });
+});
+
+describe.skipIf(!ready)("password reset flow (integration)", () => {
+  let app: ReturnType<typeof buildServer>;
+  const email = `reset_${Date.now()}@example.com`;
+  const oldPassword = "old-password-123";
+  const newPassword = "brand-new-password-456";
+
+  const makeApp = (): ReturnType<typeof buildServer> => {
+    const repo = {
+      list: async () => ({ items: [], total: 0 }),
+      getById: async () => null,
+      cancel: async () => "notfound" as const,
+      retryFailed: async () => "notfound" as const,
+      findReconcilableJobs: async () => [],
+      recoverStuck: async () => 0,
+    } as unknown as BatchRepository;
+    const service = createBatchService({ repo, enqueue: async () => {}, log: { info: () => {}, warn: () => {} } });
+    const eventBus = { start: async () => {}, addClient: () => () => {}, clientCount: () => 0 };
+    return buildServer({ service, eventBus });
+  };
+
+  beforeAll(async () => {
+    app = makeApp();
+    await app.ready();
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/auth/sign-up/email",
+      payload: { email, password: oldPassword, name: "Reset User" },
+    });
+    expect(res.statusCode).toBe(200);
+  });
+
+  afterAll(async () => {
+    vi.restoreAllMocks();
+    await app.close();
+  });
+
+  it("requesting a reset for a KNOWN email sends the email and returns a generic 200", async () => {
+    const spy = vi.spyOn(emailService, "sendPasswordReset").mockResolvedValue();
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/auth/request-password-reset",
+      payload: { email, redirectTo: "/reset-password" },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(spy).toHaveBeenCalledTimes(1);
+    const arg = spy.mock.calls[0]![0];
+    expect(arg.to).toBe(email);
+    // Reset URL points at the trusted WEB_ORIGIN reset page and carries a token.
+    const url = new URL(arg.resetUrl);
+    expect(url.pathname).toBe("/reset-password");
+    expect(url.searchParams.get("token")).toBeTruthy();
+    spy.mockRestore();
+  });
+
+  it("requesting a reset for an UNKNOWN email returns the same generic 200 and sends nothing", async () => {
+    const spy = vi.spyOn(emailService, "sendPasswordReset").mockResolvedValue();
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/auth/request-password-reset",
+      payload: { email: `nobody_${Date.now()}@example.com`, redirectTo: "/reset-password" },
+    });
+    expect(res.statusCode).toBe(200); // indistinguishable from the known-email case
+    expect(spy).not.toHaveBeenCalled(); // no account => no email
+    spy.mockRestore();
+  });
+
+  it("resets the password with a valid token; old password stops working, new one works", async () => {
+    const spy = vi.spyOn(emailService, "sendPasswordReset").mockResolvedValue();
+    await app.inject({
+      method: "POST",
+      url: "/api/auth/request-password-reset",
+      payload: { email, redirectTo: "/reset-password" },
+    });
+    const token = new URL(spy.mock.calls[0]![0].resetUrl).searchParams.get("token")!;
+    spy.mockRestore();
+
+    const reset = await app.inject({
+      method: "POST",
+      url: "/api/auth/reset-password",
+      payload: { newPassword, token },
+    });
+    expect(reset.statusCode).toBe(200);
+
+    const oldTry = await app.inject({
+      method: "POST",
+      url: "/api/auth/sign-in/email",
+      payload: { email, password: oldPassword },
+    });
+    expect(oldTry.statusCode).toBeGreaterThanOrEqual(400);
+
+    const newTry = await app.inject({
+      method: "POST",
+      url: "/api/auth/sign-in/email",
+      payload: { email, password: newPassword },
+    });
+    expect(newTry.statusCode).toBe(200);
+
+    // The token is single-use: replaying it fails.
+    const replay = await app.inject({
+      method: "POST",
+      url: "/api/auth/reset-password",
+      payload: { newPassword: "yet-another-password-789", token },
+    });
+    expect(replay.statusCode).toBeGreaterThanOrEqual(400);
+  });
+
+  it("rejects an invalid reset token", async () => {
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/auth/reset-password",
+      payload: { newPassword, token: "not-a-real-token" },
+    });
+    expect(res.statusCode).toBeGreaterThanOrEqual(400);
   });
 });
