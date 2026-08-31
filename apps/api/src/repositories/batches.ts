@@ -142,6 +142,42 @@ export function createBatchRepository(db: Db) {
     },
 
     /**
+     * Reset a batch's FAILED URLs for another round (ADR-024). Atomically claims
+     * every FAILED row to PENDING (resetting attempt_count and clearing the prior
+     * result), decrements failed_count by the number claimed, and reactivates the
+     * batch to PROCESSING. Concurrent calls are safe: the conditional UPDATE
+     * claims each FAILED row once, so a second call finds none. Returns:
+     *  - "notfound":  no such batch
+     *  - "cancelled": batch is CANCELLED — retry-failed is rejected (ADR-027)
+     *  - { claimed }: the URL ids reset (possibly empty), to be enqueued
+     */
+    async retryFailed(id: string): Promise<"notfound" | "cancelled" | { claimed: string[] }> {
+      return db.begin(async (tx) => {
+        const [batch] = await tx<{ status: string }[]>`SELECT status FROM batches WHERE id = ${id}`;
+        if (!batch) return "notfound";
+        if (batch.status === "CANCELLED") return "cancelled";
+        const claimedRows = await tx<{ id: string }[]>`
+          UPDATE urls
+          SET status = 'PENDING', attempt_count = 0, http_status = NULL, response_time_ms = NULL,
+              page_title = NULL, error_code = NULL, error_message = NULL,
+              started_at = NULL, completed_at = NULL, updated_at = now()
+          WHERE batch_id = ${id} AND status = 'FAILED'
+          RETURNING id
+        `;
+        const claimed = claimedRows.map((r) => r.id);
+        if (claimed.length > 0) {
+          await tx`
+            UPDATE batches
+            SET failed_count = failed_count - ${claimed.length},
+                status = 'PROCESSING', completed_at = NULL, updated_at = now()
+            WHERE id = ${id}
+          `;
+        }
+        return { claimed };
+      });
+    },
+
+    /**
      * URLs still PENDING in a non-terminal batch - the set the reconciliation
      * sweep re-enqueues to close the commit-then-enqueue-fails window (ADR-028).
      */

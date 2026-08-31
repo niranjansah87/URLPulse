@@ -89,6 +89,41 @@ describe.skipIf(!dbUp)("batch repository (integration)", () => {
     expect(result).toBe("notfound");
   });
 
+  it("retry-failed resets only FAILED urls and reactivates the batch", async () => {
+    const { batch, urlIds } = await repo.createWithUrls(["https://r1.com", "https://r2.com"]);
+    // Simulate one SUCCESS and one FAILED terminal batch.
+    await sql`UPDATE urls SET status='SUCCESS' WHERE id=${urlIds[0]!}`;
+    await sql`UPDATE urls SET status='FAILED', attempt_count=4 WHERE id=${urlIds[1]!}`;
+    await sql`UPDATE batches SET status='FAILED', completed_count=1, failed_count=1 WHERE id=${batch.id}`;
+
+    const result = await repo.retryFailed(batch.id);
+    expect(result).toEqual({ claimed: [urlIds[1]!] });
+
+    const detail = await repo.getById(batch.id);
+    expect(detail?.status).toBe("PROCESSING");
+    expect(detail?.failedCount).toBe(0);
+    const failedUrl = detail?.urls.find((u) => u.id === urlIds[1]);
+    expect(failedUrl?.status).toBe("PENDING");
+    const okUrl = detail?.urls.find((u) => u.id === urlIds[0]);
+    expect(okUrl?.status).toBe("SUCCESS");
+  });
+
+  it("retry-failed is idempotent under a second call (claims each row once)", async () => {
+    const { batch, urlIds } = await repo.createWithUrls(["https://r3.com"]);
+    await sql`UPDATE urls SET status='FAILED' WHERE id=${urlIds[0]!}`;
+    await sql`UPDATE batches SET status='FAILED', failed_count=1 WHERE id=${batch.id}`;
+    const first = await repo.retryFailed(batch.id);
+    const second = await repo.retryFailed(batch.id);
+    expect(first).toEqual({ claimed: [urlIds[0]!] });
+    expect(second).toEqual({ claimed: [] });
+  });
+
+  it("retry-failed on a cancelled batch is rejected", async () => {
+    const { batch } = await repo.createWithUrls(["https://r4.com"]);
+    await repo.cancel(batch.id);
+    expect(await repo.retryFailed(batch.id)).toBe("cancelled");
+  });
+
   it("rolls back the whole batch when the transaction throws", async () => {
     const countBatches = async (): Promise<number> => {
       const rows = await sql<{ count: number }[]>`SELECT count(*)::int AS count FROM batches`;

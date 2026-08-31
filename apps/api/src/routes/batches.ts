@@ -62,10 +62,16 @@ export async function registerBatchRoutes(
     return body;
   });
 
-  // --- Later milestones ---
-  app.post("/batches/:batchId/retry-failed", async () => {
-    throw new NotImplementedError("Retry failed");
+  // POST /batches/:batchId/retry-failed — resets only FAILED URLs and requeues.
+  app.post<{ Params: { batchId: string } }>("/batches/:batchId/retry-failed", async (req) => {
+    const { batchId } = req.params;
+    if (!isUuid(batchId)) throw new NotFoundError(`Batch ${batchId} not found`);
+    const batch = await service.retryFailed(batchId);
+    const body: ApiSuccess<BatchDetail> = { data: batch };
+    return body;
   });
+
+  // --- Later milestones ---
   app.get("/batches/:batchId/events", async () => {
     throw new NotImplementedError("Live updates (SSE)");
   });

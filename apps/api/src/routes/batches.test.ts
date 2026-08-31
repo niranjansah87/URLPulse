@@ -19,6 +19,7 @@ beforeAll(async () => {
     getById: vi.fn(),
     list: vi.fn(),
     cancel: vi.fn(),
+    retryFailed: vi.fn(),
     findReconcilableJobs: vi.fn(),
   } as unknown as BatchRepository;
   const service = createBatchService({
@@ -71,8 +72,8 @@ describe("POST /api/batches/:batchId/cancel", () => {
 });
 
 describe("unimplemented endpoints", () => {
-  it("returns 501 for retry-failed", async () => {
-    const res = await app.inject({ method: "POST", url: "/api/batches/x/retry-failed" });
+  it("returns 501 for the SSE events endpoint", async () => {
+    const res = await app.inject({ method: "GET", url: "/api/batches/x/events" });
     expect(res.statusCode).toBe(501);
     expect(res.json().error.code).toBe("NOT_IMPLEMENTED");
   });

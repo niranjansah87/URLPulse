@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import type { BatchDetail, BatchSummary, UrlCheckJobData } from "@urlpulse/types";
 import { createBatchService } from "./batches";
 import type { BatchRepository } from "../repositories/batches";
-import { NotFoundError, ValidationError } from "../lib/errors";
+import { ConflictError, NotFoundError, ValidationError } from "../lib/errors";
 
 const noopLog = { info: () => {}, warn: () => {} };
 
@@ -27,6 +27,7 @@ function fakeRepo(over: Partial<BatchRepository> = {}): BatchRepository {
     getById: vi.fn(async () => null),
     list: vi.fn(async () => ({ items: [], total: 0 })),
     cancel: vi.fn(async () => "cancelled" as const),
+    retryFailed: vi.fn(async () => ({ claimed: [] })),
     findReconcilableJobs: vi.fn(async () => []),
     ...over,
   } as BatchRepository;
@@ -123,6 +124,36 @@ describe("batchService.cancelBatch", () => {
     });
     const service = createBatchService({ repo, enqueue: async () => {}, log: noopLog });
     await expect(service.cancelBatch("batch-1")).resolves.toEqual(detail);
+  });
+});
+
+describe("batchService.retryFailed", () => {
+  it("throws NotFoundError when the batch does not exist", async () => {
+    const repo = fakeRepo({ retryFailed: vi.fn(async () => "notfound" as const) });
+    const service = createBatchService({ repo, enqueue: async () => {}, log: noopLog });
+    await expect(service.retryFailed("missing")).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("throws ConflictError for a cancelled batch", async () => {
+    const repo = fakeRepo({ retryFailed: vi.fn(async () => "cancelled" as const) });
+    const service = createBatchService({ repo, enqueue: async () => {}, log: noopLog });
+    await expect(service.retryFailed("batch-1")).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it("enqueues one job per claimed failed URL and returns state", async () => {
+    const enqueued: string[] = [];
+    const detail: BatchDetail = { ...summary("batch-1"), urls: [] };
+    const repo = fakeRepo({
+      retryFailed: vi.fn(async () => ({ claimed: ["u-b", "u-d"] })),
+      getById: vi.fn(async () => detail),
+    });
+    const service = createBatchService({
+      repo,
+      enqueue: async (d) => void enqueued.push(d.urlId),
+      log: noopLog,
+    });
+    await service.retryFailed("batch-1");
+    expect(enqueued).toEqual(["u-b", "u-d"]);
   });
 });
 

@@ -7,7 +7,7 @@ import {
   type UrlCheckJobData,
 } from "@urlpulse/types";
 import type { BatchRepository } from "../repositories/batches";
-import { NotFoundError, ValidationError } from "../lib/errors";
+import { ConflictError, NotFoundError, ValidationError } from "../lib/errors";
 
 /** Minimal logger surface (satisfied by Fastify's `app.log`). */
 export interface ServiceLogger {
@@ -97,6 +97,26 @@ export function createBatchService({ repo, enqueue, log }: BatchServiceDeps) {
     ): Promise<{ items: BatchSummary[]; meta: BatchListMeta }> {
       const { items, total } = await repo.list(query);
       return { items, meta: { page: query.page, pageSize: query.pageSize, total } };
+    },
+
+    /**
+     * Retry the FAILED URLs of a batch (ADR-024). Resets them to PENDING and
+     * enqueues one job each; other URLs are untouched. Rejects a CANCELLED batch
+     * with 409 (ADR-027) and a missing batch with 404. Idempotent under
+     * concurrent calls (the DB claims each FAILED row once).
+     */
+    async retryFailed(id: string): Promise<BatchDetail> {
+      const result = await repo.retryFailed(id);
+      if (result === "notfound") throw new NotFoundError(`Batch ${id} not found`);
+      if (result === "cancelled") throw new ConflictError(`Batch ${id} is cancelled and cannot be retried`);
+
+      const jobs = result.claimed.map((urlId) => ({ batchId: id, urlId }));
+      const enqueued = await enqueueAll(jobs);
+      log.info({ batchId: id, retried: result.claimed.length, enqueued }, "retry-failed");
+
+      const batch = await repo.getById(id);
+      if (!batch) throw new NotFoundError(`Batch ${id} not found`);
+      return batch;
     },
 
     /**
