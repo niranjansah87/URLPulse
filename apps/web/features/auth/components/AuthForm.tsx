@@ -77,6 +77,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
         ) : null}
       </label>
 
+      {mode === "login" ? (
+        <p className={styles.switch} style={{ textAlign: "right", marginTop: "calc(-1 * var(--space-2))" }}>
+          <Link href="/forgot-password">Forgot password?</Link>
+        </p>
+      ) : null}
+
       {error ? (
         <p className={styles.error} role="alert">
           {error}
