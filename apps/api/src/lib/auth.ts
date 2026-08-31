@@ -149,12 +149,16 @@ export const auth = betterAuth({
     expiresIn: VERIFICATION_TOKEN_TTL_SECONDS,
     async sendVerificationEmail({ user, url }) {
       // `url` is assembled by Better Auth from the configured baseURL (trusted),
-      // never a request Host header.
+      // never a request Host header. Override only the callbackURL so that after
+      // the API verifies the token the browser lands on the web app's
+      // /verify-email result page (WEB_ORIGIN is trusted, so originCheck passes).
+      const verifyUrl = new URL(url);
+      verifyUrl.searchParams.set("callbackURL", `${apiConfig.WEB_ORIGIN}/verify-email`);
       try {
         await emailService.sendVerification({
           to: user.email,
           name: user.name,
-          verifyUrl: url,
+          verifyUrl: verifyUrl.toString(),
           expiresMinutes: VERIFICATION_TOKEN_TTL_SECONDS / 60,
         });
       } catch (err) {
