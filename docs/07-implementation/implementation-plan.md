@@ -48,8 +48,7 @@ architecture and the review brief.
 
 ## 2. Current Repository State
 
-Determined by inspecting the working tree on `main` (the scaffold is present but **untracked** —
-another agent is actively building it; do not clobber those files). Verified against
+Determined by inspecting the working tree on `main` (the scaffold is committed). Verified against
 `apps/`, `packages/`, migrations, and config, not assumed from docs.
 
 ### Completed
@@ -352,7 +351,7 @@ increment); permanent failure is not retried.
 
 Follow `cancellation.md` + ADR-011/026/027.
 
-- **POST `/batches/:id/cancel`** — conditional `UPDATE batches SET status='CANCELLED'
+- **POST `/batches/:batchId/cancel`** — conditional `UPDATE batches SET status='CANCELLED'
   WHERE status IN ('PENDING','PROCESSING')`; in the same tx bulk-cancel non-terminal URLs; invalidate
   cache; publish. Idempotent (repeat → current state, `api.md §14`).
 - Queued jobs check state and skip; in-flight requests abort where practical (`AbortController`),
@@ -371,15 +370,15 @@ Follow `live-updates.md` (INV-10/11).
 
 - Worker publishes small `batch.updated {batchId,version}` to Redis pub/sub **after** DB commit
   (ordering, `live-updates §7`).
-- **GET `/batches/:id/events`** — `text/event-stream`; each API instance subscribes to Redis and
+- **GET `/batches/:batchId/events`** — `text/event-stream`; each API instance subscribes to Redis and
   forwards to its locally connected clients (multi-instance, `scaling §8`). Heartbeat comment to
-  survive proxies. Events are **notifications only** — client refetches `GET /batches/:id`
+  survive proxies. Events are **notifications only** — client refetches `GET /batches/:batchId`
   (resolve `consistency-check.md P2-4` in favor of GET-then-subscribe, not pushing a snapshot).
 - Tolerate duplicate/missed/out-of-order events; reconcile on (re)connect (INV-11).
 
 **Acceptance (INV-10/11/14):** worker update reaches a client on a **different** API instance;
 disconnect-during-update then reconnect yields correct state; duplicate events don't double-count;
-killing SSE entirely still lets `GET /batches/:id` return correct state.
+killing SSE entirely still lets `GET /batches/:batchId` return correct state.
 
 ---
 

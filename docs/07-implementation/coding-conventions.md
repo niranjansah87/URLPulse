@@ -1,194 +1,114 @@
 # URLPulse Coding Conventions
 
-**Version:** 1.0
-**Status:** Active
-
-Practical rules that matter for **this** architecture. Not a generic style guide. Where the scaffold
-already set a pattern (`apps/`, `packages/`, ADR-030 stack), these conventions describe and lock in
-that pattern rather than inventing a competing one. `.claude/rules/*` (error-handling, security,
-database, frontend, code-quality) apply on top; this file resolves URLPulse-specific choices.
+Practical rules for implementing URLPulse. These extend `.claude/rules/*` and follow the existing
+architecture (`docs/03-backend/api.md`, `database.md`, `docs/02-architecture/decisions.md`) rather
+than inventing new conventions. When this file and an ADR disagree, the ADR wins — fix this file.
 
 ---
 
 ## 1. TypeScript
 
-- `strict` on. No `any` (use `unknown` + a zod parse at the boundary). No non-null `!` on external data.
-- **Contracts are zod-first.** Define a zod schema in `@urlpulse/types`, infer the type
-  (`z.infer`). Never hand-write a type that duplicates a schema — that reintroduces drift (the exact
-  thing `packages/types` exists to prevent).
-- Public functions crossing a module/package boundary get explicit return types.
-- Model status/result unions as discriminated unions on `status` where it clarifies exhaustiveness.
-- ESM only (`"type":"module"`); use `import`/`export`, `.js`-less internal imports resolved by tsconfig.
+- Strict mode is on (`tsconfig.base.json`). No `any`, no non-null `!` on untrusted data, no unsafe casts; use `unknown` + a zod parse at boundaries.
+- Public contracts (exported functions, route handlers, repository methods) have explicit return types.
+- Model finite states as discriminated unions or the shared status enums — never loose strings in app code.
+- ESM only (`"type": "module"`); relative imports are extensionless (resolved by `tsx`/Next/`tsc` bundler resolution). Import order: node builtins, external, workspace (`@urlpulse/*`), relative, types.
 
 ## 2. Naming
 
-- **Files:** kebab-case for modules/utilities (`rate-limit.ts`, `url-check.ts`); PascalCase for React
-  components (`AppShell.tsx`, `ThemeToggle.tsx`).
-- **Variables/functions:** `camelCase`, verb-first functions (`createBatch`, `claimUrl`). Booleans
-  `is/has/should/can`. Factories `create*` (matches `createBatchService`, `createUrlCheckQueue`).
-- **Handlers:** `handle*` internal, `on*` as React props.
-- **Constants:** `SCREAMING_SNAKE` (`URL_CHECK_QUEUE`, `SSE_EVENT_BATCH_UPDATED`).
-- **DB tables/columns:** `snake_case`, plural tables (`batches`, `urls`), `snake_case` columns
-  (`attempt_count`, `response_time_ms`). The API layer converts to `camelCase` DTOs (`responseTimeMs`).
-- **API paths:** plural nouns, `:batchId` param, exactly as `api.md` (`/batches`,
-  `/batches/:batchId/retry-failed`). Do not rename.
-- **Queue name:** the shared `URL_CHECK_QUEUE` constant (`"url-check"`) — never a string literal.
-- **Redis keys:** namespaced (see §8).
-- Acronyms as words in identifiers: `urlId`, `httpStatus`, `batchId` (not `URLId`).
+- **Files:** PascalCase for React components (`AppShell.tsx`); kebab-case for everything else (`url-check.ts`, `rate-limit.ts`).
+- **Identifiers:** `camelCase` vars/functions (verb-first: `createBatch`, `claimUrl`); `PascalCase` types/classes; `SCREAMING_SNAKE` constants (`URL_CHECK_QUEUE`, `MAX_CONCURRENCY`). Booleans `is/has/should/can`. Handlers `handle*` internal, `on*` as props. Acronyms as words: `batchId`, `httpStatus` — never `batchID`.
+- **DB tables/columns:** `snake_case`, plural tables (`batches`, `urls`), `snake_case` columns (`attempt_count`, `response_time_ms`) — matches `database.md`.
+- **API routes:** plural nouns, kebab where multi-word; use the exact `api.md` names and `:batchId` param — do not rename.
+- **Queue name:** the `URL_CHECK_QUEUE` constant from `@urlpulse/types`, never a string literal.
+- **Redis keys:** see §8.
 
-## 3. Project Structure
+## 3. Project structure (where things live)
 
-| Concern | Location |
-|---|---|
-| HTTP routes (thin: validate + delegate) | `apps/api/src/routes/` |
-| Application logic / orchestration | `apps/api/src/services/` |
-| SQL access + transaction boundaries | `apps/api/src/repositories/` |
-| DB/Redis/queue/cache/rate-limit/env/errors | `apps/api/src/lib/`, `apps/worker/src/lib/` |
-| Migrations (`NNNN_name.sql`) | `apps/api/src/migrations/` |
-| Worker job processors | `apps/worker/src/jobs/` |
-| Queue name + job payload schema | `packages/types` (shared producer/consumer contract) |
-| Shared domain/API/SSE types + zod | `packages/types` |
-| Server-only env loading | `packages/config` |
-| UI routes (Server Components default) | `apps/web/app/` |
-| Interactive UI (Client Components) | `apps/web/components/` |
-| API client, hooks, SSE client | `apps/web/lib/` |
+- **routes/** — thin: validate input, delegate to a service, shape the response. No SQL, no business logic.
+- **services/** — application logic/orchestration (transactions spanning repos, enqueue, cache invalidation, publish).
+- **repositories/** — the only place raw SQL lives; own transaction boundaries; return domain types.
+- **lib/** — infrastructure clients and primitives: `db`, `redis`, `queue`, `cache`, `rate-limit`, `concurrency`, `http-checker`, `env`, `errors`.
+- **migrations/** — `NNNN_name.sql`, forward-only.
+- **packages/types** — every shared schema/type/queue/SSE contract. **Never** re-declare a domain type inside an app.
+- **packages/config** — server-only env; never imported by browser code.
+- **web:** `app/` routes (Server Components by default), `components/` (Client only where interactive), `lib/` (api client, sse client, hooks).
 
-Routes stay thin. Business logic goes in services; SQL goes in repositories. Do not put SQL in a
-route or `fetch()` in a service that a repository should own.
+## 4. API conventions (follow `api.md`)
 
-## 4. API Conventions
+- Validate every external input at the boundary with a zod schema from `@urlpulse/types` before any DB/queue work.
+- Success shape `{ data }` (collections add `{ meta }`); error shape `{ error: { code, message, details? } }` — no stack traces.
+- Status codes per `api.md §17`: 200 read, 201 create, 400 validation, 404 not found, 409 state conflict, 429 rate limited, 500 unexpected. Unimplemented features return **501**, never fake data.
+- Pagination: `page`/`pageSize` query + `meta { page, pageSize, total }`.
+- Mutations are idempotent where documented (cancel repeat → current state).
 
-Follow `docs/03-backend/api.md`; do not invent conflicting shapes.
+## 5. Database conventions (follow `database.md`)
 
-- **Validation:** every external input parsed with a `@urlpulse/types` zod schema **before** any DB
-  write or enqueue. TS types alone are insufficient for untrusted HTTP input.
-- **Success shape:** `{ data }`, collections `{ data, meta }` (`ApiSuccess<T>`).
-- **Error shape:** `{ error: { code, message, details? } }` (`ApiError`), `code` from the shared
-  `ErrorCode` enum. Never leak stack traces / raw DB errors.
-- **Status codes:** 200 GET/mutation, 201 create, 400 validation, 404 not found, 409 state conflict
-  (e.g. retry-failed on CANCELLED, ADR-027), 500 unexpected, 501 not-yet-implemented.
-- **Pagination:** `?page&pageSize`, `meta:{page,pageSize,total}`.
-- **Concurrency:** never read-then-write on a pre-check; use conditional/transactional updates
-  (`api.md §21`).
+- Schema changes are new migration files; **never edit an applied migration**.
+- UUID primary keys (`gen_random_uuid()`); `timestamptz` in UTC; every table has `created_at`/`updated_at`.
+- Important transitions run in a transaction; counter updates happen in the **same** transaction as the URL transition that caused them.
+- State transitions are conditional: `UPDATE … WHERE status = <expected>`; a zero-row result means someone else won — handle it, never assume ownership.
+- SQL lives only in repositories; services compose repositories.
 
-## 5. Database Conventions
+## 6. State transitions
 
-- **postgres.js** client (ADR-030). Always parameterized queries — never string-concatenate input.
-- **Migrations are forward-only numbered SQL** (`0001_init.sql`, `0002_*.sql`), applied by
-  `migrate.ts`. **Never edit an applied migration** — add a new file. (Project uses forward-only
-  plain SQL by decision; the generic reversibility rule in `.claude/rules/database.md` is overridden
-  here — this is the repo's actual pattern.)
-- Add indexes/columns in their own migration file.
-- **UUID** primary keys (`gen_random_uuid()`); **timestamptz** everywhere, UTC; keep `created_at`,
-  `updated_at`, and lifecycle timestamps (`started_at`/`completed_at`/`cancelled_at`).
-- **Counters are persisted** (`completed/failed/cancelled_count`) and updated **transactionally with
-  the URL transition that caused them** (ADR-025) — never in a second statement.
-- Repository is the only place that runs SQL; services call repositories.
+- Explicit, validated, atomic, and protected from stale workers. Allowed transitions are defined in `job-lifecycle.md` — do not introduce a transition it does not list.
+- Terminal states (`COMPLETED`/`FAILED`/`CANCELLED`) are never overwritten; batch terminal precedence is `CANCELLED > FAILED > COMPLETED` (ADR-025).
 
-## 6. State Transitions
+## 7. Worker conventions
 
-- Every status change is **explicit, validated, and conditional**:
-  `UPDATE … SET status=<next> WHERE id=$1 AND status=<expected>`.
-- A **zero-row result is meaningful** — someone else won the race (duplicate job, cancellation, stale
-  worker). Inspect current state; never assume ownership; never blind-update (ADR-009/023).
-- Counter change and status change live in **one transaction** (INV-7).
-- Terminal states (`SUCCESS/FAILED/CANCELLED`, `COMPLETED`) are not overwritten except by an explicit
-  valid transition (retry-failed, ADR-024).
-- Legal transitions are those in `job-lifecycle.md §3-4` (as amended by ADR-024/026) — including
-  `PENDING→CANCELLED` and `FAILED→PROCESSING`. Do not introduce others.
+- Never trust the job payload as truth — it carries ids only; load authoritative state from PostgreSQL (`api.md §22`, ADR-023).
+- Handlers are idempotent: duplicate delivery must not double-count (guarded `WHERE status='PROCESSING'`, counters move only when a row moves).
+- Retries are bounded (4/round, INV-5) with explicit retryable/permanent classification (INV-6).
+- Acquire distributed resources (concurrency lease, rate permit) immediately before the outbound call; **release in `finally`**; leases carry a TTL so a crash cannot leak a slot (ADR-022).
+- On Redis/PG unavailability, pause — never bypass a global control with a local fallback (ADR-020).
+- Structured logs and graceful shutdown (drain in-flight, release, close connections).
 
-## 7. Worker Conventions
+## 8. Redis conventions
 
-- **Never trust the job payload alone.** The payload carries only `{batchId,urlId}`; load
-  authoritative state from PostgreSQL before acting (`job-lifecycle §10/§13`).
-- **Idempotent handlers.** Safe under at-least-once/duplicate delivery via conditional transitions.
-- **Bounded retries** = `MAX_RETRIES+1` (4) per round; classify retryable vs permanent centrally
-  (INV-5/6).
-- **Acquire globally, release in `finally`.** Concurrency slot + rate permit before the outbound
-  request; release both in `finally` on success/timeout/abort/failure. Concurrency slots are
-  TTL-leased so a crash cannot leak them (ADR-022).
-- **Redis down → pause, never local fallback** (ADR-020).
-- **Structured logs** with `jobId`/`batchId`/`urlId`.
-- **Graceful shutdown:** stop taking jobs, drain in-flight, release resources, close connections.
+Namespace every key by purpose to prevent collisions; BullMQ owns its own prefix.
 
-## 8. Redis Conventions
+| Purpose | Prefix | Notes |
+|---|---|---|
+| Queue (BullMQ) | `bull:url-check:*` | managed by BullMQ; do not hand-write |
+| Batch-list cache | `cache:batches:*` | 30s TTL (INV-12) |
+| Global rate limiter | `rl:outbound` | sliding-window (P2-1) |
+| Global concurrency | `sem:outbound` | TTL-leased slots (ADR-022) |
+| Pub/Sub (SSE) | `events:batch:<batchId>` | notification channel |
 
-Namespace every key by purpose to avoid collisions (BullMQ manages its own `bull:` prefix; everything
-else is ours):
-
-| Purpose | Prefix |
-|---|---|
-| BullMQ (managed) | `bull:url-check:*` |
-| Rate limiter | `rl:outbound:*` |
-| Concurrency semaphore/leases | `cc:outbound:slot:*` |
-| Batch-list cache | `cache:batches:list:*` |
-| Pub/Sub channel | `events:batch-updated` |
-
-- Rate/concurrency state must be **atomic** (Lua or atomic primitives) — no GET-then-INCR race.
-- Cache and coordination keys never overlap. TTLs: cache = `BATCH_LIST_CACHE_SECONDS` (30);
-  concurrency lease TTL > max request timeout.
+Prefer a single small Lua script for each atomic admission (rate/concurrency) over multi-command races.
 
 ## 9. Logging
 
-- Structured (JSON) logs; use the Fastify logger / a shared `logger` in the worker.
-- Include a correlation id: `requestId` (API, Fastify `genReqId`) and `jobId`/`batchId`/`urlId`
-  (worker). Thread it through error logs.
-- **Never log secrets** (`DATABASE_URL`, `REDIS_URL`) or full URL contents at info level (`api.md §23`).
-- Log the *why*: which operation failed and against which entity, with `errorCode`.
+- Structured (JSON via Fastify/pino). Attach a per-request `requestId`; on worker logs attach `batchId`/`urlId`/`jobId`.
+- Never log secrets, full env, or noisy URL bodies. Log error context (code, cause), not raw stack traces to clients.
 
-## 10. Error Handling
+## 10. Error handling (follow `.claude/rules/error-handling.md`)
 
-Distinguish and handle each class; never swallow (`.claude/rules/error-handling.md`):
+Distinguish and handle distinctly: **validation** (400, zod), **domain** (expected, e.g. 404/409), **external HTTP** (a URL-check outcome, not an app crash — classify + record), **infrastructure** (Redis/PG down → pause/500), **programmer errors** (fail loud). Never swallow errors; no floating promises; typed error classes (`NotImplementedError` pattern).
 
-| Class | Handling |
-|---|---|
-| Validation | zod at boundary → 400 `VALIDATION_ERROR` |
-| Expected domain (not found, state conflict) | typed error → 404 / 409 |
-| External HTTP failure (checking a URL) | classify retryable/permanent → retry or `FAILED` (not a server error) |
-| Infrastructure (PG/Redis down) | fail safe: API 500 / worker pause; never invent success |
-| Programmer error | throw, let it surface; do not mask |
+## 11. Frontend conventions
 
-Typed error classes with codes (extend the scaffold's `NotImplementedError` pattern). No floating
-promises — every async call is awaited or explicitly handled.
+- Server Components by default; Client Components only for interactivity/SSE (INV-16, ADR-014).
+- The browser is never the source of truth for batch state (INV-1); it renders server/API data and reconciles from `GET /batches/:batchId`.
+- Only `NEXT_PUBLIC_*` env reaches the browser bundle — never `DATABASE_URL`/`REDIS_URL`.
+- Every async view has loading/error/empty states; disable double-submit on mutations.
+- SSE is a notification channel: refetch authoritative state on connect/reconnect (INV-10/11).
 
-## 11. Frontend Conventions
+## 12. Testing conventions (follow `.claude/rules/testing.md`, `testing.md`)
 
-- **Server Components by default;** Client Components only for interactivity/local state/SSE/upload
-  (ADR-014, INV-16). Don't turn the app into one big client component.
-- Data comes from the API via `lib/api.ts` (typed with `@urlpulse/types`). Only `NEXT_PUBLIC_*` in the
-  browser — never import `packages/config` or any secret into client code.
-- **No browser-only source of truth for batch state (INV-1).** SSE/React state is a projection;
-  cold load, refresh, and new tab reconstruct from `GET /batches/:id`.
-- Every async surface has loading/error/empty states; don't show a retry action with no eligible
-  failed URLs.
-- SSE lifecycle: connect after initial fetch, reconnect with backoff, refetch on reconnect, close on
-  terminal batch (INV-10/11).
-
-## 12. Testing Conventions
-
-- Test **behavior**, not mock call counts. One assertion per test, descriptive names, AAA, no
-  branching/loops in tests (`.claude/rules/testing.md`).
-- Deterministic: **mock external URL targets** (never hit real sites to prove rate/retry, `testing.md
-  §27`). Mock only at real boundaries (network, clock, randomness).
-- Integration tests use real Postgres + Redis (docker-compose), isolated per suite.
-- **Distributed invariants get multi-process tests** (INV-14): rate ≤10/sec and concurrency ≤5 must
-  run ≥2 worker processes so a per-process limiter cannot pass. Include a worker-crash slot-recovery
-  test (ADR-022).
-- Each fix to a distributed edge ships with a failing-before/passing-after test.
+- Verify behavior, not implementation; one assertion per test; Arrange-Act-Assert; no `if`/loops in tests.
+- Deterministic: mock only system boundaries — outbound URL HTTP, clock, randomness — with real PG/Redis for integration.
+- Distributed invariants (rate, concurrency) **must** run ≥2 worker processes so a per-process implementation fails the test.
+- No `expect(true)` and no asserting a mock was merely called; flaky tests are fixed or deleted.
 
 ## 13. Comments
 
-- Self-explanatory code first; rename before adding a "what" comment.
-- Comment the **why**, especially non-obvious distributed behavior: why a transition is conditional,
-  why a permit is acquired here, why an event is only a notification. The scaffold's file-header
-  comments (pointing to the governing doc/ADR) are the model — keep them.
-- Mark deliberate simplifications with `NOTE:`/`TODO(owner): … (#issue)`; never `XXX`/`TEMP`.
+Prefer self-explanatory code; rename instead of writing a "what" comment. Comment the **why**, especially non-obvious distributed behavior (lease TTL vs `finally`, publish-after-commit ordering, conditional-update race outcomes). Use `NOTE:`/`TODO(author): … (#issue)` markers per `.claude/rules/code-quality.md`.
 
-## 14. Git Conventions
+## 14. Git conventions
 
-- Conventional Commits: `type(scope): summary` (`feat`, `fix`, `refactor`, `docs`, `test`, `chore`,
-  `perf`, `build`, `ci`). Scope = app/package/area (`feat(api): …`, `feat(worker): …`).
-- One concern per commit; commit after a phase/sub-task is verified (tests green), not mid-broken.
-- Branch off `main`; never push automatically; never `--no-verify`.
-- When behavior affecting DB/queue/rate/concurrency/live-updates/API changes, update the relevant
-  `docs/` file **in the same commit** (`CLAUDE.md §10`).
+Conventional Commits (`type(scope): summary`; `feat|fix|refactor|docs|test|chore|perf|build|ci`). One concern per commit; scope by package (`api`, `worker`, `web`, `packages`). Explain **why** in the body when non-obvious. Update the docs affected by a behavior change in the same commit. Don't commit secrets; don't push without being asked.
+
+## Dependency policy
+
+No new runtime dependency without a clear reason a few lines of code can't cover; prefer the stack already chosen (ADR-030: Fastify, postgres.js, ioredis/BullMQ, zod, Next, `tsx`). No ORM, no monorepo framework. Record any significant addition as an ADR.
