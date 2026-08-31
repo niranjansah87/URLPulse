@@ -18,7 +18,7 @@
  * returns the URL to PENDING and retries, rather than marking it FAILED.
  */
 import { connect as tlsConnect } from "node:tls";
-import { assertPublicUrl, BlockedTargetError } from "./ssrf";
+import { assertPublicUrl, BlockedTargetError } from "@urlpulse/outbound";
 
 export interface UrlCheckResult {
   status: "SUCCESS" | "FAILED";

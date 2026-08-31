@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import type { Redis } from "ioredis";
 import type { ApiError, ApiSuccess } from "@urlpulse/types";
+import { createRateLimiter, type RedisEval } from "@urlpulse/outbound";
+import { config } from "../lib/env";
 import { ValidationError } from "../lib/errors";
 import { checkOne, type DemoCheckResult } from "../lib/demo-check";
 
@@ -24,6 +26,14 @@ const RATE_MAX_REQUESTS = 3;
  */
 export async function registerDemoRoutes(app: FastifyInstance, opts: DemoRoutesOptions): Promise<void> {
   const { redis } = opts;
+
+  // Shares the worker's global limiter (same key/limit/window), so demo checks
+  // count toward the system-wide 10 req/s budget (INV-4) rather than bypassing it.
+  const rateLimiter = createRateLimiter(redis as unknown as RedisEval, {
+    limit: config.RATE_LIMIT_RPS,
+    windowMs: 1000,
+    key: "rl:outbound",
+  });
 
   app.post("/demo/checks", async (req, reply) => {
     const key = `demo:rl:${req.ip}`;
@@ -51,7 +61,8 @@ export async function registerDemoRoutes(app: FastifyInstance, opts: DemoRoutesO
     }
 
     // At most MAX_URLS (5) run concurrently — small and bounded per request.
-    const results: DemoCheckResult[] = await Promise.all(urls.map((u) => checkOne(u)));
+    // Each outbound request waits on a global permit so the demo respects INV-4.
+    const results: DemoCheckResult[] = await Promise.all(urls.map((u) => checkOne(u, () => rateLimiter.acquire())));
     const body: ApiSuccess<DemoCheckResult[]> & { meta: { limit: number } } = { data: results, meta: { limit: MAX_URLS } };
     return body;
   });

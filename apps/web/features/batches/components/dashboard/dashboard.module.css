@@ -4,8 +4,13 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  padding: var(--space-6) var(--space-8);
+  justify-content: center;
+  min-height: 240px;
+  padding: var(--space-8) var(--space-10);
   margin-bottom: var(--space-6);
+  /* Subtle tint so the band reads as a distinct container against the page. */
+  background: linear-gradient(130deg, var(--color-surface) 0%, var(--color-bg) 100%);
+  overflow: hidden;
 }
 .overline {
   font-size: var(--text-xs);

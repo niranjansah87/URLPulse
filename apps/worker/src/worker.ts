@@ -10,7 +10,7 @@ import { config } from "./lib/env";
 import { createRedis, createCommandRedis } from "./lib/redis";
 import { createDb } from "./lib/db";
 import { checkUrl } from "./lib/http-checker";
-import { createRateLimiter, type RedisEval } from "./lib/rate-limiter";
+import { createRateLimiter, type RedisEval } from "@urlpulse/outbound";
 import { createConcurrencyLimiter, type RedisSemaphoreClient } from "./lib/concurrency";
 import { createUrlRepository } from "./repositories/urls";
 import { createUrlCheckProcessor } from "./jobs/url-check";

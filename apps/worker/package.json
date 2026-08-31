@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@urlpulse/config": "workspace:*",
+    "@urlpulse/outbound": "workspace:*",
     "@urlpulse/types": "workspace:*",
     "bullmq": "^5.34.5",
     "ioredis": "^5.4.2",

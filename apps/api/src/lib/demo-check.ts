@@ -1,14 +1,15 @@
-import { assertPublicUrl, BlockedTargetError } from "./ssrf";
+import { assertPublicUrl, BlockedTargetError } from "@urlpulse/outbound";
+
+/** Acquire one global rate permit per outbound request (INV-4). */
+export type OnRequest = () => Promise<void>;
 
 /**
  * Synchronous, unauthenticated URL check for the landing-page demo. A trimmed
  * cousin of the worker's checkUrl (apps/worker/src/lib/http-checker.ts): same
- * SSRF guard and bounds, but no persistence, no queue, and no global rate
- * permit. Anon abuse is contained by a small URL cap and a per-IP rate limit at
- * the route; results are returned inline and never stored.
- *
- * FIXME(niranjansah87): fold into the shared checker once ssrf + the checker move
- * to @urlpulse/net-guard, so the demo counts toward the global 10 req/s limit.
+ * SSRF guard and bounds, and — like the worker — it acquires a global rate
+ * permit before every outbound request (including each redirect hop) via
+ * `onRequest`, so demo traffic counts toward the system-wide 10 req/s budget.
+ * No persistence and no queue; results are returned inline and never stored.
  */
 export interface DemoCheckResult {
   url: string;
@@ -24,7 +25,7 @@ const TIMEOUT_MS = 8000;
 const MAX_REDIRECTS = 3;
 const MAX_BODY_BYTES = 64 * 1024;
 
-export async function checkOne(rawUrl: string): Promise<DemoCheckResult> {
+export async function checkOne(rawUrl: string, onRequest?: OnRequest): Promise<DemoCheckResult> {
   const startedAt = Date.now();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -55,6 +56,11 @@ export async function checkOne(rawUrl: string): Promise<DemoCheckResult> {
         if (err instanceof BlockedTargetError) return fail("Blocked or unresolvable target");
         throw err;
       }
+
+      // Every hop is a real outbound request: take a global permit for each, so
+      // a redirect chain cannot fan one permit into several requests. A blocked
+      // target above never reaches here, so it consumes no permit.
+      if (onRequest) await onRequest();
 
       const res = await fetch(current, {
         method: "GET",
