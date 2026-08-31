@@ -493,9 +493,9 @@ Worker
 
 A sixth check must wait.
 
-Multiple workers may exist, so the architecture must define whether the concurrency requirement is interpreted as a global or per-worker limit.
-
-URLPulse requires a maximum of 5 checks in flight, and this guarantee must hold across multiple workers. This behavior is treated as a system-level requirement and finalized in the backend design.
+Multiple workers may exist. The concurrency limit is **global**, not per-worker (ADR-007, ADR-021):
+5 in flight across the entire system regardless of worker count. It is enforced with a Redis-backed
+distributed limiter whose slots are TTL-leased so a crashed worker cannot leak capacity (ADR-022).
 
 ---
 
@@ -950,7 +950,7 @@ URLPulse follows these principles:
 | Event distribution   | Redis                            |
 | Source of truth      | PostgreSQL                       |
 | Global rate limit    | Redis-backed distributed limiter |
-| Concurrency          | Worker processing control        |
+| Global concurrency   | Redis-backed distributed limit (TTL-leased, never per-worker) |
 | Retry                | BullMQ + exponential backoff     |
 | API scaling          | Stateless API instances          |
 | Worker scaling       | Multiple BullMQ consumers        |
