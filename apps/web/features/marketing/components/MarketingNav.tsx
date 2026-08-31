@@ -1,5 +1,6 @@
 "use client";
 
+import { Logo } from "@/components/ui/Logo";
 import { useState } from "react";
 import Link from "next/link";
 import { Menu as MenuIcon, X } from "lucide-react";
@@ -11,7 +12,6 @@ const LINKS = [
   { label: "Product", href: "#product" },
   { label: "How it works", href: "#how-it-works" },
   { label: "Features", href: "#features" },
-  { label: "Pricing", href: "#pricing" },
   { label: "Docs", href: "#docs" },
 ];
 
@@ -28,10 +28,7 @@ export function MarketingNav() {
     <header className={styles.nav}>
       <div className={styles.container}>
         <div className={styles.navRow}>
-          <Link href="/" aria-label="URLPulse home">
-            <img className={cn(styles.logo, styles.logoLight)} src="/brand/logo/horizontal/urlpulse-light.png" alt="URLPulse" />
-            <img className={cn(styles.logo, styles.logoDark)} src="/brand/logo/horizontal/urlpulse-dark.png" alt="URLPulse" />
-          </Link>
+          <Logo href="/" size="md" />
           <nav className={styles.navLinks} aria-label="Site">
             {links}
           </nav>

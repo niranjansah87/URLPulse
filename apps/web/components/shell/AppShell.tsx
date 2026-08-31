@@ -1,5 +1,6 @@
 "use client";
 
+import { Logo } from "@/components/ui/Logo";
 import { useState, type ReactNode } from "react";
 import { Menu as MenuIcon } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -36,8 +37,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <IconButton label="Open navigation" onClick={() => setOpen(true)}>
             <MenuIcon size={20} strokeWidth={1.75} />
           </IconButton>
-          <img className={styles.mobileLogoLight} src="/brand/logo/horizontal/urlpulse-light.png" alt="URLPulse" />
-          <img className={styles.mobileLogoDark} src="/brand/logo/horizontal/urlpulse-dark.png" alt="URLPulse" />
+          <Logo href="/batches" size="sm" />
         </div>
         <main className={styles.content}>{children}</main>
       </div>

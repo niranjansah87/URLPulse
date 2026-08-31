@@ -1,5 +1,6 @@
 "use client";
 
+import { Logo } from "@/components/ui/Logo";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -52,19 +53,14 @@ export function Sidebar({
   return (
     <>
       <div className={styles.brand}>
-        <Link href="/batches" aria-label="URLPulse home" className={styles.brandLink}>
-          {collapsed ? (
-            <>
-              <img className={cn(styles.mark, styles.logoLight)} src="/brand/mark/urlpulse-light.png" alt="URLPulse" />
-              <img className={cn(styles.mark, styles.logoDark)} src="/brand/mark/urlpulse-dark.png" alt="URLPulse" />
-            </>
-          ) : (
-            <>
-              <img className={cn(styles.logo, styles.logoLight)} src="/brand/logo/horizontal/urlpulse-light.png" alt="URLPulse" />
-              <img className={cn(styles.logo, styles.logoDark)} src="/brand/logo/horizontal/urlpulse-dark.png" alt="URLPulse" />
-            </>
-          )}
-        </Link>
+        {collapsed ? (
+          <Link href="/batches" aria-label="URLPulse home" className={styles.brandLink}>
+            <img className={cn(styles.mark, styles.logoLight)} src="/brand/mark/urlpulse-light.png" alt="URLPulse" />
+            <img className={cn(styles.mark, styles.logoDark)} src="/brand/mark/urlpulse-dark.png" alt="URLPulse" />
+          </Link>
+        ) : (
+          <Logo href="/batches" size="md" className={styles.brandLink} />
+        )}
       </div>
 
       <nav className={styles.nav} aria-label="Primary">
