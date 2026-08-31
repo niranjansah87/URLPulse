@@ -1,12 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
 import type { Job } from "bullmq";
 import type { UrlCheckJobData } from "@urlpulse/types";
-import { createUrlCheckProcessor } from "./url-check";
+import { createUrlCheckProcessor, RetryableCheckError } from "./url-check";
 import type { UrlRepository } from "../repositories/urls";
 import type { CheckOptions, UrlCheckResult } from "../lib/http-checker";
 
 const OPTS: CheckOptions = { timeoutMs: 1000, maxRedirects: 5, maxBodyBytes: 1000 };
+const MAX_ATTEMPTS = 4;
 const noopLog = { info: () => {}, warn: () => {} };
+const BATCH = "11111111-1111-1111-1111-111111111111";
+const URL_ID = "22222222-2222-2222-2222-222222222222";
 
 const success: UrlCheckResult = {
   status: "SUCCESS",
@@ -17,47 +20,84 @@ const success: UrlCheckResult = {
   errorMessage: null,
   retryable: false,
 };
+const retryableFail: UrlCheckResult = {
+  status: "FAILED",
+  httpStatus: 503,
+  responseTimeMs: 5,
+  pageTitle: null,
+  errorCode: "HTTP_503",
+  errorMessage: "Received HTTP 503",
+  retryable: true,
+};
+const permanentFail: UrlCheckResult = { ...retryableFail, httpStatus: 404, errorCode: "HTTP_404", retryable: false };
 
-function job(data: unknown): Job<UrlCheckJobData> {
-  return { id: "j1", data } as unknown as Job<UrlCheckJobData>;
+function job(data: unknown, attemptsMade = 0): Job<UrlCheckJobData> {
+  return { id: "j1", data, attemptsMade } as unknown as Job<UrlCheckJobData>;
+}
+
+function repoWith(over: Partial<UrlRepository>): UrlRepository {
+  return {
+    claim: vi.fn(async () => ({ url: "https://a.com" })),
+    persistResult: vi.fn(async () => "applied" as const),
+    releaseForRetry: vi.fn(async () => "applied" as const),
+    ...over,
+  } as UrlRepository;
+}
+
+function proc(repo: UrlRepository, checkUrl: () => Promise<UrlCheckResult>) {
+  return createUrlCheckProcessor({ repo, checkUrl, checkOptions: OPTS, maxAttempts: MAX_ATTEMPTS, log: noopLog });
 }
 
 describe("urlCheckProcessor", () => {
   it("rejects an invalid job payload before any work", async () => {
-    const repo = { claim: vi.fn(), persistResult: vi.fn() } as unknown as UrlRepository;
-    const proc = createUrlCheckProcessor({ repo, checkUrl: vi.fn(), checkOptions: OPTS, log: noopLog });
-    await expect(proc(job({}))).rejects.toThrow();
+    const repo = repoWith({ claim: vi.fn() });
+    await expect(proc(repo, vi.fn())(job({}))).rejects.toThrow();
     expect(repo.claim).not.toHaveBeenCalled();
   });
 
-  it("does not perform the HTTP check when the URL cannot be claimed", async () => {
-    const repo = {
-      claim: vi.fn(async () => null),
-      persistResult: vi.fn(),
-    } as unknown as UrlRepository;
+  it("skips the check when the URL cannot be claimed", async () => {
+    const repo = repoWith({ claim: vi.fn(async () => null) });
     const checkUrl = vi.fn();
-    const proc = createUrlCheckProcessor({ repo, checkUrl, checkOptions: OPTS, log: noopLog });
-
-    await proc(job({ batchId: "11111111-1111-1111-1111-111111111111", urlId: "22222222-2222-2222-2222-222222222222" }));
-
+    await proc(repo, checkUrl)(job({ batchId: BATCH, urlId: URL_ID }));
     expect(checkUrl).not.toHaveBeenCalled();
     expect(repo.persistResult).not.toHaveBeenCalled();
   });
 
-  it("checks and persists exactly once when the claim is won", async () => {
-    const repo = {
-      claim: vi.fn(async () => ({ url: "https://a.com" })),
-      persistResult: vi.fn(async () => "applied" as const),
-    } as unknown as UrlRepository;
-    const checkUrl = vi.fn(async () => success);
-    const proc = createUrlCheckProcessor({ repo, checkUrl, checkOptions: OPTS, log: noopLog });
+  it("persists a successful result exactly once", async () => {
+    const repo = repoWith({});
+    await proc(repo, vi.fn(async () => success))(job({ batchId: BATCH, urlId: URL_ID }));
+    expect(repo.persistResult).toHaveBeenCalledWith(URL_ID, success);
+    expect(repo.releaseForRetry).not.toHaveBeenCalled();
+  });
 
-    await proc(job({ batchId: "11111111-1111-1111-1111-111111111111", urlId: "22222222-2222-2222-2222-222222222222" }));
+  it("releases and re-throws on a retryable failure while attempts remain", async () => {
+    const repo = repoWith({});
+    await expect(
+      proc(repo, vi.fn(async () => retryableFail))(job({ batchId: BATCH, urlId: URL_ID }, 0)),
+    ).rejects.toBeInstanceOf(RetryableCheckError);
+    expect(repo.releaseForRetry).toHaveBeenCalledWith(URL_ID);
+    expect(repo.persistResult).not.toHaveBeenCalled();
+  });
 
-    expect(checkUrl).toHaveBeenCalledWith("https://a.com", OPTS);
-    expect(repo.persistResult).toHaveBeenCalledWith(
-      "22222222-2222-2222-2222-222222222222",
-      success,
-    );
+  it("persists a terminal FAILED on the last attempt instead of retrying", async () => {
+    const repo = repoWith({});
+    await proc(repo, vi.fn(async () => retryableFail))(job({ batchId: BATCH, urlId: URL_ID }, MAX_ATTEMPTS - 1));
+    expect(repo.releaseForRetry).not.toHaveBeenCalled();
+    expect(repo.persistResult).toHaveBeenCalledWith(URL_ID, retryableFail);
+  });
+
+  it("does not retry a non-retryable failure", async () => {
+    const repo = repoWith({});
+    await proc(repo, vi.fn(async () => permanentFail))(job({ batchId: BATCH, urlId: URL_ID }, 0));
+    expect(repo.releaseForRetry).not.toHaveBeenCalled();
+    expect(repo.persistResult).toHaveBeenCalledWith(URL_ID, permanentFail);
+  });
+
+  it("does not re-throw when release is skipped (cancellation won the race)", async () => {
+    const repo = repoWith({ releaseForRetry: vi.fn(async () => "skipped" as const) });
+    await expect(
+      proc(repo, vi.fn(async () => retryableFail))(job({ batchId: BATCH, urlId: URL_ID }, 0)),
+    ).resolves.toBeUndefined();
+    expect(repo.persistResult).not.toHaveBeenCalled();
   });
 });

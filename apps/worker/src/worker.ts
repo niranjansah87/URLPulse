@@ -34,6 +34,7 @@ export function startWorker(): Worker<UrlCheckJobData> {
       maxRedirects: config.HTTP_MAX_REDIRECTS,
       maxBodyBytes: config.HTTP_MAX_BODY_BYTES,
     },
+    maxAttempts: config.MAX_RETRIES + 1,
     log,
   });
 

@@ -12,7 +12,17 @@ export interface ProcessorDeps {
   repo: UrlRepository;
   checkUrl: (url: string, opts: CheckOptions) => Promise<UrlCheckResult>;
   checkOptions: CheckOptions;
+  /** Max attempts per round (initial + retries), = MAX_RETRIES + 1 (INV-5). */
+  maxAttempts: number;
   log: ProcessorLogger;
+}
+
+/** Thrown to hand a URL back to BullMQ for a backoff retry (ADR-023). */
+export class RetryableCheckError extends Error {
+  constructor(code: string) {
+    super(`retryable check failure: ${code}`);
+    this.name = "RetryableCheckError";
+  }
 }
 
 /**
@@ -29,7 +39,7 @@ export interface ProcessorDeps {
  * claimed or terminal and returns without doing work or double-counting.
  */
 export function createUrlCheckProcessor(deps: ProcessorDeps) {
-  const { repo, checkUrl, checkOptions, log } = deps;
+  const { repo, checkUrl, checkOptions, maxAttempts, log } = deps;
 
   return async function urlCheckProcessor(job: Job<UrlCheckJobData>): Promise<void> {
     const { batchId, urlId } = urlCheckJobDataSchema.parse(job.data);
@@ -48,6 +58,23 @@ export function createUrlCheckProcessor(deps: ProcessorDeps) {
     // concurrency lease here, immediately before the outbound request
     // (rate-limiting.md §8), releasing the lease in a finally.
     const result = await checkUrl(claimed.url, checkOptions);
+
+    // attemptsMade is the number of attempts already completed (0 on the first
+    // run). Retry a transient failure only while attempts remain in this round.
+    const attemptsRemain = job.attemptsMade < maxAttempts - 1;
+    if (result.status === "FAILED" && result.retryable && attemptsRemain) {
+      const released = await repo.releaseForRetry(urlId);
+      if (released === "applied") {
+        log.warn(
+          { jobId: job.id, batchId, urlId, errorCode: result.errorCode, attempt: job.attemptsMade + 1 },
+          "transient failure; scheduling retry",
+        );
+        throw new RetryableCheckError(result.errorCode ?? "UNKNOWN");
+      }
+      // Release skipped: cancellation/another transition won — do not retry.
+      log.info({ jobId: job.id, batchId, urlId }, "retry aborted; url no longer processing");
+      return;
+    }
 
     const outcome = await repo.persistResult(urlId, result);
     log.info(

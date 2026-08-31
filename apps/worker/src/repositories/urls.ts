@@ -13,6 +13,7 @@ import type { UrlCheckResult } from "../lib/http-checker";
 export interface UrlRepository {
   claim(urlId: string): Promise<{ url: string } | null>;
   persistResult(urlId: string, result: UrlCheckResult): Promise<"applied" | "skipped">;
+  releaseForRetry(urlId: string): Promise<"applied" | "skipped">;
 }
 
 export function createUrlRepository(db: Db): UrlRepository {
@@ -87,6 +88,23 @@ export function createUrlRepository(db: Db): UrlRepository {
         `;
         return "applied";
       });
+    },
+
+    /**
+     * Return a URL to PENDING so BullMQ's backoff redelivery can re-claim it for
+     * another attempt (ADR-023). Conditional on the URL still being PROCESSING:
+     * if cancellation or another transition won in the meantime this affects
+     * zero rows and returns "skipped", so a cancelled URL is never resurrected
+     * into a retry. attempt_count is left as-is (it was incremented at claim and
+     * represents attempts already made).
+     */
+    async releaseForRetry(urlId) {
+      const rows = await db`
+        UPDATE urls
+        SET status = 'PENDING', started_at = NULL, updated_at = now()
+        WHERE id = ${urlId} AND status = 'PROCESSING'
+      `;
+      return rows.count > 0 ? "applied" : "skipped";
     },
   };
 }

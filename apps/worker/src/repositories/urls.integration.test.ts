@@ -97,6 +97,15 @@ describe.skipIf(!dbUp)("worker url repository (integration)", () => {
     expect(b!.status).toBe("COMPLETED");
   });
 
+  it("release-for-retry returns a claimed url to PENDING so it can be re-claimed", async () => {
+    const { urlIds } = await seed(1);
+    await repo.claim(urlIds[0]!);
+    const released = await repo.releaseForRetry(urlIds[0]!);
+    const reclaim = await repo.claim(urlIds[0]!);
+    expect(released).toBe("applied");
+    expect(reclaim).not.toBeNull();
+  });
+
   it("transitions the batch to FAILED when a url fails", async () => {
     const { batchId, urlIds } = await seed(1);
     await repo.claim(urlIds[0]!);
