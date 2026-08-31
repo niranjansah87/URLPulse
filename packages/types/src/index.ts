@@ -38,6 +38,8 @@ export const urlResultSchema = z.object({
   responseTimeMs: z.number().int().nullable(),
   pageTitle: z.string().nullable(),
   error: z.string().nullable(),
+  startedAt: z.string().nullable(),
+  completedAt: z.string().nullable(),
 });
 export type UrlResult = z.infer<typeof urlResultSchema>;
 
@@ -49,6 +51,9 @@ export const batchSummarySchema = z.object({
   failedCount: z.number().int(),
   cancelledCount: z.number().int(),
   createdAt: z.string(),
+  startedAt: z.string().nullable(),
+  completedAt: z.string().nullable(),
+  updatedAt: z.string(),
 });
 export type BatchSummary = z.infer<typeof batchSummarySchema>;
 
@@ -99,6 +104,59 @@ export interface BatchListMeta {
   pageSize: number;
   total: number;
 }
+
+// --- Alerts (conditions detected during a URL check) ---
+
+export const alertSeveritySchema = z.enum(["critical", "warning", "info"]);
+export type AlertSeverity = z.infer<typeof alertSeveritySchema>;
+
+export const alertStatusSchema = z.enum(["new", "acknowledged", "resolved"]);
+export type AlertStatus = z.infer<typeof alertStatusSchema>;
+
+/** What was detected. Drives the title/severity the worker records. */
+export const alertTypeSchema = z.enum([
+  "SERVER_ERROR", // 5xx response
+  "UNREACHABLE", // timeout, connection/DNS error, blocked target
+  "CLIENT_ERROR", // 4xx response
+  "SLOW_RESPONSE", // response time over threshold
+  "REDIRECT", // resolved via one or more redirects
+  "SSL_EXPIRING", // TLS certificate expiring soon
+  "TITLE_CHANGED", // page <title> differs from the previous check
+  "RECOVERED", // a URL with an open failure alert now succeeds
+]);
+export type AlertType = z.infer<typeof alertTypeSchema>;
+
+export const alertSchema = z.object({
+  id: z.string().uuid(),
+  type: alertTypeSchema,
+  title: z.string(),
+  detail: z.string(),
+  batchId: z.string().uuid(),
+  url: z.string(),
+  severity: alertSeveritySchema,
+  status: alertStatusSchema,
+  detectedAt: z.string(),
+});
+export type Alert = z.infer<typeof alertSchema>;
+
+export const listAlertsQuerySchema = z.object({
+  status: alertStatusSchema.optional(),
+  severity: alertSeveritySchema.optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+export type ListAlertsQuery = z.infer<typeof listAlertsQuerySchema>;
+
+/** Counts used by the alerts dashboard tiles and the unread bell badge. */
+export const alertCountsSchema = z.object({
+  critical: z.number().int(),
+  warning: z.number().int(),
+  info: z.number().int(),
+  resolved: z.number().int(),
+  unread: z.number().int(),
+  total: z.number().int(),
+});
+export type AlertCounts = z.infer<typeof alertCountsSchema>;
 
 // --- User settings (per-user monitoring defaults; api.md) ---
 

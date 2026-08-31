@@ -30,6 +30,12 @@ const serverEnvSchema = z.object({
   DB_IDLE_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(20),
   DB_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
 
+  // Alert thresholds (worker). A successful check slower than this raises a
+  // SLOW_RESPONSE alert; a TLS certificate expiring within ALERT_SSL_WARN_DAYS
+  // raises SSL_EXPIRING. Derived signals only — never authoritative health state.
+  ALERT_SLOW_RESPONSE_MS: z.coerce.number().int().positive().default(1_500),
+  ALERT_SSL_WARN_DAYS: z.coerce.number().int().positive().default(30),
+
   // Outbound URL health-check bounds (worker). Every check is time-bounded,
   // redirect-bounded, and body-bounded so one URL cannot hang a worker or
   // exhaust memory (edge-cases §6/§38).
