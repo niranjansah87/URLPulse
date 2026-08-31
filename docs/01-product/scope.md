@@ -236,19 +236,21 @@ The following are intentionally excluded.
 
 ## 3.1 Authentication
 
-No:
+Minimal authentication **is now implemented** (Better Auth on the API): email +
+password registration, sign-in, sign-out, and database-backed sessions, giving
+the app a real user identity. See `docs/03-backend/authentication.md`.
 
-* Login
-* Registration
-* Sessions
-* OAuth
-* User accounts
+Still out of scope: OAuth / social login, MFA, password reset, email
+verification, and organizations/teams.
 
 ---
 
 ## 3.2 Authorization
 
-No role-based access control or permission system.
+Resource-level ownership **is enforced**: every batch belongs to the
+authenticated user and is only accessible to that user (cross-user access returns
+`404`). Role-based access control and a general permission system remain out of
+scope.
 
 ---
 

@@ -478,7 +478,9 @@ Recommended status codes:
 | Batch created | 201 |
 | Successful mutation | 200 |
 | Invalid request | 400 |
-| Resource not found | 404 |
+| Unauthenticated request | 401 |
+| Forbidden | 403 |
+| Resource not found (incl. not owned) | 404 |
 | Conflict with current state | 409 |
 | Rate limited API request | 429 |
 | Unexpected server failure | 500 |
@@ -503,9 +505,24 @@ Validation should occur before:
 
 # 19. API Authentication
 
-Authentication is intentionally not implemented.
+The API is authenticated with [Better Auth](https://better-auth.com), mounted on
+Fastify at `/api/auth/*` with PostgreSQL-backed sessions. See
+`docs/03-backend/authentication.md` for the full architecture.
 
-Authentication is out of scope for URLPulse.
+- **Every batch endpoint requires a session.** A request with no valid session
+  cookie is rejected with `401 UNAUTHORIZED` before any handler logic runs.
+- **All batch operations are scoped to the session user.** The owning `user_id`
+  is derived from the session, never from the request body. Every read and
+  mutation filters `WHERE user_id = <session user>`.
+- **Ownership is not leaked.** A batch owned by another user is indistinguishable
+  from one that does not exist — both return `404 NOT_FOUND` — for get, cancel,
+  retry-failed, and the SSE stream.
+- Sessions are database-backed, so they hold across restarts and across multiple
+  API instances (§20), and the SSE stream (§11) is authenticated and
+  ownership-checked before a client is subscribed.
+
+Out of scope (intentional): OAuth/social login, MFA, password reset, email
+verification, organizations/teams, and RBAC.
 
 ---
 

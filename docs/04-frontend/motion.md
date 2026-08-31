@@ -69,6 +69,17 @@ fades behind it.
 batch, the processing/empty state. Do **not** repeat it across cards, nav, and background at
 once — it loses meaning.
 
+**Implemented as** `apps/web/components/motion/HealthWave.tsx` (the primitive: an SVG
+heartbeat trace with a lit dash segment animated via `stroke-dashoffset`, `pathLength`
+normalised to 100) and `UrlPulseLoader.tsx` (the branded "coming online" screen — the wave
+traced through the circular health indicator plus wordmark). Both are pure SVG/CSS with no
+animation library and are safe in server components. Current wiring:
+- `HealthWave` renders in `ProgressSummaryCard` only while `batch.status === "PROCESSING"`,
+  so it starts, stops on completion/cancellation, and reconstructs after refresh straight
+  from the authoritative snapshot — it never holds its own state.
+- `UrlPulseLoader` is the `app/(app)/loading.tsx` Suspense fallback; its 250ms delayed
+  fade-in keeps fast route transitions from flashing it.
+
 ---
 
 ## Reduced motion

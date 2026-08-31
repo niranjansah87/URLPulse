@@ -1,9 +1,9 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./public/brand/logo/horizontal/urlpulse-light.png">
-  <source media="(prefers-color-scheme: light)" srcset="./public/brand/logo/horizontal/urlpulse-dark.png">
-  <img alt="URLPulse" src="./public/brand/logo/horizontal/urlpulse-dark.png" width="360">
+  <source media="(prefers-color-scheme: dark)" srcset="./public/brand/logo/horizontal/urlpulse-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="./public/brand/logo/horizontal/urlpulse-light.png">
+  <img alt="URLPulse" src="./public/brand/logo/horizontal/urlpulse-light.png" width="360">
 </picture>
 
 # URLPulse
@@ -105,6 +105,10 @@ Jobs are designed for at-least-once delivery. Repeated execution of the same job
 
 Live progress is delivered over **Server-Sent Events**, chosen because updates are one-directional (server → client) and SSE reconnects natively. Multiple API instances fan out through Redis pub/sub. On connect or reconnect the client refetches the authoritative snapshot from the API, so the transport is never the source of truth. See [`docs/04-frontend/live-updates.md`](./docs/04-frontend/live-updates.md).
 
+### Authentication & ownership
+
+Minimal auth via **Better Auth** mounted on the Fastify API, with PostgreSQL-backed sessions (no in-memory state; valid across restarts and multiple API instances). Every batch belongs to the authenticated user; ownership is derived from the session (never the client) and enforced at the data boundary, so a user only ever sees or changes their own batches and cross-user access returns `404`. See [`docs/03-backend/authentication.md`](./docs/03-backend/authentication.md).
+
 ## Tech Stack
 
 - **Next.js** + **React** + **TypeScript** - web UI
@@ -186,7 +190,11 @@ See [`.env.example`](./.env.example) for the full list. Never commit a real `.en
 | `MAX_CONCURRENCY` | Max URL checks in flight (default `5`) |
 | `MAX_RETRIES` | Retry attempts for transient failures (default `3`) |
 | `BATCH_LIST_CACHE_SECONDS` | Batch-list cache lifetime (default `30`) |
+| `BETTER_AUTH_SECRET` | Signs session cookies; **required in production** (dev/test has an insecure default). Generate with `openssl rand -base64 32` |
+| `BETTER_AUTH_URL` | Public API base URL where Better Auth is mounted (default `http://localhost:4000`) |
+| `WEB_ORIGIN` | Web origin trusted for credentialed CORS (default `http://localhost:3000`) |
 | `NEXT_PUBLIC_API_URL` | Browser-facing API base URL (web) |
+| `API_INTERNAL_URL` | Loopback API base used by Next.js Server Components |
 
 ## Development
 
