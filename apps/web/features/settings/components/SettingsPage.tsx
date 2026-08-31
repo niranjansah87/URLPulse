@@ -4,19 +4,24 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Activity,
-  Bell,
-  CreditCard,
+  CalendarClock,
+  Check,
   Crown,
   Download,
-  KeyRound,
+  ExternalLink,
+  Globe,
   LayoutGrid,
   LayoutList,
+  LineChart,
   Mail,
+  MapPin,
   Monitor,
-  Puzzle,
+  OctagonAlert,
+  Pencil,
   RefreshCw,
   RotateCcw,
   Settings,
+  ShieldCheck,
   Trash2,
   User,
   Users,
@@ -31,13 +36,13 @@ import { Toggle } from "@/components/ui/Toggle";
 import { Badge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { ConfirmationDialog } from "@/components/ui/Dialog";
-import { EmptyState } from "@/components/ui/feedback";
 import { useToast } from "@/components/ui/Toast";
 import { Reveal } from "@/components/motion/Reveal";
 import { useCurrentUser } from "@/features/auth/useCurrentUser";
 import { authClient } from "@/features/auth/client";
 import { batchesApi } from "@/features/batches/api/batches-api";
 import { usePreferences } from "../lib/preferences";
+import { useUserSettings } from "../lib/useUserSettings";
 import styles from "../settings.module.css";
 
 const TIMEZONES = [
@@ -49,31 +54,10 @@ const TIMEZONES = [
 ] as const;
 const LANGUAGES = [["en-US", "English (US)"], ["en-GB", "English (UK)"]] as const;
 
-function Placeholder({ title }: { title: string }) {
-  return (
-    <Card>
-      <EmptyState title={`${title} settings coming soon`} body="This section will be available in a future release." />
-    </Card>
-  );
-}
-
 export function SettingsPage() {
-  const others: { label: string; icon: React.ReactNode }[] = [
-    { label: "Monitoring", icon: <Activity size={16} /> },
-    { label: "Notifications", icon: <Bell size={16} /> },
-    { label: "Team", icon: <Users size={16} /> },
-    { label: "Billing", icon: <CreditCard size={16} /> },
-    { label: "API Keys", icon: <KeyRound size={16} /> },
-    { label: "Integrations", icon: <Puzzle size={16} /> },
-  ];
   const tabs: TabItem[] = [
     { id: "general", label: "General", icon: <Settings size={16} />, content: <GeneralTab /> },
-    ...others.map(({ label, icon }) => ({
-      id: label.toLowerCase().replace(" ", "-"),
-      label,
-      icon,
-      content: <Placeholder title={label} />,
-    })),
+    { id: "monitoring", label: "Monitoring", icon: <Activity size={16} />, content: <MonitoringTab /> },
   ];
 
   return (
@@ -93,7 +77,8 @@ function GeneralTab() {
   const { user, status } = useCurrentUser();
   const { data: session } = authClient.useSession();
   const toast = useToast();
-  const [prefs, update, reset] = usePreferences();
+  const [prefs, update] = usePreferences();
+  const { settings, update: updateSettings, reset: resetSettings } = useUserSettings();
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -187,14 +172,14 @@ function GeneralTab() {
               title="Default Monitoring Settings"
               subtitle="Saved on this device; applied when per-batch settings are available."
               actions={
-                <Button variant="secondary" leftIcon={<RotateCcw size={16} />} onClick={reset}>
+                <Button variant="secondary" leftIcon={<RotateCcw size={16} />} onClick={resetSettings}>
                   Reset to Defaults
                 </Button>
               }
             />
             <div className={styles.formGrid4}>
               <Field label="Check Interval" htmlFor="check-interval" hint="How often to check URLs">
-                <Select id="check-interval" value={prefs.checkIntervalMinutes} onChange={(e) => update({ checkIntervalMinutes: Number(e.target.value) })}>
+                <Select id="check-interval" value={settings.checkIntervalMinutes} onChange={(e) => updateSettings({ checkIntervalMinutes: Number(e.target.value) })}>
                   {[1, 5, 15, 30, 60].map((m) => (
                     <option key={m} value={m}>
                       {m} minute{m === 1 ? "" : "s"}
@@ -203,7 +188,7 @@ function GeneralTab() {
                 </Select>
               </Field>
               <Field label="Timeout" htmlFor="timeout" hint="Request timeout duration">
-                <Select id="timeout" value={prefs.timeoutSeconds} onChange={(e) => update({ timeoutSeconds: Number(e.target.value) })}>
+                <Select id="timeout" value={settings.timeoutSeconds} onChange={(e) => updateSettings({ timeoutSeconds: Number(e.target.value) })}>
                   {[5, 10, 20, 30].map((s) => (
                     <option key={s} value={s}>
                       {s} seconds
@@ -212,7 +197,7 @@ function GeneralTab() {
                 </Select>
               </Field>
               <Field label="Retry Attempts" htmlFor="retries" hint="Number of retries on failure">
-                <Select id="retries" value={prefs.retryAttempts} onChange={(e) => update({ retryAttempts: Number(e.target.value) })}>
+                <Select id="retries" value={settings.retryAttempts} onChange={(e) => updateSettings({ retryAttempts: Number(e.target.value) })}>
                   {[0, 1, 2, 3].map((n) => (
                     <option key={n} value={n}>
                       {n} attempt{n === 1 ? "" : "s"}
@@ -221,7 +206,7 @@ function GeneralTab() {
                 </Select>
               </Field>
               <Field label="User Agent" htmlFor="user-agent" hint="User agent for requests">
-                <Select id="user-agent" value={prefs.userAgent} onChange={(e) => update({ userAgent: e.target.value })}>
+                <Select id="user-agent" value={settings.userAgent} onChange={(e) => updateSettings({ userAgent: e.target.value as typeof settings.userAgent })}>
                   {["URLPulse Bot", "Chrome (desktop)", "Safari (mobile)"].map((ua) => (
                     <option key={ua} value={ua}>
                       {ua}
@@ -295,6 +280,152 @@ function GeneralTab() {
         destructive
       />
     </Reveal>
+  );
+}
+
+function MonitoringTab() {
+  const { settings: prefs, update } = useUserSettings();
+
+  return (
+    <Reveal>
+      <div className={styles.layout}>
+        <div className={styles.col}>
+          <Card>
+            <SectionHeader title="Monitoring Preferences" subtitle="Configure how URLPulse monitors your URLs." />
+
+            <MonitorRow tint="blue" icon={<CalendarClock size={18} />} title="Monitoring Interval" sub="How often we check your URLs.">
+              <Select aria-label="Monitoring Interval" value={prefs.checkIntervalMinutes} onChange={(e) => update({ checkIntervalMinutes: Number(e.target.value) })}>
+                {[1, 5, 15, 30, 60].map((m) => (
+                  <option key={m} value={m}>
+                    {m} minute{m === 1 ? "" : "s"}
+                  </option>
+                ))}
+              </Select>
+            </MonitorRow>
+
+            <MonitorRow tint="green" icon={<ShieldCheck size={18} />} title="Timeout" sub="Maximum time to wait for a response.">
+              <Select aria-label="Timeout" value={prefs.timeoutSeconds} onChange={(e) => update({ timeoutSeconds: Number(e.target.value) })}>
+                {[5, 10, 20, 30].map((s) => (
+                  <option key={s} value={s}>
+                    {s} seconds
+                  </option>
+                ))}
+              </Select>
+            </MonitorRow>
+
+            <MonitorRow tint="purple" icon={<RefreshCw size={18} />} title="Retry Attempts" sub="Number of retries before marking as failed.">
+              <Select aria-label="Retry Attempts" value={prefs.retryAttempts} onChange={(e) => update({ retryAttempts: Number(e.target.value) })}>
+                {[0, 1, 2, 3].map((n) => (
+                  <option key={n} value={n}>
+                    {n} attempt{n === 1 ? "" : "s"}
+                  </option>
+                ))}
+              </Select>
+            </MonitorRow>
+
+            <MonitorRow tint="amber" icon={<OctagonAlert size={18} />} title="Status Codes to Treat as Down" sub="Select status codes that should be considered as down.">
+              <span className={styles.codesWrap}>
+                <input
+                  aria-label="Status codes to treat as down"
+                  className={styles.codesInput}
+                  value={prefs.statusCodesDown}
+                  onChange={(e) => update({ statusCodesDown: e.target.value })}
+                />
+                <Pencil size={14} aria-hidden />
+              </span>
+            </MonitorRow>
+
+            <MonitorRow tint="sky" icon={<MapPin size={18} />} title="Follow Redirects" sub="Check the final URL when redirects occur.">
+              <Toggle checked={prefs.followRedirects} onChange={(v) => update({ followRedirects: v })} label="Follow Redirects" />
+            </MonitorRow>
+
+            <MonitorRow tint="pink" icon={<Globe size={18} />} title="SSL Certificate Validation" sub="Validate SSL certificates for HTTPS URLs." last>
+              <Toggle checked={prefs.sslValidation} onChange={(v) => update({ sslValidation: v })} label="SSL Certificate Validation" />
+            </MonitorRow>
+          </Card>
+        </div>
+
+        <div className={styles.col}>
+          <Card>
+            <div className={styles.summaryHead}>
+              <span className={styles.summaryIcon} aria-hidden>
+                <LineChart size={18} />
+              </span>
+              <div>
+                <div className={styles.summaryTitle}>Monitoring Summary</div>
+                <p className={styles.summarySub}>Your current monitoring configuration will be applied to new batches.</p>
+              </div>
+            </div>
+            <dl className={styles.summaryList}>
+              <SummaryItem label="Check Interval" value={`${prefs.checkIntervalMinutes} minute${prefs.checkIntervalMinutes === 1 ? "" : "s"}`} />
+              <SummaryItem label="Timeout" value={`${prefs.timeoutSeconds} seconds`} />
+              <SummaryItem label="Retry Attempts" value={`${prefs.retryAttempts} attempt${prefs.retryAttempts === 1 ? "" : "s"}`} />
+              <SummaryItem label="User Agent" value={prefs.userAgent} />
+              <SummaryItem label="Follow Redirects" value={<SummaryCheck on={prefs.followRedirects} label="Follow redirects" />} />
+              <SummaryItem label="SSL Validation" value={<SummaryCheck on={prefs.sslValidation} label="SSL validation" />} />
+            </dl>
+          </Card>
+
+          <Card>
+            <h2 className={styles.helpTitle}>Need Help?</h2>
+            <p className={styles.helpText}>Learn more about monitoring and how our checks work.</p>
+            <Button variant="secondary" leftIcon={<ExternalLink size={16} />} style={{ width: "100%" }}>
+              View Documentation
+            </Button>
+          </Card>
+        </div>
+      </div>
+    </Reveal>
+  );
+}
+
+function MonitorRow({
+  tint,
+  icon,
+  title,
+  sub,
+  last,
+  children,
+}: {
+  tint: "blue" | "green" | "purple" | "amber" | "sky" | "pink";
+  icon: React.ReactNode;
+  title: string;
+  sub: string;
+  last?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={styles.monRow} data-last={last ? "" : undefined}>
+      <span className={styles.monIcon} data-tint={tint} aria-hidden>
+        {icon}
+      </span>
+      <div className={styles.monText}>
+        <div className={styles.monTitle}>{title}</div>
+        <div className={styles.monSub}>{sub}</div>
+      </div>
+      <div className={styles.monControl}>{children}</div>
+    </div>
+  );
+}
+
+function SummaryItem({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className={styles.summaryItem}>
+      <dt className={styles.summaryKey}>{label}</dt>
+      <dd className={styles.summaryValue}>{value}</dd>
+    </div>
+  );
+}
+
+function SummaryCheck({ on, label }: { on: boolean; label: string }) {
+  return on ? (
+    <span className={styles.summaryOn} role="img" aria-label={`${label} enabled`}>
+      <Check size={16} aria-hidden />
+    </span>
+  ) : (
+    <span className={styles.summaryOff} role="img" aria-label={`${label} disabled`}>
+      Off
+    </span>
   );
 }
 

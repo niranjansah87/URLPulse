@@ -628,7 +628,48 @@ The API should nevertheless keep domain responses and route responsibilities cle
 
 ---
 
-# 25. Related Documents
+# 25. User Settings
+
+Per-user monitoring defaults (the check-defining fields surfaced in Settings →
+Monitoring). PostgreSQL (`user_settings`, one row per user) is authoritative; the
+UI reconstructs settings from the API on any device. Purely cosmetic UI
+preferences (timezone, language, dashboard toggles) are **not** stored server-side
+— they remain device-local in the browser.
+
+Both routes are authenticated and scoped to the session user's id (never the
+client). A user with no row yet reads the documented defaults.
+
+## GET `/settings`
+
+Returns the session user's settings.
+
+```json
+{
+  "data": {
+    "checkIntervalMinutes": 5,
+    "timeoutSeconds": 10,
+    "retryAttempts": 2,
+    "userAgent": "URLPulse Bot",
+    "statusCodesDown": "400, 401, 403, 404, 429, 500, 502, 503, 504",
+    "followRedirects": true,
+    "sslValidation": true
+  }
+}
+```
+
+## POST `/settings`
+
+Replaces the user's settings with the **full** object (validated by
+`userSettingsSchema`). The write is an atomic upsert — last write wins, which is
+correct for a user editing their own settings. Returns the saved settings in the
+same shape as GET. Invalid bodies return `400 VALIDATION_ERROR`.
+
+`statusCodesDown` is a length-bounded free-form string (the client is the editing
+surface); it is not yet applied to real checks, so it is not strictly parsed.
+
+---
+
+# 26. Related Documents
 
 ```text
 docs/01-product/requirements.md

@@ -100,6 +100,40 @@ export interface BatchListMeta {
   total: number;
 }
 
+// --- User settings (per-user monitoring defaults; api.md) ---
+
+export const userAgentSchema = z.enum(["URLPulse Bot", "Chrome (desktop)", "Safari (mobile)"]);
+export type UserAgentOption = z.infer<typeof userAgentSchema>;
+
+/**
+ * Per-user monitoring configuration persisted server-side (PostgreSQL is the
+ * source of truth). These are the check-defining fields; cosmetic UI prefs
+ * (timezone, language, dashboard toggles) stay device-local in the browser.
+ * `statusCodesDown` is a free-form, length-bounded string (the editing surface
+ * is the client) — it is not yet applied to real checks, so it is not strictly
+ * parsed here.
+ */
+export const userSettingsSchema = z.object({
+  checkIntervalMinutes: z.number().int().min(1).max(1440),
+  timeoutSeconds: z.number().int().min(1).max(120),
+  retryAttempts: z.number().int().min(0).max(10),
+  userAgent: userAgentSchema,
+  statusCodesDown: z.string().max(200),
+  followRedirects: z.boolean(),
+  sslValidation: z.boolean(),
+});
+export type UserSettings = z.infer<typeof userSettingsSchema>;
+
+export const DEFAULT_USER_SETTINGS: UserSettings = {
+  checkIntervalMinutes: 5,
+  timeoutSeconds: 10,
+  retryAttempts: 2,
+  userAgent: "URLPulse Bot",
+  statusCodesDown: "400, 401, 403, 404, 429, 500, 502, 503, 504",
+  followRedirects: true,
+  sslValidation: true,
+};
+
 // --- Canonical error codes (api.md §5/§17) ---
 
 export const ERROR_CODES = [

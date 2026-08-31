@@ -3,17 +3,14 @@
 import { useEffect, useState } from "react";
 
 /**
- * On-device preferences. The backend has no per-user settings yet, so these
- * persist to localStorage under one namespaced key; swap the storage for an API
- * call when the settings endpoint exists.
+ * Cosmetic, device-local UI preferences. These have no server-side meaning, so
+ * they persist to localStorage under one namespaced key. Monitoring settings
+ * (interval, timeout, retries, redirects, SSL) are NOT here — they are
+ * authoritative per-user state served by the API (see useUserSettings).
  */
 export interface Preferences {
   timezone: string;
   language: string;
-  checkIntervalMinutes: number;
-  timeoutSeconds: number;
-  retryAttempts: number;
-  userAgent: string;
   compactDashboard: boolean;
   autoRefreshDashboard: boolean;
   exportWithTitle: boolean;
@@ -22,10 +19,6 @@ export interface Preferences {
 export const DEFAULT_PREFERENCES: Preferences = {
   timezone: "Asia/Kathmandu",
   language: "en-US",
-  checkIntervalMinutes: 5,
-  timeoutSeconds: 10,
-  retryAttempts: 2,
-  userAgent: "URLPulse Bot",
   compactDashboard: false,
   autoRefreshDashboard: true,
   exportWithTitle: true,

@@ -20,6 +20,8 @@ import { createBatchRepository } from "./repositories/batches";
 import { createBatchService, type BatchService } from "./services/batches";
 import { registerHealthRoutes } from "./routes/health";
 import { registerBatchRoutes } from "./routes/batches";
+import { createSettingsRepository } from "./repositories/settings";
+import { registerSettingsRoutes } from "./routes/settings";
 import type { Redis } from "ioredis";
 
 export interface ServerOverrides {
@@ -172,6 +174,12 @@ export function buildServer(overrides: ServerOverrides = {}) {
     requireAuth,
     csrfGuard,
     allowedOrigins,
+  });
+  app.register(registerSettingsRoutes, {
+    prefix: "/api",
+    repo: createSettingsRepository(db),
+    requireAuth,
+    csrfGuard,
   });
 
   app.addHook("onClose", async () => {
