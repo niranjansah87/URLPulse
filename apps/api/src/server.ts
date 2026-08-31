@@ -113,16 +113,16 @@ export function buildServer(overrides: ServerOverrides = {}) {
   // Better Auth HTTP handler (and its DB pool). The real path mounts /api/auth/*
   // and resolves sessions from the shared Better Auth instance.
   let requireAuth: RequireAuth;
-  let closeAuth: () => Promise<void> = async () => {};
   if (overrides.requireAuth) {
     requireAuth = overrides.requireAuth;
   } else {
     requireAuth = createRequireAuth(auth.api);
     registerAuthRoutes(app, auth);
-    closeAuth = async () => {
-      await authPool.end().catch(() => undefined);
-    };
   }
+  // NOTE: `authPool` is a process-wide singleton shared by every Better Auth
+  // instance. It is deliberately NOT closed in this server's onClose — doing so
+  // would kill auth for any other server built in the same process (e.g. tests,
+  // or multiple instances). It is drained once at process shutdown (see isMain).
 
   app.setErrorHandler((err: FastifyError, req, reply) => {
     if (err instanceof ApiDomainError) {
@@ -170,7 +170,6 @@ export function buildServer(overrides: ServerOverrides = {}) {
     if (subscriber) await subscriber.quit().catch(() => undefined);
     await redis.quit().catch(() => undefined);
     await db.end({ timeout: 5 }).catch(() => undefined);
-    await closeAuth();
   });
 
   return app;
@@ -180,10 +179,14 @@ const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 if (isMain) {
   const app = buildServer();
   const shutdown = () => {
-    app.close().then(
-      () => process.exit(0),
-      () => process.exit(1),
-    );
+    // Drain the server, then the process-wide auth pool, then exit.
+    app
+      .close()
+      .then(() => authPool.end())
+      .then(
+        () => process.exit(0),
+        () => process.exit(1),
+      );
   };
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
