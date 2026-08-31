@@ -1,0 +1,102 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background: var(--color-bg);
+}
+.card {
+  width: 100%;
+  max-width: 400px;
+  padding: var(--space-8);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.brand {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-6);
+}
+.logo {
+  height: 28px;
+  width: auto;
+}
+.logoDark {
+  display: none;
+}
+:global(:root[data-theme="dark"]) .logoLight {
+  display: none;
+}
+:global(:root[data-theme="dark"]) .logoDark {
+  display: block;
+}
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .logoLight {
+    display: none;
+  }
+  :global(:root:not([data-theme="light"])) .logoDark {
+    display: block;
+  }
+}
+.title {
+  font-size: var(--text-xl);
+  font-weight: var(--fw-semibold);
+  text-align: center;
+}
+.subtitle {
+  margin: var(--space-1) 0 var(--space-6);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.label {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  color: var(--color-text);
+}
+.input {
+  height: var(--control-md);
+  padding: 0 var(--space-3);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font: inherit;
+  transition: border-color var(--dur-fast) var(--ease-standard);
+}
+.input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-subtle);
+}
+.hint {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.error {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-error-subtle);
+  color: var(--color-error-fg);
+  font-size: var(--text-sm);
+}
+.switch {
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}

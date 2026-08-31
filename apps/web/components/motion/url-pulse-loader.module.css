@@ -1,0 +1,61 @@
+/*
+ * Branded loading screen. Delayed fade-in (250ms) means fast Suspense
+ * fallbacks unmount before this ever paints — no flicker on quick navigation.
+ */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-16) var(--space-4);
+  opacity: 0;
+  animation: upl-appear var(--dur-slow) var(--ease-out) 250ms forwards;
+}
+
+.fullscreen {
+  min-height: 60vh;
+  justify-content: center;
+}
+
+.badge {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 172px;
+  height: 96px;
+}
+
+/* Circular health indicator; the pulse line passes through it. */
+.ring {
+  position: absolute;
+  width: 88px;
+  height: 88px;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--color-border);
+}
+
+.wave {
+  position: relative;
+  z-index: 1;
+}
+
+.brand {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+@keyframes upl-appear {
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    animation: none;
+    opacity: 1;
+  }
+}

@@ -1,0 +1,477 @@
+/* Create Batch page. Values reference global tokens. */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: var(--space-6);
+  align-items: start;
+}
+@media (max-width: 1024px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.rightCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+/* Steps */
+.step {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.stepHead {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+.stepNum {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+  font-weight: var(--fw-semibold);
+  font-size: var(--text-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.stepTitle {
+  font-size: var(--text-lg);
+  font-weight: var(--fw-semibold);
+}
+.stepSub {
+  margin-top: 2px;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.divider {
+  height: var(--border-width);
+  background: var(--color-border);
+  margin: var(--space-6) 0;
+}
+
+/* Segmented Manual / Upload */
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: var(--color-bg);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.segment {
+  height: var(--control-md);
+  padding: 0 var(--space-4);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--text-base);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard);
+}
+.segment[aria-pressed="true"] {
+  background: var(--color-surface);
+  color: var(--color-accent);
+  box-shadow: var(--shadow-xs);
+}
+
+/* Editor */
+.editor {
+  margin-top: var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color var(--dur-fast) var(--ease-standard);
+}
+.editor:focus-within {
+  border-color: var(--color-accent);
+}
+.editorBody {
+  position: relative;
+  display: flex;
+  min-height: 190px;
+  max-height: 360px;
+  overflow: hidden;
+}
+.gutter {
+  flex: none;
+  width: 44px;
+  padding: var(--space-3) 0;
+  border-right: var(--border-width) solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 24px;
+  text-align: center;
+  user-select: none;
+  will-change: transform;
+}
+.gutterInvalid {
+  color: var(--color-error-fg);
+}
+.textarea {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 24px;
+  white-space: pre;
+  overflow: auto;
+  min-height: 190px;
+  max-height: 360px;
+}
+.textarea::placeholder {
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+}
+.editorFoot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-top: var(--border-width) solid var(--color-border);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+.editorFootRight {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.linkBtn {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+.linkBtn:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+}
+.errors {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--color-error-subtle);
+  background: var(--color-error-subtle);
+  border-radius: var(--radius-md);
+  color: var(--color-error-fg);
+  font-size: var(--text-sm);
+  list-style: none;
+  max-height: 120px;
+  overflow: auto;
+}
+
+/* Dropzone */
+.dropzone {
+  margin-top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 190px;
+  padding: var(--space-6);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--ease-standard),
+    background-color var(--dur-fast) var(--ease-standard);
+}
+.dropzone:focus-within,
+.dropzoneActive {
+  border-color: var(--color-accent);
+  background: var(--color-accent-subtle);
+}
+.dropTitle {
+  color: var(--color-text);
+  font-weight: var(--fw-medium);
+}
+.fileChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+}
+
+/* Settings */
+.settingsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-6);
+  margin-top: var(--space-4);
+}
+@media (max-width: 720px) {
+  .settingsGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.fieldHead {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  color: var(--color-text-muted);
+}
+.fieldLabel {
+  font-size: var(--text-base);
+  font-weight: var(--fw-medium);
+  color: var(--color-text);
+}
+.fieldHint {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.note {
+  margin-top: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.advanced {
+  margin-top: var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.advancedToggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  height: var(--control-lg);
+  padding: 0 var(--space-4);
+  border: none;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-base);
+  cursor: pointer;
+  text-align: left;
+}
+.advancedBody {
+  padding: 0 var(--space-4) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+/* Review */
+.reviewGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+@media (max-width: 720px) {
+  .reviewGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.reviewTile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+.reviewIcon {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.reviewLabel {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.reviewValue {
+  font-size: var(--text-md);
+  font-weight: var(--fw-medium);
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.actions {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  flex-wrap: wrap;
+}
+.submitError {
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-error-subtle);
+  color: var(--color-error-fg);
+  font-size: var(--text-sm);
+}
+
+/* Right column */
+.howTitle {
+  font-size: var(--text-md);
+  font-weight: var(--fw-semibold);
+  margin-bottom: var(--space-4);
+}
+.howList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.howItem {
+  position: relative;
+  display: flex;
+  gap: var(--space-3);
+  padding-bottom: var(--space-5);
+}
+.howItem:last-child {
+  padding-bottom: 0;
+}
+.howItem:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 17px;
+  top: 36px;
+  bottom: 0;
+  width: 1px;
+  background: var(--color-border);
+}
+.howIcon {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+.howLabel {
+  font-size: var(--text-base);
+  font-weight: var(--fw-medium);
+  color: var(--color-text);
+}
+.howText {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.illo {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: var(--space-4);
+  border-radius: var(--radius-md);
+}
+.illoDark {
+  display: none;
+}
+:global(:root[data-theme="dark"]) .illoLight {
+  display: none;
+}
+:global(:root[data-theme="dark"]) .illoDark {
+  display: block;
+}
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .illoLight {
+    display: none;
+  }
+  :global(:root:not([data-theme="light"])) .illoDark {
+    display: block;
+  }
+}
+.recentHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+.recentTitle {
+  font-size: var(--text-md);
+  font-weight: var(--fw-semibold);
+}
+.recentRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: var(--border-width) solid var(--color-border);
+  color: var(--color-text);
+}
+.recentRow:last-child {
+  border-bottom: none;
+}
+.recentRow:hover {
+  text-decoration: none;
+}
+.recentBody {
+  flex: 1;
+  min-width: 0;
+}
+.recentName {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.recentMeta {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.recentTime {
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
