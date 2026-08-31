@@ -56,10 +56,19 @@ The initial batch lifecycle is:
 stateDiagram-v2
     [*] --> PENDING
     PENDING --> PROCESSING
+    PENDING --> CANCELLED
     PROCESSING --> COMPLETED
     PROCESSING --> FAILED
     PROCESSING --> CANCELLED
+    FAILED --> PROCESSING : retry-failed
 ```
+
+`PENDING → CANCELLED` covers cancelling a batch before processing starts (ADR-026).
+`FAILED → PROCESSING` covers `retry-failed` reactivating a batch that had failed URLs (ADR-024).
+
+The batch terminal transition is owned by the worker that persists the final URL transition, in the
+same transaction, with precedence `CANCELLED > FAILED > COMPLETED` once
+`completed + failed + cancelled = total` (ADR-025).
 
 ---
 

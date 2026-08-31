@@ -383,7 +383,7 @@ A transactional outbox provides stronger guarantees but introduces:
 
 At the current stage, the simplest defensible recovery strategy is preferable.
 
-The final implementation must document the selected approach.
+**Superseded by ADR-028:** the selected approach is reliable enqueue + a reconciliation sweep.
 
 ---
 
@@ -399,6 +399,149 @@ Violating a hard system requirement is worse than temporarily pausing processing
 
 ---
 
+# ADR-021 — Global Concurrency Is Never Per-Worker (Consistency Pass)
+
+## Decision
+
+The maximum of 5 in-flight checks is **global and Redis-coordinated**. No document or
+implementation may describe or implement it as a worker-local limit.
+
+## Reason
+
+A per-worker "5" multiplies with worker count (3 workers → 15), violating the requirement.
+This ADR exists because `scope.md` and `architecture.md` previously carried "worker-side"
+wording; those are corrected. See ADR-007.
+
+---
+
+# ADR-022 — Concurrency Slots Are Leased With a TTL
+
+## Decision
+
+Each global concurrency slot is acquired as a **lease with an expiry (TTL)** in Redis, not a
+plain counter decrement. A worker renews (or holds a short-lived) lease for the duration of its
+outbound request and releases it in `finally`. If a worker crashes, the lease **expires
+automatically** and the slot returns to the pool.
+
+## Reason
+
+A process-local `try/finally` release does not run on hard crash (SIGKILL/OOM). Without a TTL,
+crashed workers permanently leak global slots until capacity reaches zero and the system stalls.
+The `finally` release is the fast path; the TTL is the correctness guarantee.
+
+## Consequences
+
+- TTL must exceed the maximum request timeout so a slow-but-alive request is not double-granted.
+- A test must prove capacity recovers after a simulated crash.
+
+---
+
+# ADR-023 — Retryable Failures Reset the URL to PENDING for Re-Claim
+
+## Decision
+
+On a **retryable** failure, the worker, inside its completion transaction, transitions the URL
+`PROCESSING → PENDING` and re-throws so BullMQ redelivers after backoff. The next delivery
+re-claims `PENDING → PROCESSING` conditionally and increments `attempt_count`. Terminal
+`SUCCESS`/`FAILED` transitions remain guarded by `WHERE status = 'PROCESSING'`.
+
+## Reason
+
+Earlier docs both (a) claimed URLs with `WHERE status='PENDING'` incrementing `attempt_count`,
+and (b) said a URL "stays PROCESSING during backoff." Those are mutually exclusive: a re-delivery
+would find `PROCESSING` and either wrongly skip or never increment attempts. Resetting to
+`PENDING` makes the claim, the attempt count, and duplicate-delivery idempotency all consistent
+under one rule. Duplicate deliveries still race on the single conditional claim — only one wins.
+
+---
+
+# ADR-024 — retry-failed Resets attempt_count; the 4-Attempt Cap Is Per Round
+
+## Decision
+
+The 4-attempt maximum (1 + 3) is enforced **per processing round**. When the user invokes
+`retry-failed`, each claimed `FAILED → PENDING` transition **resets `attempt_count` to 0** and a
+fresh BullMQ job (with its own `attempts: 4`) is created.
+
+## Reason
+
+`retry-failed` is an explicit new user-initiated round. A lifetime cap would either block a
+legitimate retry forever or make the cap check compare against an ever-growing counter. Per-round
+is the behavior tests already assume (a retried URL runs up to 4 attempts again).
+
+---
+
+# ADR-025 — Batch Terminal Transition: Owner and Precedence
+
+## Decision
+
+Each worker, in the **same transaction** as its URL's terminal transition, re-evaluates the batch.
+When `completed_count + failed_count + cancelled_count = total_count`, it conditionally sets the
+batch's terminal status with this precedence:
+
+1. If the batch is already `CANCELLED`, it stays `CANCELLED`.
+2. Else if `failed_count > 0` → `FAILED`.
+3. Else → `COMPLETED`.
+
+The update is conditional (`WHERE status = 'PROCESSING'`) so exactly one worker performs it and a
+completion race cannot double-apply or reopen a terminal batch.
+
+## Reason
+
+`job-lifecycle.md` left the owner and mixed-state precedence undefined. Co-locating the check with
+the counter update keeps it atomic and idempotent.
+
+---
+
+# ADR-026 — Cancellation Applies to PENDING and PROCESSING Batches
+
+## Decision
+
+A batch may be cancelled from `PENDING` **or** `PROCESSING`. The cancel transition is conditional:
+`WHERE status IN ('PENDING','PROCESSING')`. In the same transaction, non-terminal URLs
+(`PENDING`,`PROCESSING`) are set to `CANCELLED`; `SUCCESS`/`FAILED` URLs are left as-is.
+
+## Reason
+
+A freshly created batch sits in `PENDING` with queued jobs; a user can cancel in that window.
+The prior conditional (`WHERE status='PROCESSING'`) silently no-op'd that case, and `testing.md`
+already asserts `PENDING → CANCELLED`. Bulk-cancelling in-flight URLs makes the worker's
+`WHERE status='PROCESSING'` completion naturally lose the race, preserving cancellation.
+
+---
+
+# ADR-027 — retry-failed Is Rejected on a CANCELLED Batch
+
+## Decision
+
+`retry-failed` on a `CANCELLED` batch returns a `409 Conflict` and performs no work. Resuming a
+cancelled batch, if ever wanted, is a separate explicit product operation.
+
+## Reason
+
+Resolves the conflict between `edge-cases.md` §18 (reject) and `cancellation.md` §19 (ambiguous).
+A cancelled batch is terminal; its non-successful URLs are `CANCELLED`, not `FAILED`, so there is
+nothing for `retry-failed` to legitimately select.
+
+---
+
+# ADR-028 — Queue/DB Recovery: Reliable Enqueue + Reconciliation Sweep
+
+## Decision
+
+Batch creation commits the DB transaction, then enqueues jobs. To close the commit-then-enqueue-fails
+window, a periodic **reconciliation sweep** re-enqueues any `PENDING` URL that has no active BullMQ
+job and whose `created_at`/`updated_at` is older than a threshold. No transactional outbox is
+introduced at this scale.
+
+## Reason
+
+Supersedes the open choice in ADR-019. The sweep is the simplest defensible recovery within scope
+and needs no new persistence concept. The final threshold and sweep interval are implementation
+configuration and must be documented with the worker.
+
+---
+
 # Decision Summary
 
 | Decision | Choice |
@@ -408,7 +551,7 @@ Violating a hard system requirement is worse than temporarily pausing processing
 | Coordination | Redis |
 | Live transport | SSE |
 | Global rate limit | Redis-backed |
-| Global concurrency | Redis-backed |
+| Global concurrency | Redis-backed, global, TTL-leased (never per-worker) |
 | Processing semantics | At-least-once |
 | State idempotency | Conditional DB transitions |
 | Cancellation | Terminal + DB authoritative |

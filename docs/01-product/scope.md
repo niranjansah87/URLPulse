@@ -104,10 +104,11 @@ Worker C → 10 req/sec
 The system limits active URL checks to:
 
 ```text
-5 concurrent checks
+5 concurrent checks (global, across all workers)
 ```
 
-Concurrency is enforced independently from the global rate limit.
+Concurrency is enforced independently from the global rate limit, and — like the rate limit — is
+a single global limit coordinated through Redis, not a per-worker limit.
 
 ---
 
@@ -418,7 +419,7 @@ Responsibilities:
 * Consume URL jobs
 * Perform URL checks
 * Apply global request-rate control
-* Enforce worker-side concurrency
+* Apply global (Redis-coordinated) concurrency control
 * Retry transient failures
 * Persist results
 * Publish state-change notifications

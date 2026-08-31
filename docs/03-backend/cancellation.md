@@ -43,10 +43,12 @@ When a user cancels a batch:
 Batch state:
 
 ```text
-PROCESSING
-     ↓
-CANCELLED
+PENDING ─┐
+         ├─→ CANCELLED
+PROCESSING ┘
 ```
+
+A batch may be cancelled from either `PENDING` (queued, not yet started) or `PROCESSING` (ADR-026).
 
 `CANCELLED` is terminal for that execution of the batch.
 
@@ -123,10 +125,21 @@ SET
     cancelled_at = NOW(),
     updated_at = NOW()
 WHERE id = $1
-  AND status = 'PROCESSING';
+  AND status IN ('PENDING', 'PROCESSING');
 ```
 
-The result tells the API whether it won the state transition.
+The result tells the API whether it won the state transition. In the same transaction, non-terminal
+URLs are cancelled and `SUCCESS`/`FAILED` URLs are left unchanged:
+
+```sql
+UPDATE urls
+SET status = 'CANCELLED', updated_at = NOW()
+WHERE batch_id = $1
+  AND status IN ('PENDING', 'PROCESSING');
+```
+
+This makes a stale worker's later `WHERE status = 'PROCESSING'` completion affect zero rows, so
+cancellation wins the race (ADR-026).
 
 ---
 
