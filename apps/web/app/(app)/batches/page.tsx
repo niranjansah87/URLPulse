@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorState } from "@/components/ui/feedback";
 import { Reveal } from "@/components/motion/Reveal";
 import { batchRepository } from "@/features/batches/lib/repository";
@@ -31,8 +30,6 @@ export default async function BatchesPage() {
 
   return (
     <>
-      <PageHeader title="Batches" description="Monitor the health of your URLs in real-time" />
-
       <Reveal>
         <DashboardHero />
       </Reveal>
