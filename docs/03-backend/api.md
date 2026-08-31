@@ -221,7 +221,11 @@ Example:
       "totalCount": 100,
       "completedCount": 37,
       "failedCount": 2,
-      "createdAt": "2026-08-31T10:00:00Z"
+      "cancelledCount": 0,
+      "createdAt": "2026-08-31T10:00:00Z",
+      "startedAt": "2026-08-31T10:00:01Z",
+      "completedAt": null,
+      "updatedAt": "2026-08-31T10:00:45Z"
     }
   ],
   "meta": {
@@ -279,6 +283,10 @@ Example:
     "completedCount": 1,
     "failedCount": 0,
     "cancelledCount": 0,
+    "createdAt": "2026-08-31T10:00:00Z",
+    "startedAt": "2026-08-31T10:00:01Z",
+    "completedAt": null,
+    "updatedAt": "2026-08-31T10:00:03Z",
     "urls": [
       {
         "id": "url-1",
@@ -287,7 +295,9 @@ Example:
         "httpStatus": 200,
         "responseTimeMs": 183,
         "pageTitle": "Example Domain",
-        "error": null
+        "error": null,
+        "startedAt": "2026-08-31T10:00:01Z",
+        "completedAt": "2026-08-31T10:00:02Z"
       },
       {
         "id": "url-2",
@@ -296,12 +306,20 @@ Example:
         "httpStatus": null,
         "responseTimeMs": null,
         "pageTitle": null,
-        "error": null
+        "error": null,
+        "startedAt": "2026-08-31T10:00:03Z",
+        "completedAt": null
       }
     ]
   }
 }
 ```
+
+Timestamps are ISO-8601 strings straight from the persisted rows: `startedAt` is set when
+work first begins (batch: first URL picked up; URL: check started), `completedAt` when the
+row reaches a terminal state (`SUCCESS` / `FAILED` / `CANCELLED`), and `updatedAt` on every
+state change. The UI derives "checked at", "duration" and "last updated" from these rather
+than from client clocks.
 
 ---
 

@@ -44,61 +44,71 @@ The browser should never become the source of truth for batch processing.
 
 ---
 
-# 3. Suggested Route Structure
+# 3. Route Structure
+
+Two App Router route groups separate the public surface from the authenticated app:
 
 ```text
-/
-├── page.tsx
+app/
+├── (marketing)/            public, no app shell
+│   ├── page.tsx            /                 landing
+│   ├── login/              /login            sign in
+│   ├── signup/             /signup           create account
+│   ├── forgot-password/    /forgot-password  request a reset link
+│   └── reset-password/     /reset-password   set a new password (?token=)
 │
-├── batches/
-│   ├── page.tsx
-│   └── [batchId]/
-│       └── page.tsx
+├── (app)/                  server session gate → /login when signed out; AppShell
+│   ├── batches/            /batches          batch list
+│   │   ├── new/            /batches/new      create batch (paste / CSV)
+│   │   ├── states/         /batches/states   state showcase
+│   │   └── [id]/           /batches/[id]     detail + live progress
+│   ├── history/            /history
+│   ├── alerts/             /alerts
+│   └── settings/           /settings
+│
+├── not-found.tsx           public 404 (per reference)
+├── global-error.tsx
+├── robots.ts / sitemap.ts
 ```
 
-Possible responsibilities:
-
-### `/`
-
-Create a new batch.
-
-### `/batches`
-
-Show recent batches.
-
-### `/batches/:batchId`
-
-Show detailed results and live progress.
+The four auth screens share one `AuthLayout` (brand, headline, three feature bullets,
+theme-swapped illustration, form card, legal footer) under `features/auth/components/`;
+only the copy, bullets, illustration and form differ per screen. `/login`, `/signup` and
+`/forgot-password` redirect an already-authenticated visitor to `/batches`.
 
 ---
 
 # 4. Component Structure
 
-A reasonable component hierarchy:
+Pages under `app/` are thin; the UI lives in feature folders and a shared kit:
 
 ```text
-app/
-├── page
-│   ├── BatchInput
-│   ├── UrlTextarea
-│   ├── CsvUploader
-│   └── CreateBatchButton
-│
-├── batches/
-│   ├── BatchList
-│   ├── BatchListItem
-│   └── BatchStatus
-│
-└── batches/[batchId]/
-    ├── BatchHeader
-    ├── ProgressSummary
-    ├── BatchActions
-    ├── UrlResultsTable
-    ├── UrlResultRow
-    └── ConnectionStatus
+components/
+├── ui/          Button, Badge/StatusBadge, Card, MetricCard, ProgressBar, Tabs, Menu,
+│                Dialog, Toast, Select, Pagination, SearchInput, Breadcrumbs, feedback
+│                (Skeleton / EmptyState / LoadingState / ErrorState), CopyButton, Toggle
+├── shell/       AppShell, Sidebar, ThemeToggle
+├── charts/      DonutChart, Sparkline (Recharts; tokens resolved at runtime)
+└── motion/      Reveal / Stagger, HealthWave, UrlPulseLoader
+
+features/
+├── auth/        AuthLayout, AuthForm, PasswordInput, ForgotPasswordForm,
+│                ResetPasswordForm, pages (Login / Signup / Forgot / Reset screens)
+├── batches/     api client, hooks (useBatchDetail: SSE refetch-on-notify),
+│                lib (repository, view, derive, status), components
+│                ├── dashboard/   batch list + metrics
+│                ├── create/      paste / CSV batch creation
+│                ├── states/      state showcase
+│                └── BatchDetailView, BatchHeader(+Actions), ProgressSummaryCard,
+│                    UrlResultsSection, OverallHealthPanel, LiveActivityPanel,
+│                    BatchDetailsPanel
+├── history/     HistoryView
+├── alerts/      AlertsPage (mock store — no alerts backend yet)
+├── settings/    SettingsPage
+└── marketing/   MarketingNav, MarketingFooter, StartBatchPanel, NotFoundPage
 ```
 
-The exact directory organization may change during implementation.
+Each feature owns its CSS Module; shared visual primitives come from `components/ui`.
 
 ---
 

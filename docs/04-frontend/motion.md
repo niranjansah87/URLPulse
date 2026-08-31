@@ -71,9 +71,14 @@ once — it loses meaning.
 
 **Implemented as** `apps/web/components/motion/HealthWave.tsx` (the primitive: an SVG
 heartbeat trace with a lit dash segment animated via `stroke-dashoffset`, `pathLength`
-normalised to 100) and `UrlPulseLoader.tsx` (the branded "coming online" screen — the wave
-traced through the circular health indicator plus wordmark). Both are pure SVG/CSS with no
-animation library and are safe in server components. Current wiring:
+normalised to 100) and `UrlPulseLoader.tsx` (the branded "coming online" screen). The loader
+is a small, living recreation of the logo-reveal video (`public/brand/urlpulse-logo-reveal
+.mp4`): one shared CSS timeline (`--upl-T`) drives every element on in-lockstep infinite
+keyframes through the brand sequence — the health ring traces itself, the heartbeat draws from
+the centre, the node appears, the URL link snaps into the ring gap, a bright pulse synchronises
+the mark, and the wordmark reveals left→right — then everything recedes and reconstructs so it
+loops seamlessly for any hold duration. Both are pure SVG/CSS with no animation library and are
+safe in server components. Current wiring:
 - `HealthWave` renders in `ProgressSummaryCard` only while `batch.status === "PROCESSING"`,
   so it starts, stops on completion/cancellation, and reconstructs after refresh straight
   from the authoritative snapshot — it never holds its own state.
