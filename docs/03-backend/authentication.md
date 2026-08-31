@@ -52,6 +52,8 @@ Migrations (forward-only plain SQL, applied by `apps/api/src/migrate.ts`):
   ON DELETE CASCADE`, plus `idx_batches_user_created (user_id, created_at DESC)`.
   Nullable by design: pre-auth batches have no owner and match no user, so they
   are invisible rather than leaking.
+- `0004_rate_limit.sql` — Better Auth's `rateLimit` table, backing DB-based
+  distributed rate limiting (see Abuse protection below).
 
 Deleting a user cascades to their sessions, accounts, and batches.
 
@@ -95,25 +97,75 @@ state through the ownership-checked endpoint.
 - Settings shows the authenticated user (name — editable, email, member-since)
   and supports sign-out and account deletion.
 
+## Password reset
+
+Self-service password reset uses Better Auth's built-in flow (no custom token
+table or crypto) plus Resend for delivery:
+
+```
+/forgot-password → requestPasswordReset(email) → Better Auth mints a token
+  → sendResetPassword() emails WEB_ORIGIN/reset-password?token=… via Resend
+  → user opens the link → /reset-password reads the token → resetPassword(token, newPassword)
+  → password updated, other sessions revoked → sign in at /login
+```
+
+Security properties:
+
+- **Anti-enumeration.** `POST /api/auth/request-password-reset` returns the same
+  generic `200` whether or not the email has an account; the email is only sent
+  for a real account, and `sendResetPassword` swallows delivery errors so a Resend
+  failure cannot change the response. The UI always shows the same "if an account
+  exists…" message.
+- **Trusted reset URL.** The link is built from the configured `WEB_ORIGIN`, never
+  from a request `Host` header, so it cannot be poisoned into an open redirect.
+  The frontend never honors a `redirect` parameter; success routes only to
+  `/login`.
+- **Token safety.** Better Auth stores the token in the `verification` table,
+  expires it after `resetPasswordTokenExpiresIn` (**1 hour**), and consumes it
+  atomically on use (single-use, replay-safe). Tokens are **never logged** — not
+  by the auth callbacks, the email service, or the dev no-op path.
+- **Session hygiene.** `revokeSessionsOnPasswordReset: true` — a reset revokes the
+  user's other sessions, so a stolen pre-reset session cannot outlive the change.
+  The user is **not** auto-logged-in; they sign in with the new password.
+- **Password policy.** Minimum 8 characters, enforced by Better Auth server-side
+  and mirrored in the sign-up and reset UIs.
+
+The reset email is a small transactional template (`apps/api/src/lib/email.ts`)
+behind an `emailService` abstraction; the auth config depends on the abstraction,
+not the Resend SDK directly. When `RESEND_API_KEY` is unset (dev/test) the service
+no-ops safely.
+
+### Abuse protection
+
+Better Auth rate limiting is enabled in every environment except tests, backed by
+the **shared PostgreSQL** `rateLimit` table (migration `0004`) so the limit holds
+across all API instances — never a per-process in-memory limiter. It is IP-based,
+with tight custom caps on the sensitive endpoints (password reset: **3 requests /
+5 min**; reset submit: 5 / 5 min; sign-in: 10 / min). Behind a proxy, forward the
+client IP so limits key on the real address.
+
 ## Environment variables
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `BETTER_AUTH_SECRET` | prod (dev/test default) | Signs session cookies; must be fixed and shared across API instances. |
 | `BETTER_AUTH_URL` | no (default `http://localhost:4000`) | Public API base URL where Better Auth is mounted. |
-| `WEB_ORIGIN` | no (default `http://localhost:3000`) | Web origin trusted for credentialed CORS. |
+| `WEB_ORIGIN` | no (default `http://localhost:3000`) | Web origin trusted for credentialed CORS; also used to build the reset link. |
+| `RESEND_API_KEY` | prod (dev/test no-op) | Resend API key for sending password-reset email. |
+| `RESEND_FROM_EMAIL` | no (default `URLPulse <onboarding@resend.dev>`) | Verified sender for transactional email. |
 
 ## Intentionally not implemented
 
-Out of scope for this minimal auth: OAuth/social providers, MFA, password reset,
-email verification workflows, organizations/teams, and role-based access control.
-The Settings UI shows honest placeholders for billing, team, and API keys.
+Out of scope: OAuth/social providers, MFA, **email verification of sign-ups**
+(reset email is sent, but sign-up addresses are not verification-gated),
+organizations/teams, role-based access control, and billing. The Settings UI shows
+honest placeholders for billing, team, and API keys.
 
 ## Local development & tests
 
 ```bash
 docker compose up -d          # PostgreSQL + Redis
-pnpm db:migrate               # applies 0001..0003
+pnpm db:migrate               # applies 0001..0004 (incl. rateLimit table)
 pnpm dev                      # web + api + worker
 
 pnpm --filter @urlpulse/api test   # unit always; integration when DB reachable
