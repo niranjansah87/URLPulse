@@ -18,6 +18,7 @@ beforeAll(async () => {
     createWithUrls: vi.fn(),
     getById: vi.fn(),
     list: vi.fn(),
+    cancel: vi.fn(),
     findReconcilableJobs: vi.fn(),
   } as unknown as BatchRepository;
   const service = createBatchService({
@@ -61,9 +62,17 @@ describe("GET /api/batches/:batchId", () => {
   });
 });
 
+describe("POST /api/batches/:batchId/cancel", () => {
+  it("returns 404 for a non-UUID batch id", async () => {
+    const res = await app.inject({ method: "POST", url: "/api/batches/not-a-uuid/cancel" });
+    expect(res.statusCode).toBe(404);
+    expect(res.json().error.code).toBe("NOT_FOUND");
+  });
+});
+
 describe("unimplemented endpoints", () => {
-  it("returns 501 for cancel", async () => {
-    const res = await app.inject({ method: "POST", url: "/api/batches/x/cancel" });
+  it("returns 501 for retry-failed", async () => {
+    const res = await app.inject({ method: "POST", url: "/api/batches/x/retry-failed" });
     expect(res.statusCode).toBe(501);
     expect(res.json().error.code).toBe("NOT_IMPLEMENTED");
   });

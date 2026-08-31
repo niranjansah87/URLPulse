@@ -108,6 +108,40 @@ export function createBatchRepository(db: Db) {
     },
 
     /**
+     * Cancel a batch and its non-terminal URLs in one transaction (ADR-026).
+     * Conditional on the batch being PENDING/PROCESSING so a COMPLETED/FAILED
+     * batch is never reopened and a stale worker cannot reverse it. Bulk-cancels
+     * PENDING/PROCESSING URLs (leaving SUCCESS/FAILED as-is) and bumps
+     * cancelled_count by the number transitioned. Returns "notfound", "noop"
+     * (already terminal; idempotent re-cancel), or "cancelled".
+     */
+    async cancel(id: string): Promise<"cancelled" | "noop" | "notfound"> {
+      return db.begin(async (tx) => {
+        const [exists] = await tx<{ id: string }[]>`SELECT id FROM batches WHERE id = ${id}`;
+        if (!exists) return "notfound";
+        const [changed] = await tx<{ id: string }[]>`
+          UPDATE batches
+          SET status = 'CANCELLED', cancelled_at = now(), updated_at = now()
+          WHERE id = ${id} AND status IN ('PENDING', 'PROCESSING')
+          RETURNING id
+        `;
+        if (!changed) return "noop";
+        const cancelledUrls = await tx`
+          UPDATE urls
+          SET status = 'CANCELLED', completed_at = now(), updated_at = now()
+          WHERE batch_id = ${id} AND status IN ('PENDING', 'PROCESSING')
+        `;
+        if (cancelledUrls.count > 0) {
+          await tx`
+            UPDATE batches SET cancelled_count = cancelled_count + ${cancelledUrls.count}, updated_at = now()
+            WHERE id = ${id}
+          `;
+        }
+        return "cancelled";
+      });
+    },
+
+    /**
      * URLs still PENDING in a non-terminal batch - the set the reconciliation
      * sweep re-enqueues to close the commit-then-enqueue-fails window (ADR-028).
      */

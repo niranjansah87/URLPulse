@@ -53,10 +53,16 @@ export async function registerBatchRoutes(
     return body;
   });
 
-  // --- Later milestones ---
-  app.post("/batches/:batchId/cancel", async () => {
-    throw new NotImplementedError("Batch cancellation");
+  // POST /batches/:batchId/cancel — idempotent; returns authoritative state.
+  app.post<{ Params: { batchId: string } }>("/batches/:batchId/cancel", async (req) => {
+    const { batchId } = req.params;
+    if (!isUuid(batchId)) throw new NotFoundError(`Batch ${batchId} not found`);
+    const batch = await service.cancelBatch(batchId);
+    const body: ApiSuccess<BatchDetail> = { data: batch };
+    return body;
   });
+
+  // --- Later milestones ---
   app.post("/batches/:batchId/retry-failed", async () => {
     throw new NotImplementedError("Retry failed");
   });

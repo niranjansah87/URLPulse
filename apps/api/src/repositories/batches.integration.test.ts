@@ -67,6 +67,28 @@ describe.skipIf(!dbUp)("batch repository (integration)", () => {
     expect(jobs.every((j) => j.batchId === batch.id)).toBe(true);
   });
 
+  it("cancels a batch and its non-terminal urls, counting them", async () => {
+    const { batch } = await repo.createWithUrls(["https://c1.com", "https://c2.com"]);
+    const result = await repo.cancel(batch.id);
+    const detail = await repo.getById(batch.id);
+    expect(result).toBe("cancelled");
+    expect(detail?.status).toBe("CANCELLED");
+    expect(detail?.cancelledCount).toBe(2);
+    expect(detail?.urls.every((u) => u.status === "CANCELLED")).toBe(true);
+  });
+
+  it("is a noop when cancelling an already-cancelled batch", async () => {
+    const { batch } = await repo.createWithUrls(["https://c3.com"]);
+    await repo.cancel(batch.id);
+    const again = await repo.cancel(batch.id);
+    expect(again).toBe("noop");
+  });
+
+  it("reports notfound for an unknown batch id", async () => {
+    const result = await repo.cancel("00000000-0000-0000-0000-000000000000");
+    expect(result).toBe("notfound");
+  });
+
   it("rolls back the whole batch when the transaction throws", async () => {
     const countBatches = async (): Promise<number> => {
       const rows = await sql<{ count: number }[]>`SELECT count(*)::int AS count FROM batches`;

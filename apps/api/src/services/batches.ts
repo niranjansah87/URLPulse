@@ -78,6 +78,20 @@ export function createBatchService({ repo, enqueue, log }: BatchServiceDeps) {
       return batch;
     },
 
+    /**
+     * Cancel a batch. Idempotent: re-cancelling or cancelling an
+     * already-terminal batch returns the current authoritative state rather than
+     * erroring (api.md §14). Returns 404 only when the batch does not exist.
+     */
+    async cancelBatch(id: string): Promise<BatchDetail> {
+      const result = await repo.cancel(id);
+      if (result === "notfound") throw new NotFoundError(`Batch ${id} not found`);
+      log.info({ batchId: id, result }, "batch cancel");
+      const batch = await repo.getById(id);
+      if (!batch) throw new NotFoundError(`Batch ${id} not found`);
+      return batch;
+    },
+
     async listBatches(
       query: ListBatchesQuery,
     ): Promise<{ items: BatchSummary[]; meta: BatchListMeta }> {

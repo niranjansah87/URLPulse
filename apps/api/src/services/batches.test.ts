@@ -26,6 +26,7 @@ function fakeRepo(over: Partial<BatchRepository> = {}): BatchRepository {
     })),
     getById: vi.fn(async () => null),
     list: vi.fn(async () => ({ items: [], total: 0 })),
+    cancel: vi.fn(async () => "cancelled" as const),
     findReconcilableJobs: vi.fn(async () => []),
     ...over,
   } as BatchRepository;
@@ -94,6 +95,34 @@ describe("batchService.getBatch", () => {
     const repo = fakeRepo({ getById: vi.fn(async () => detail) });
     const service = createBatchService({ repo, enqueue: async () => {}, log: noopLog });
     await expect(service.getBatch("batch-1")).resolves.toEqual(detail);
+  });
+});
+
+describe("batchService.cancelBatch", () => {
+  it("throws NotFoundError when the batch does not exist", async () => {
+    const repo = fakeRepo({ cancel: vi.fn(async () => "notfound" as const) });
+    const service = createBatchService({ repo, enqueue: async () => {}, log: noopLog });
+    await expect(service.cancelBatch("missing")).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("returns authoritative state after cancelling", async () => {
+    const detail: BatchDetail = { ...summary("batch-1"), status: "CANCELLED", urls: [] };
+    const repo = fakeRepo({
+      cancel: vi.fn(async () => "cancelled" as const),
+      getById: vi.fn(async () => detail),
+    });
+    const service = createBatchService({ repo, enqueue: async () => {}, log: noopLog });
+    await expect(service.cancelBatch("batch-1")).resolves.toEqual(detail);
+  });
+
+  it("is idempotent for an already-terminal batch (noop returns current state)", async () => {
+    const detail: BatchDetail = { ...summary("batch-1"), status: "COMPLETED", urls: [] };
+    const repo = fakeRepo({
+      cancel: vi.fn(async () => "noop" as const),
+      getById: vi.fn(async () => detail),
+    });
+    const service = createBatchService({ repo, enqueue: async () => {}, log: noopLog });
+    await expect(service.cancelBatch("batch-1")).resolves.toEqual(detail);
   });
 });
 
