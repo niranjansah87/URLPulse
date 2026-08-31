@@ -56,7 +56,10 @@ export function startWorker(): Worker<UrlCheckJobData> {
   };
 
   const processor = createUrlCheckProcessor({
-    repo: createUrlRepository(db),
+    repo: createUrlRepository(db, {
+      slowThresholdMs: config.ALERT_SLOW_RESPONSE_MS,
+      sslWarnDays: config.ALERT_SSL_WARN_DAYS,
+    }),
     checkUrl,
     checkOptions: {
       timeoutMs: config.HTTP_TIMEOUT_MS,

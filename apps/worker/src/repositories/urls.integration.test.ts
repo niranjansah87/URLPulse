@@ -33,11 +33,13 @@ const ok: UrlCheckResult = {
   errorCode: null,
   errorMessage: null,
   retryable: false,
+  redirected: false,
+  certExpiresAt: null,
 };
 
 describe.skipIf(!dbUp)("worker url repository (integration)", () => {
   const sql = postgres(DATABASE_URL, { max: 4 });
-  const repo = createUrlRepository(sql);
+  const repo = createUrlRepository(sql, { slowThresholdMs: 1500, sslWarnDays: 30 });
 
   async function seed(total: number): Promise<{ batchId: string; urlIds: string[] }> {
     await sql`TRUNCATE urls, batches RESTART IDENTITY CASCADE`;

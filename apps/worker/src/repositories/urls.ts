@@ -1,5 +1,13 @@
 import type { Db } from "../lib/db";
 import type { UrlCheckResult } from "../lib/http-checker";
+import { deriveAlerts, FAILURE_ALERT_TYPES } from "../lib/alerts";
+
+export interface AlertOptions {
+  /** Response time (ms) above which a SUCCESS raises SLOW_RESPONSE. */
+  slowThresholdMs: number;
+  /** Raise SSL_EXPIRING when the cert expires within this many days. */
+  sslWarnDays: number;
+}
 
 /**
  * Worker-side data access for URL processing. The API and worker are separate
@@ -17,7 +25,7 @@ export interface UrlRepository {
   recoverStuck(olderThanMs: number): Promise<number>;
 }
 
-export function createUrlRepository(db: Db): UrlRepository {
+export function createUrlRepository(db: Db, alertOptions: AlertOptions): UrlRepository {
   return {
     /**
      * Atomically move a URL PENDING → PROCESSING (incrementing attempt_count)
@@ -57,7 +65,18 @@ export function createUrlRepository(db: Db): UrlRepository {
      */
     async persistResult(urlId, result) {
       return db.begin(async (tx) => {
-        const [row] = await tx<{ batch_id: string }[]>`
+        // Lock the row and capture prior state (title for TITLE_CHANGED, owner
+        // for alert rows) before overwriting it. The PROCESSING guard preserves
+        // the "skipped" idempotency semantics.
+        const [prior] = await tx<{ url: string; batch_id: string; user_id: string | null; page_title: string | null }[]>`
+          SELECT u.url, u.batch_id, u.page_title, b.user_id
+          FROM urls u JOIN batches b ON b.id = u.batch_id
+          WHERE u.id = ${urlId} AND u.status = 'PROCESSING'
+          FOR UPDATE OF u
+        `;
+        if (!prior) return "skipped";
+
+        await tx`
           UPDATE urls
           SET status = ${result.status},
               http_status = ${result.httpStatus},
@@ -67,15 +86,13 @@ export function createUrlRepository(db: Db): UrlRepository {
               error_message = ${result.errorMessage},
               completed_at = now(),
               updated_at = now()
-          WHERE id = ${urlId} AND status = 'PROCESSING'
-          RETURNING batch_id
+          WHERE id = ${urlId}
         `;
-        if (!row) return "skipped";
 
         if (result.status === "SUCCESS") {
-          await tx`UPDATE batches SET completed_count = completed_count + 1, updated_at = now() WHERE id = ${row.batch_id}`;
+          await tx`UPDATE batches SET completed_count = completed_count + 1, updated_at = now() WHERE id = ${prior.batch_id}`;
         } else {
-          await tx`UPDATE batches SET failed_count = failed_count + 1, updated_at = now() WHERE id = ${row.batch_id}`;
+          await tx`UPDATE batches SET failed_count = failed_count + 1, updated_at = now() WHERE id = ${prior.batch_id}`;
         }
 
         await tx`
@@ -83,10 +100,43 @@ export function createUrlRepository(db: Db): UrlRepository {
           SET status = CASE WHEN failed_count > 0 THEN 'FAILED' ELSE 'COMPLETED' END,
               completed_at = now(),
               updated_at = now()
-          WHERE id = ${row.batch_id}
+          WHERE id = ${prior.batch_id}
             AND status = 'PROCESSING'
             AND completed_count + failed_count + cancelled_count >= total_count
         `;
+
+        // Alerts are derived and written in THIS transaction, so they commit
+        // atomically with the (once-only) result write.
+        const [openFailure] = await tx<{ exists: boolean }[]>`
+          SELECT EXISTS (
+            SELECT 1 FROM alerts
+            WHERE url_id = ${urlId} AND status <> 'resolved'
+              AND type = ANY(${FAILURE_ALERT_TYPES})
+          ) AS exists
+        `;
+        const { inserts, resolveOpenFailures } = deriveAlerts(result, {
+          previousTitle: prior.page_title,
+          hadOpenFailure: openFailure?.exists ?? false,
+          slowThresholdMs: alertOptions.slowThresholdMs,
+          sslWarnDays: alertOptions.sslWarnDays,
+          now: new Date(),
+        });
+
+        if (resolveOpenFailures) {
+          await tx`
+            UPDATE alerts SET status = 'resolved', updated_at = now()
+            WHERE url_id = ${urlId} AND status <> 'resolved' AND type = ANY(${FAILURE_ALERT_TYPES})
+          `;
+        }
+        for (const a of inserts) {
+          // De-duplicate open alerts of the same (url, type) via the partial
+          // unique index, so re-checking a still-broken URL adds no duplicate.
+          await tx`
+            INSERT INTO alerts (user_id, batch_id, url_id, url, type, title, detail, severity)
+            VALUES (${prior.user_id}, ${prior.batch_id}, ${urlId}, ${prior.url}, ${a.type}, ${a.title}, ${a.detail}, ${a.severity})
+            ON CONFLICT (url_id, type) WHERE status <> 'resolved' DO NOTHING
+          `;
+        }
         return "applied";
       });
     },

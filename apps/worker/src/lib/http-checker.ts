@@ -17,6 +17,7 @@
  * admission), not URL failures: they propagate out of `checkUrl` so the worker
  * returns the URL to PENDING and retries, rather than marking it FAILED.
  */
+import { connect as tlsConnect } from "node:tls";
 import { assertPublicUrl, BlockedTargetError } from "./ssrf";
 
 export interface UrlCheckResult {
@@ -28,6 +29,10 @@ export interface UrlCheckResult {
   errorMessage: string | null;
   /** Whether the failure is transient. Consumed by the retry phase (ADR-023). */
   retryable: boolean;
+  /** True when the final response was reached via one or more redirects. */
+  redirected: boolean;
+  /** TLS certificate expiry (ISO) for the final https host, best-effort; null otherwise. */
+  certExpiresAt: string | null;
 }
 
 export interface CheckOptions {
@@ -115,7 +120,7 @@ export async function checkUrl(
         void res.body?.cancel().catch(() => undefined);
         if (!location) break; // treat as a final (odd) response
         if (hops >= opts.maxRedirects) {
-          return failed(res.status, elapsed(startedAt), "REDIRECT_LIMIT", "Too many redirects", false);
+          return failed(res.status, elapsed(startedAt), "REDIRECT_LIMIT", "Too many redirects", false, true);
         }
         current = new URL(location, current);
         continue;
@@ -123,6 +128,8 @@ export async function checkUrl(
 
       const pageTitle = await readTitle(res, opts.maxBodyBytes);
       const responseTimeMs = elapsed(startedAt);
+      const redirected = hops > 0;
+      const certExpiresAt = await readCertExpiry(current, opts.timeoutMs);
       if (res.status >= 400) {
         // 5xx is transient; 4xx is a deterministic client error. (Phase 3 refines.)
         const retryable = res.status >= 500;
@@ -134,6 +141,8 @@ export async function checkUrl(
           errorCode: `HTTP_${res.status}`,
           errorMessage: `Received HTTP ${res.status}`,
           retryable,
+          redirected,
+          certExpiresAt,
         };
       }
       return {
@@ -144,6 +153,8 @@ export async function checkUrl(
         errorCode: null,
         errorMessage: null,
         retryable: false,
+        redirected,
+        certExpiresAt,
       };
     }
 
@@ -178,8 +189,49 @@ function failed(
   errorCode: string,
   errorMessage: string,
   retryable: boolean,
+  redirected = false,
 ): UrlCheckResult {
-  return { status: "FAILED", httpStatus, responseTimeMs, pageTitle: null, errorCode, errorMessage, retryable };
+  return {
+    status: "FAILED",
+    httpStatus,
+    responseTimeMs,
+    pageTitle: null,
+    errorCode,
+    errorMessage,
+    retryable,
+    redirected,
+    certExpiresAt: null,
+  };
+}
+
+/**
+ * Best-effort TLS certificate expiry for an https host. A short, separate
+ * handshake (undici's fetch does not expose the peer certificate). Never throws:
+ * any failure yields null so a cert probe can only add an alert, never fail a
+ * check. Not an HTTP request, so it consumes no rate permit.
+ */
+function readCertExpiry(url: URL, timeoutMs: number): Promise<string | null> {
+  if (url.protocol !== "https:") return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const port = url.port ? Number(url.port) : 443;
+    let settled = false;
+    const done = (value: string | null) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve(value);
+    };
+    const socket = tlsConnect(
+      { host: url.hostname, port, servername: url.hostname, timeout: Math.min(timeoutMs, 5000) },
+      () => {
+        const cert = socket.getPeerCertificate();
+        const validTo = cert && cert.valid_to ? new Date(cert.valid_to) : null;
+        done(validTo && !Number.isNaN(validTo.getTime()) ? validTo.toISOString() : null);
+      },
+    );
+    socket.once("timeout", () => done(null));
+    socket.once("error", () => done(null));
+  });
 }
 
 /** Read at most maxBytes of the body and extract a trimmed <title>, if any. */

@@ -19,6 +19,8 @@ const success: UrlCheckResult = {
   errorCode: null,
   errorMessage: null,
   retryable: false,
+  redirected: false,
+  certExpiresAt: null,
 };
 const retryableFail: UrlCheckResult = {
   status: "FAILED",
@@ -28,6 +30,8 @@ const retryableFail: UrlCheckResult = {
   errorCode: "HTTP_503",
   errorMessage: "Received HTTP 503",
   retryable: true,
+  redirected: false,
+  certExpiresAt: null,
 };
 const permanentFail: UrlCheckResult = { ...retryableFail, httpStatus: 404, errorCode: "HTTP_404", retryable: false };
 
