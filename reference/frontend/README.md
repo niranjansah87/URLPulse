@@ -21,20 +21,31 @@ render additionally shows an Overall Health donut and a Live Activity feed. See
 
 ## Page reference folders
 
-Each page has a folder for its light/dark reference renders. Only the dashboard has images
-today; the rest hold a README describing the expected files. **Do not fabricate screenshots** —
+Each page has a folder for its light/dark reference renders. **Do not fabricate screenshots** —
 add real renders as they are produced.
 
-| Folder | Page |
-|--------|------|
-| [`dashboard/`](./dashboard/README.md) | Dashboard / batch list (has images) |
-| [`create-batch/`](./create-batch/README.md) | Batch creation (manual + CSV) |
-| [`batch-detail/`](./batch-detail/README.md) | Single batch: progress, results, actions |
-| [`history/`](./history/README.md) | Historical batches |
-| [`alerts/`](./alerts/README.md) | Alerts (future) |
-| [`settings/`](./settings/README.md) | Settings |
-| [`states/`](./states/README.md) | Empty / loading / error / completion states |
-| [`components/`](./components/README.md) | Component-level reference notes |
+| Folder | Page | Route |
+|--------|------|-------|
+| [`landing_page/`](./landing_page) | Public landing page | `/` |
+| [`login/`](./login) | Sign in (two-column auth family) | `/login` |
+| [`sign-up/`](./sign-up) | Create account | `/signup` |
+| [`forgot_password/`](./forgot_password) | Request a password-reset link | `/forgot-password` |
+| [`reset-password/`](./reset-password) | Set a new password from a reset link | `/reset-password?token=…` |
+| [`notfound/`](./notfound) | Public 404 | any unknown route |
+| [`dashboard/`](./dashboard/README.md) | Dashboard / batch list | `/batches` |
+| [`create-batch/`](./create-batch/README.md) | Batch creation (manual + CSV) | `/batches/new` |
+| [`batch-detail/`](./batch-detail/README.md) | Single batch: progress, results, actions | `/batches/[id]` |
+| [`history/`](./history/README.md) | Historical batches | `/history` |
+| [`alerts/`](./alerts/README.md) | Alerts | `/alerts` |
+| [`settings/`](./settings/README.md) | Settings | `/settings` |
+| [`states/`](./states/README.md) | Empty / loading / error / completion states | `/batches/states` (showcase) |
+| [`components/`](./components/README.md) | Component-level reference notes | — |
+
+Illustrations used by these pages live in [`public/illustration/`](../../public/illustration)
+(`urlpulse-dashboard-illustration-{light,dark}`, `login-light`, `signup-{light,dark}`,
+`forgot-password-{light,dark}`, `reset-password-{light,dark}`, `reset-password-success-dark`,
+`not-found-dark`). Where only one theme variant exists, the page falls back to the dashboard
+illustration for the other theme.
 
 ## How to use this reference
 
