@@ -29,6 +29,13 @@ const serverEnvSchema = z.object({
   DB_CONNECT_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(10),
   DB_IDLE_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(20),
   DB_STATEMENT_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+
+  // Outbound URL health-check bounds (worker). Every check is time-bounded,
+  // redirect-bounded, and body-bounded so one URL cannot hang a worker or
+  // exhaust memory (edge-cases §6/§38).
+  HTTP_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
+  HTTP_MAX_REDIRECTS: z.coerce.number().int().nonnegative().default(5),
+  HTTP_MAX_BODY_BYTES: z.coerce.number().int().positive().default(262_144),
 });
 
 export type ServerConfig = z.infer<typeof serverEnvSchema>;
