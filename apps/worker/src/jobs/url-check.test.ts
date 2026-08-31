@@ -44,8 +44,17 @@ function repoWith(over: Partial<UrlRepository>): UrlRepository {
   } as UrlRepository;
 }
 
-function proc(repo: UrlRepository, checkUrl: () => Promise<UrlCheckResult>) {
-  return createUrlCheckProcessor({ repo, checkUrl, checkOptions: OPTS, maxAttempts: MAX_ATTEMPTS, log: noopLog });
+const passLimiter = { acquire: vi.fn(async () => {}) };
+
+function proc(repo: UrlRepository, checkUrl: () => Promise<UrlCheckResult>, rateLimiter = passLimiter) {
+  return createUrlCheckProcessor({
+    repo,
+    checkUrl,
+    checkOptions: OPTS,
+    rateLimiter,
+    maxAttempts: MAX_ATTEMPTS,
+    log: noopLog,
+  });
 }
 
 describe("urlCheckProcessor", () => {
@@ -99,5 +108,29 @@ describe("urlCheckProcessor", () => {
       proc(repo, vi.fn(async () => retryableFail))(job({ batchId: BATCH, urlId: URL_ID }, 0)),
     ).resolves.toBeUndefined();
     expect(repo.persistResult).not.toHaveBeenCalled();
+  });
+
+  it("acquires a global rate permit before performing the check", async () => {
+    const order: string[] = [];
+    const rateLimiter = { acquire: vi.fn(async () => void order.push("acquire")) };
+    const checkUrl = vi.fn(async () => {
+      order.push("check");
+      return success;
+    });
+    await proc(repoWith({}), checkUrl, rateLimiter)(job({ batchId: BATCH, urlId: URL_ID }));
+    expect(order).toEqual(["acquire", "check"]);
+  });
+
+  it("returns the URL to PENDING when admission throws (infra failure)", async () => {
+    const repo = repoWith({});
+    const rateLimiter = {
+      acquire: vi.fn(async () => {
+        throw new Error("redis down");
+      }),
+    };
+    await expect(
+      proc(repo, vi.fn(async () => success), rateLimiter)(job({ batchId: BATCH, urlId: URL_ID })),
+    ).rejects.toThrow("redis down");
+    expect(repo.releaseForRetry).toHaveBeenCalledWith(URL_ID);
   });
 });

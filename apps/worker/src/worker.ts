@@ -2,9 +2,10 @@ import { fileURLToPath } from "node:url";
 import { Worker } from "bullmq";
 import { URL_CHECK_QUEUE, type UrlCheckJobData } from "@urlpulse/types";
 import { config } from "./lib/env";
-import { createRedis } from "./lib/redis";
+import { createRedis, createCommandRedis } from "./lib/redis";
 import { createDb } from "./lib/db";
 import { checkUrl } from "./lib/http-checker";
+import { createRateLimiter, type RedisEval } from "./lib/rate-limiter";
 import { createUrlRepository } from "./repositories/urls";
 import { createUrlCheckProcessor } from "./jobs/url-check";
 
@@ -19,7 +20,14 @@ import { createUrlCheckProcessor } from "./jobs/url-check";
  */
 export function startWorker(): Worker<UrlCheckJobData> {
   const connection = createRedis();
+  const commandRedis = createCommandRedis();
   const db = createDb();
+
+  const rateLimiter = createRateLimiter(commandRedis as unknown as RedisEval, {
+    limit: config.RATE_LIMIT_RPS,
+    windowMs: 1000,
+    key: "rl:outbound",
+  });
 
   const log = {
     info: (obj: object, msg?: string) => console.log(JSON.stringify({ level: "info", msg, ...obj })),
@@ -34,6 +42,7 @@ export function startWorker(): Worker<UrlCheckJobData> {
       maxRedirects: config.HTTP_MAX_REDIRECTS,
       maxBodyBytes: config.HTTP_MAX_BODY_BYTES,
     },
+    rateLimiter,
     maxAttempts: config.MAX_RETRIES + 1,
     log,
   });
@@ -49,7 +58,7 @@ export function startWorker(): Worker<UrlCheckJobData> {
   const shutdown = () => {
     worker
       .close()
-      .then(() => connection.quit())
+      .then(() => Promise.allSettled([connection.quit(), commandRedis.quit()]))
       .then(() => db.end({ timeout: 5 }))
       .then(
         () => process.exit(0),

@@ -8,10 +8,16 @@ export interface ProcessorLogger {
   warn(obj: object, msg?: string): void;
 }
 
+export interface RateLimiterPort {
+  acquire(): Promise<void>;
+}
+
 export interface ProcessorDeps {
   repo: UrlRepository;
   checkUrl: (url: string, opts: CheckOptions) => Promise<UrlCheckResult>;
   checkOptions: CheckOptions;
+  /** Global outbound rate limiter (INV-4). Acquired before every request. */
+  rateLimiter: RateLimiterPort;
   /** Max attempts per round (initial + retries), = MAX_RETRIES + 1 (INV-5). */
   maxAttempts: number;
   log: ProcessorLogger;
@@ -39,7 +45,7 @@ export class RetryableCheckError extends Error {
  * claimed or terminal and returns without doing work or double-counting.
  */
 export function createUrlCheckProcessor(deps: ProcessorDeps) {
-  const { repo, checkUrl, checkOptions, maxAttempts, log } = deps;
+  const { repo, checkUrl, checkOptions, rateLimiter, maxAttempts, log } = deps;
 
   return async function urlCheckProcessor(job: Job<UrlCheckJobData>): Promise<void> {
     const { batchId, urlId } = urlCheckJobDataSchema.parse(job.data);
@@ -54,32 +60,43 @@ export function createUrlCheckProcessor(deps: ProcessorDeps) {
       return;
     }
 
-    // PHASE 4/5 SEAM: acquire the global rate-limit permit and the distributed
-    // concurrency lease here, immediately before the outbound request
-    // (rate-limiting.md §8), releasing the lease in a finally.
-    const result = await checkUrl(claimed.url, checkOptions);
+    try {
+      // Global admission immediately before the outbound request (rate-limiting.md
+      // §8). PHASE 5 SEAM: acquire the distributed concurrency lease here too,
+      // before the rate permit, releasing it in a finally.
+      await rateLimiter.acquire();
 
-    // attemptsMade is the number of attempts already completed (0 on the first
-    // run). Retry a transient failure only while attempts remain in this round.
-    const attemptsRemain = job.attemptsMade < maxAttempts - 1;
-    if (result.status === "FAILED" && result.retryable && attemptsRemain) {
-      const released = await repo.releaseForRetry(urlId);
-      if (released === "applied") {
-        log.warn(
-          { jobId: job.id, batchId, urlId, errorCode: result.errorCode, attempt: job.attemptsMade + 1 },
-          "transient failure; scheduling retry",
-        );
-        throw new RetryableCheckError(result.errorCode ?? "UNKNOWN");
+      const result = await checkUrl(claimed.url, checkOptions);
+
+      // attemptsMade is the number of attempts already completed (0 on the first
+      // run). Retry a transient failure only while attempts remain in this round.
+      const attemptsRemain = job.attemptsMade < maxAttempts - 1;
+      if (result.status === "FAILED" && result.retryable && attemptsRemain) {
+        const released = await repo.releaseForRetry(urlId);
+        if (released === "applied") {
+          log.warn(
+            { jobId: job.id, batchId, urlId, errorCode: result.errorCode, attempt: job.attemptsMade + 1 },
+            "transient failure; scheduling retry",
+          );
+          throw new RetryableCheckError(result.errorCode ?? "UNKNOWN");
+        }
+        // Release skipped: cancellation/another transition won — do not retry.
+        log.info({ jobId: job.id, batchId, urlId }, "retry aborted; url no longer processing");
+        return;
       }
-      // Release skipped: cancellation/another transition won — do not retry.
-      log.info({ jobId: job.id, batchId, urlId }, "retry aborted; url no longer processing");
-      return;
-    }
 
-    const outcome = await repo.persistResult(urlId, result);
-    log.info(
-      { jobId: job.id, batchId, urlId, status: result.status, httpStatus: result.httpStatus, outcome },
-      "url check complete",
-    );
+      const outcome = await repo.persistResult(urlId, result);
+      log.info(
+        { jobId: job.id, batchId, urlId, status: result.status, httpStatus: result.httpStatus, outcome },
+        "url check complete",
+      );
+    } catch (err) {
+      if (err instanceof RetryableCheckError) throw err; // URL already released
+      // Unexpected/infra failure (e.g. Redis down during admission) after the
+      // claim: return the URL to PENDING so a BullMQ retry can re-claim it,
+      // rather than leaving it stuck in PROCESSING. Then rethrow so BullMQ retries.
+      await repo.releaseForRetry(urlId).catch(() => undefined);
+      throw err;
+    }
   };
 }

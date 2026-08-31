@@ -16,3 +16,16 @@ export function createRedis(): Redis {
   });
   return redis;
 }
+
+/**
+ * Ordinary-command Redis connection for coordination primitives (rate limiter,
+ * concurrency lease). Kept separate from the BullMQ connection so their
+ * behaviors and lifecycles do not interfere (coding-conventions §8).
+ */
+export function createCommandRedis(): Redis {
+  const redis = new Redis(config.REDIS_URL);
+  redis.on("error", (err) => {
+    console.error("[worker][redis:cmd] connection error:", err.message);
+  });
+  return redis;
+}
