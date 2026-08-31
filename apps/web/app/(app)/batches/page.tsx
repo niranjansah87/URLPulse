@@ -1,9 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Button } from "@/components/ui/Button";
-import { NotificationBell } from "@/components/ui/NotificationBell";
 import { ErrorState } from "@/components/ui/feedback";
 import { Reveal } from "@/components/motion/Reveal";
 import { batchRepository } from "@/features/batches/lib/repository";
@@ -35,20 +31,7 @@ export default async function BatchesPage() {
 
   return (
     <>
-      <PageHeader
-        title="Batches"
-        description="Monitor the health of your URLs in real-time"
-        actions={
-          <>
-            <NotificationBell />
-            <Link href="/batches/new">
-              <Button variant="primary" leftIcon={<Plus size={16} strokeWidth={2} />}>
-                New Batch
-              </Button>
-            </Link>
-          </>
-        }
-      />
+      <PageHeader title="Batches" description="Monitor the health of your URLs in real-time" />
 
       <Reveal>
         <DashboardHero />

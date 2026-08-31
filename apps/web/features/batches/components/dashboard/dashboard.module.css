@@ -2,13 +2,10 @@
 
 .hero {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  align-items: center;
-  gap: var(--space-6);
-  padding: var(--space-8) var(--space-8) var(--space-8) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-6) var(--space-8);
   margin-bottom: var(--space-6);
-  overflow: hidden;
 }
 .overline {
   font-size: var(--text-xs);
@@ -35,35 +32,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  margin-top: var(--space-6);
+  margin-top: var(--space-5);
   flex-wrap: wrap;
-}
-.heroArt {
-  justify-self: end;
-  width: 100%;
-  max-width: 520px;
-}
-.illustration {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-.illustrationDark {
-  display: none;
-}
-:global(:root[data-theme="dark"]) .illustrationLight {
-  display: none;
-}
-:global(:root[data-theme="dark"]) .illustrationDark {
-  display: block;
-}
-@media (prefers-color-scheme: dark) {
-  :global(:root:not([data-theme="light"])) .illustrationLight {
-    display: none;
-  }
-  :global(:root:not([data-theme="light"])) .illustrationDark {
-    display: block;
-  }
 }
 
 .metrics {
