@@ -1,15 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, Copy, Download, Filter, Globe, MoreVertical, Search } from "lucide-react";
+import { ChevronDown, Copy, Download, Filter, MoreVertical, Search } from "lucide-react";
 import { Card, SectionHeader } from "@/components/ui/Card";
 import { Menu } from "@/components/ui/Menu";
 import { Pagination } from "@/components/ui/Pagination";
 import { StatusBadge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/feedback";
+import { Favicon } from "@/components/ui/Favicon";
+import { HealthWave } from "@/components/motion/HealthWave";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
-import { formatDateTime, formatDuration } from "@/lib/format";
+import { formatDuration } from "@/lib/format";
 import type { UrlResult, UrlStatus } from "../types";
 import { httpStatusText, httpStatusTone, urlStatusView, type Tone } from "../lib/status";
 import ui from "@/components/ui/ui.module.css";
@@ -123,7 +125,7 @@ export function UrlResultsSection({ urls }: { urls: UrlResult[] }) {
                   <th>Status</th>
                   <th>HTTP Status</th>
                   <th>Response Time</th>
-                  <th>Last Checked</th>
+                  <th>Title</th>
                   <th>
                     <span className="sr-only">Actions</span>
                   </th>
@@ -136,7 +138,7 @@ export function UrlResultsSection({ urls }: { urls: UrlResult[] }) {
                     <tr key={u.id}>
                       <td>
                         <span className={styles.urlCell}>
-                          <Globe size={15} aria-hidden style={{ color: "var(--color-text-muted)", flex: "none" }} />
+                          <Favicon url={u.url} size={16} />
                           <span className={cn(styles.urlText, ui.mono)} title={u.url}>
                             {u.url}
                           </span>
@@ -153,8 +155,19 @@ export function UrlResultsSection({ urls }: { urls: UrlResult[] }) {
                       <td className={ui.num} style={{ whiteSpace: "nowrap" }}>
                         {formatDuration(u.responseTimeMs)}
                       </td>
-                      <td style={{ color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
-                        {u.completedAt ? formatDateTime(u.completedAt) : "—"}
+                      <td style={{ color: "var(--color-text-secondary)", maxWidth: 280 }}>
+                        {u.status === "PROCESSING" ? (
+                          <HealthWave state="processing" width={96} height={22} />
+                        ) : u.pageTitle ? (
+                          <span
+                            title={u.pageTitle}
+                            style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                          >
+                            {u.pageTitle}
+                          </span>
+                        ) : (
+                          <span style={{ color: "var(--color-text-muted)" }}>—</span>
+                        )}
                       </td>
                       <td className={styles.rowActions}>
                         <Menu
