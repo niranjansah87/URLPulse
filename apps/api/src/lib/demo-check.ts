@@ -24,6 +24,7 @@ const USER_AGENT = "URLPulse-Demo/1.0";
 const TIMEOUT_MS = 8000;
 const MAX_REDIRECTS = 3;
 const MAX_BODY_BYTES = 64 * 1024;
+const MAX_URL_LEN = 2048;
 
 export async function checkOne(rawUrl: string, onRequest?: OnRequest): Promise<DemoCheckResult> {
   const startedAt = Date.now();
@@ -39,6 +40,7 @@ export async function checkOne(rawUrl: string, onRequest?: OnRequest): Promise<D
   });
 
   try {
+    if (rawUrl.length > MAX_URL_LEN) return fail("URL is too long");
     let current: URL;
     try {
       current = new URL(rawUrl);

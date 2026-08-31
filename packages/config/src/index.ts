@@ -67,6 +67,15 @@ const serverEnvSchema = z.object({
     .string()
     .optional()
     .transform((v) => v === "true"),
+
+  // Trust the X-Forwarded-For chain when deriving the client IP (Fastify
+  // trustProxy). Enable ONLY when the API sits behind a proxy/load balancer that
+  // sets XFF; otherwise a client could spoof the header and evade per-IP limits.
+  // Same string transform as above so "false" is not coerced to true.
+  TRUST_PROXY: z
+    .string()
+    .optional()
+    .transform((v) => v === "true"),
 });
 
 export type ServerConfig = z.infer<typeof serverEnvSchema>;

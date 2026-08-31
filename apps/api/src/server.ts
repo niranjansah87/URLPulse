@@ -45,6 +45,9 @@ export function buildServer(overrides: ServerOverrides = {}) {
     // Bound the JSON body so a malicious/oversized request cannot exhaust memory
     // (multipart CSV has its own 5MB limit below). Comfortably fits a max batch.
     bodyLimit: 4 * 1024 * 1024,
+    // Derive req.ip from X-Forwarded-For only when explicitly behind a trusted
+    // proxy; otherwise clients could spoof it and evade the demo per-IP limit.
+    trustProxy: config.TRUST_PROXY,
     logger: {
       // Never log credentials even if a future change starts logging headers.
       redact: {
