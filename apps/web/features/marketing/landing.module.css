@@ -102,18 +102,11 @@
   }
 }
 
-/* Desktop: three columns (logo | centered links | actions) so the centered nav
-   is positioned independently of the logo's width. The logo's hover animation
-   changes its width; a flexbox row would re-center the links and make them jump.
-   The grid center column stays put. */
+/* Desktop: logo left, actions pinned to the right end. */
 @media (min-width: 881px) {
   .navRow {
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
-  }
-  .navLinks {
-    margin: 0;
-    justify-self: center;
+    grid-template-columns: 1fr auto;
   }
   .navActions {
     justify-self: end;
@@ -138,6 +131,18 @@
 .headlineAccent {
   color: var(--color-accent);
 }
+.caret {
+  display: inline-block;
+  margin-left: 2px;
+  color: var(--color-accent);
+  font-weight: var(--fw-regular);
+  animation: caretBlink 1s steps(1) infinite;
+}
+@keyframes caretBlink {
+  50% {
+    opacity: 0;
+  }
+}
 .lede {
   margin: 0 0 var(--space-6);
   max-width: 44ch;
@@ -160,21 +165,64 @@
   opacity: 0.35;
   pointer-events: none;
   user-select: none;
+  animation: float 7s var(--ease-standard) infinite;
+}
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
 }
 .panel {
   position: relative;
+  overflow: hidden;
   background: var(--color-surface);
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
   padding: var(--space-6);
+  transition:
+    border-color var(--dur-base) var(--ease-standard),
+    box-shadow var(--dur-base) var(--ease-standard);
+}
+/* Accent strip along the top edge. */
+.panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-success));
+}
+.panel[data-dragging] {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-subtle), var(--shadow-md);
+}
+.panelHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.panelBadge {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
 }
 .panelTitle {
   font-size: var(--text-lg);
   font-weight: var(--fw-semibold);
 }
 .panelSub {
-  margin: 2px 0 var(--space-4);
+  margin: 2px 0 0;
   font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
@@ -201,23 +249,97 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  margin: var(--space-2) 0 var(--space-4);
-  font-size: var(--text-xs);
+  margin: var(--space-3) 0 var(--space-4);
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
+}
+.count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.countNum {
+  display: inline-flex;
+  min-width: 1ch;
+  justify-content: center;
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+.countNum[data-active] {
+  color: var(--color-accent);
+}
+.fileChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 2px 4px 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+  font-weight: var(--fw-medium);
+}
+.fileChip > svg {
+  flex: none;
+}
+.fileClear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.fileClear:hover {
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 .upload {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
+  padding: 6px var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
   cursor: pointer;
   color: var(--color-text-secondary);
   font-weight: var(--fw-medium);
+  font-size: var(--text-sm);
+  transition:
+    border-color var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard);
 }
-.upload input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
+.upload:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+.dropHint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2);
+  border: 1px dashed var(--color-accent);
+  border-radius: var(--radius-md);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+}
+.panelSubmit {
+  width: 100%;
+}
+.panelSubmit .panelSubmitArrow {
+  transition: transform var(--dur-fast) var(--ease-standard);
+}
+.panelSubmit:hover:not(:disabled) .panelSubmitArrow {
+  transform: translateX(3px);
 }
 .panelError {
   margin: 0 0 var(--space-3);
@@ -259,8 +381,21 @@
 .feature {
   display: flex;
   gap: var(--space-3);
+  transition:
+    transform var(--dur-base) var(--ease-standard),
+    color var(--dur-base) var(--ease-standard);
+}
+.feature:hover {
+  transform: translateY(-3px);
+}
+.feature:hover .featureIcon {
+  background: var(--color-accent);
+  color: var(--color-on-action);
 }
 .featureIcon {
+  transition:
+    background-color var(--dur-base) var(--ease-standard),
+    color var(--dur-base) var(--ease-standard);
   flex: none;
   width: 40px;
   height: 40px;

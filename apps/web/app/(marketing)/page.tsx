@@ -6,6 +6,7 @@ import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import { MarketingFooter } from "@/features/marketing/components/MarketingFooter";
 import { MarketingNav } from "@/features/marketing/components/MarketingNav";
 import { StartBatchPanel } from "@/features/marketing/components/StartBatchPanel";
+import { Typewriter } from "@/features/marketing/components/Typewriter";
 import styles from "@/features/marketing/landing.module.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://urlpulse.dev";
@@ -66,7 +67,12 @@ export default function LandingPage() {
                 <br />
                 at Scale.
                 <br />
-                <span className={styles.headlineAccent}>Stay Ahead.</span>
+                <span className="sr-only">Stay Ahead.</span>
+                <Typewriter
+                  className={styles.headlineAccent}
+                  caretClassName={styles.caret}
+                  words={["Stay Ahead.", "Catch issues.", "Fix early.", "Stay online."]}
+                />
               </h1>
               <p className={styles.lede}>
                 URLPulse helps you monitor thousands of URLs in real-time. Get instant status, response time, and page title so you
