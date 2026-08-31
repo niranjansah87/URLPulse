@@ -17,9 +17,20 @@
   }
 }
 
-.search {
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.headerActions .search {
+  display: flex;
+  align-items: center;
   width: 100%;
   max-width: 380px;
+}
+/* Create Batch never shrinks or wraps below the search bar. */
+.headerActions > a {
+  flex: none;
 }
 
 .filters {

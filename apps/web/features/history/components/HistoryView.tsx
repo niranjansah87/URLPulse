@@ -30,7 +30,6 @@ import { DonutChart, type DonutSegment } from "@/components/charts/DonutChart";
 import { StatusBadge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { Pagination } from "@/components/ui/Pagination";
-import { NotificationBell } from "@/components/ui/NotificationBell";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/feedback";
 import { useToast } from "@/components/ui/Toast";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
@@ -151,7 +150,7 @@ export function HistoryView() {
         title="History"
         description="View and manage all your past batches"
         actions={
-          <>
+          <div className={styles.headerActions}>
             <label className={styles.search}>
               <span className="sr-only">Search batches</span>
               <span className={ui.inputWrap} style={{ width: "100%" }}>
@@ -174,8 +173,7 @@ export function HistoryView() {
                 Create Batch
               </Button>
             </Link>
-            <NotificationBell />
-          </>
+          </div>
         }
       />
 
@@ -206,7 +204,7 @@ export function HistoryView() {
 
           <Stagger className={styles.metrics}>
             <StaggerItem>
-              <MetricCard icon={<LayoutGrid size={18} />} label="Total Batches" value={stats.total} tone="accent" sub={filtered ? "matching filters" : "all batches on this page"} trend={trend(() => true)} />
+              <MetricCard icon={<LayoutGrid size={18} />} label="Total Batches" value={stats.total} tone="accent" sub={filtered ? "matching filters" : "on this page"} trend={trend(() => true)} />
             </StaggerItem>
             <StaggerItem>
               <MetricCard icon={<CheckCircle2 size={18} />} label="Completed" value={stats.completed} tone="success" sub={`${percentOf(stats.completed, stats.completed + stats.failed)} success rate`} trend={trend((r) => r.status === "COMPLETED")} />
