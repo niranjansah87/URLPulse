@@ -1,5 +1,5 @@
 
-# URLPulse — Product Requirements Document
+# URLPulse - Product Requirements Document
 
 **Version:** 1.0
 **Status:** Draft

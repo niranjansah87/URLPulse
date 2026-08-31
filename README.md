@@ -18,7 +18,7 @@
 
 ## Overview
 
-URLPulse lets you submit a collection of URLs — pasted directly or uploaded as CSV — and checks each one independently in the background while streaming progress and results to the browser in real time.
+URLPulse lets you submit a collection of URLs - pasted directly or uploaded as CSV - and checks each one independently in the background while streaming progress and results to the browser in real time.
 
 For every URL, URLPulse records:
 
@@ -77,7 +77,7 @@ flowchart TD
 
 | Component | Responsibility |
 |-----------|----------------|
-| **Next.js web** | UI for submission, batch list, and live batch detail. A projection of backend state — never authoritative. |
+| **Next.js web** | UI for submission, batch list, and live batch detail. A projection of backend state - never authoritative. |
 | **Fastify API** | Accepts submissions, persists state, enqueues jobs, serves reads, streams SSE. Stateless; horizontally scalable. |
 | **Worker** | Separate process. Consumes jobs, performs checks under the global rate limit, writes results idempotently. |
 | **PostgreSQL** | Authoritative application state (batches, URLs, counters). |
@@ -87,15 +87,15 @@ flowchart TD
 
 ### Global rate limit
 
-URLPulse enforces a maximum of **10 outbound HTTP requests per second across the entire system**. The limiter is Redis-coordinated so the limit holds regardless of how many worker processes are running — it is never `10 × workerCount`. See [`docs/03-backend/rate-limiting.md`](./docs/03-backend/rate-limiting.md).
+URLPulse enforces a maximum of **10 outbound HTTP requests per second across the entire system**. The limiter is Redis-coordinated so the limit holds regardless of how many worker processes are running - it is never `10 × workerCount`. See [`docs/03-backend/rate-limiting.md`](./docs/03-backend/rate-limiting.md).
 
 ### Concurrency
 
-At most **5 URL checks are in flight at once**. Concurrency and the request-rate limit are **separate constraints** — a worker acquires both a concurrency slot and a rate-limit permit before starting an outbound request.
+At most **5 URL checks are in flight at once**. Concurrency and the request-rate limit are **separate constraints** - a worker acquires both a concurrency slot and a rate-limit permit before starting an outbound request.
 
 ### Source of truth
 
-**PostgreSQL is authoritative.** Redis, BullMQ, browser state, and live events are infrastructure and transport — they must not replace durable state. Any batch page can be opened directly or refreshed and fully reconstructed from the API.
+**PostgreSQL is authoritative.** Redis, BullMQ, browser state, and live events are infrastructure and transport - they must not replace durable state. Any batch page can be opened directly or refreshed and fully reconstructed from the API.
 
 ### Idempotency
 
@@ -107,12 +107,12 @@ Live progress is delivered over **Server-Sent Events**, chosen because updates a
 
 ## Tech Stack
 
-- **Next.js** + **React** + **TypeScript** — web UI
-- **Fastify** + **TypeScript** — API
-- **PostgreSQL** — durable application state
-- **Redis** — coordination, rate limiting, pub/sub
-- **BullMQ** — background job processing
-- **Docker** / **Docker Compose** — local infrastructure
+- **Next.js** + **React** + **TypeScript** - web UI
+- **Fastify** + **TypeScript** - API
+- **PostgreSQL** - durable application state
+- **Redis** - coordination, rate limiting, pub/sub
+- **BullMQ** - background job processing
+- **Docker** / **Docker Compose** - local infrastructure
 
 ## Project Structure
 
@@ -136,7 +136,7 @@ URLPulse/
 └── .env.example
 ```
 
-> **Status:** The runnable skeleton exists — web, API, and worker start; the API health endpoint works; the schema migrates. URL health-checking logic (batch creation, processing, live updates) is the next phase; the batch endpoints currently return `501 Not Implemented`.
+> **Status:** The runnable skeleton exists - web, API, and worker start; the API health endpoint works; the schema migrates. URL health-checking logic (batch creation, processing, live updates) is the next phase; the batch endpoints currently return `501 Not Implemented`.
 
 ## Getting Started
 
@@ -229,7 +229,7 @@ Full documentation index: [`docs/README.md`](./docs/README.md).
 
 ## Security
 
-See [`SECURITY.md`](./SECURITY.md). URLPulse makes outbound HTTP requests to user-supplied URLs, so **SSRF is a primary consideration** — the security policy separates current controls from recommended production hardening.
+See [`SECURITY.md`](./SECURITY.md). URLPulse makes outbound HTTP requests to user-supplied URLs, so **SSRF is a primary consideration** - the security policy separates current controls from recommended production hardening.
 
 ## Contributing
 
@@ -241,4 +241,4 @@ See [`CONTRIBUTING.md`](./CONTRIBUTING.md). Changes affecting the database, queu
 
 ## Author
 
-**Niranjan Sah** — [niranjansah87.com.np](https://niranjansah87.com.np/) · [github.com/niranjansah87](https://github.com/niranjansah87)
+**Niranjan Sah** - [niranjansah87.com.np](https://niranjansah87.com.np/) · [github.com/niranjansah87](https://github.com/niranjansah87)

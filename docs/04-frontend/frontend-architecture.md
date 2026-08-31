@@ -1,4 +1,4 @@
-# URLPulse — Frontend Architecture
+# URLPulse - Frontend Architecture
 
 **Version:** 1.0  
 **Status:** Draft  

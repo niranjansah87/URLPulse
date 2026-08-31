@@ -57,7 +57,7 @@ Determined by inspecting the working tree on `main` (the scaffold is committed).
   `packages/*`), Node ≥20, ESM. Root scripts: `dev` (parallel), `dev:web|api|worker`, `build`,
   `lint`, `typecheck`, `test`, `db:migrate`. Flat ESLint + Prettier, `tsconfig.base.json` +
   per-package `tsconfig.json`. Stack pinned in **ADR-030** (postgres.js, ioredis, BullMQ, zod, `tsx`,
-  plain-SQL migrations — no ORM).
+  plain-SQL migrations - no ORM).
 - **Local infrastructure (Phase 1).** `docker-compose.yml`: `postgres:16-alpine` and
   `redis:7-alpine`, both with healthchecks and named volumes. App processes run on the host via
   `pnpm` (not containerized in dev). `.env.example` documents every variable.
@@ -69,8 +69,8 @@ Determined by inspecting the working tree on `main` (the scaffold is committed).
 - **Shared contracts (Phase 3, core).** `packages/types` is **zod-first** (types inferred from
   schemas): `batchStatus`/`urlStatus` enums, `UrlResult`/`BatchSummary`/`BatchDetail` DTOs,
   `createBatchRequest`, `ApiSuccess`/`ApiError` envelopes, `SseBatchUpdated` + `SSE_EVENT_BATCH_UPDATED`,
-  `URL_CHECK_QUEUE` name and `urlCheckJobData` payload — the single producer/consumer contract.
-- **Config (Phase 0/1).** `packages/config` — zod server-env loader, fail-fast, server-only. All
+  `URL_CHECK_QUEUE` name and `urlCheckJobData` payload - the single producer/consumer contract.
+- **Config (Phase 0/1).** `packages/config` - zod server-env loader, fail-fast, server-only. All
   system knobs centralized: `RATE_LIMIT_RPS=10`, `MAX_CONCURRENCY=5`, `MAX_RETRIES=3`,
   `BATCH_LIST_CACHE_SECONDS=30`, `DATABASE_URL`, `REDIS_URL`, `API_PORT`.
 - **API skeleton (Phase 4, partial).** `apps/api/src/server.ts` (bootstrap), `routes/health.ts`,
@@ -79,7 +79,7 @@ Determined by inspecting the working tree on `main` (the scaffold is committed).
   Libs: `db.ts` (postgres.js), `redis.ts` (ioredis, `lazyConnect`, `maxRetriesPerRequest:null` for
   BullMQ), `queue.ts` (BullMQ producer handle), `errors.ts` (`NotImplementedError`).
 - **Worker skeleton (Phase 7, partial).** `apps/worker/src/worker.ts` (bootstrap),
-  `jobs/url-check.ts` — a validating **no-op** that parses the payload and performs **no DB writes**
+  `jobs/url-check.ts` - a validating **no-op** that parses the payload and performs **no DB writes**
   (safe by construction).
 - **Web skeleton (Phase 13, partial).** Next.js App Router: `layout.tsx`, `page.tsx`,
   `batches/page.tsx`, `batches/[id]/page.tsx` (+`loading.tsx`), `AppShell`, `ThemeToggle`,
@@ -89,14 +89,14 @@ Determined by inspecting the working tree on `main` (the scaffold is committed).
 
 ### Partially completed
 
-- **Contracts** — missing: CSV request path, list pagination `meta` schema, `retry-failed`
+- **Contracts** - missing: CSV request path, list pagination `meta` schema, `retry-failed`
   request/response shape, a shared `ErrorCode` enum, an SSE-backing `version` source. (P3 from
   `consistency-check.md`: `batches` has no `version` column yet.)
-- **API foundation** — bootstrap + route surface exist; a global error handler, not-found handler,
+- **API foundation** - bootstrap + route surface exist; a global error handler, not-found handler,
   request-id/logging config, and the cache layer are not yet confirmed wired.
-- **Worker** — consumes the queue name but does no real work; no rate limiter, no concurrency
+- **Worker** - consumes the queue name but does no real work; no rate limiter, no concurrency
   lease, no HTTP checker, no persistence, no graceful shutdown.
-- **Web** — pages render a shell; not wired to live API data, no SSE, no forms submitting to the API.
+- **Web** - pages render a shell; not wired to live API data, no SSE, no forms submitting to the API.
 
 ### Not started
 
@@ -120,7 +120,7 @@ production hardening (structured logging, SSRF, resource limits, prod Docker) ·
 - **Contracts are shared and zod-first (INV-17).** Every request/response/job payload has a zod
   schema in `packages/types`; types are inferred, never hand-duplicated.
 - **State transitions are conditional and atomic.** `UPDATE … WHERE status = <expected>`; a
-  zero-row result means "someone else won" — handle it, never assume ownership (INV-7/8).
+  zero-row result means "someone else won" - handle it, never assume ownership (INV-7/8).
 - **Fail safely, never silently.** On Redis/PG unavailability, pause rather than bypass a global
   control (ADR-020). Typed errors, no swallowed rejections (`.claude/rules/error-handling.md`).
 - **Deterministic over clever.** Prefer a small auditable Lua script / SQL transaction over a
@@ -128,7 +128,7 @@ production hardening (structured logging, SSRF, resource limits, prod Docker) ·
 - **Test the invariants, not the lines (INV-14/15).** Multi-worker/failure tests outrank coverage %.
 - **No premature abstraction.** Repositories/services exist because there are real callers; don't
   add interfaces with one implementation.
-- **Distinguish implemented from planned.** Never return fake data from a stubbed path — return
+- **Distinguish implemented from planned.** Never return fake data from a stubbed path - return
   `501`/`NotImplementedError` until the real logic lands (matches current scaffold).
 
 ---
@@ -168,19 +168,19 @@ the enforcement point for rate/concurrency is the worker (immediately before the
 
 ---
 
-## 5. Phase 0 — Foundation ✅ DONE
+## 5. Phase 0 - Foundation ✅ DONE
 
 Delivered: pnpm workspace, TS strict, ESLint flat + Prettier, `packages/config` env loader, root
 dev/build/lint/typecheck/test/db:migrate scripts.
 
 **Remaining for a later phase:** CI workflow (`.github/workflows/ci.yml`) running
-`lint → typecheck → test → build` — deferred to Phase 19/20.
+`lint → typecheck → test → build` - deferred to Phase 19/20.
 
 **Acceptance (met):** `pnpm install`, `pnpm lint`, `pnpm typecheck` succeed on a clean clone.
 
 ---
 
-## 6. Phase 1 — Infrastructure ✅ DONE
+## 6. Phase 1 - Infrastructure ✅ DONE
 
 Delivered: `docker-compose.yml` (postgres:16, redis:7, healthchecks, volumes), `.env.example`
 covering all vars, host-run app processes.
@@ -190,12 +190,12 @@ config from `.env` and fail fast on missing/invalid vars (INV-18).
 
 ---
 
-## 7. Phase 2 — Database ✅ DONE (extend as features need columns)
+## 7. Phase 2 - Database ✅ DONE (extend as features need columns)
 
 Delivered: `0001_init.sql` (schema, enums-as-CHECK, counter constraints, FK, indexes), `migrate.ts`.
 
-**Follow-up migrations (new files only — never edit `0001`):**
-- `0002_batch_version.sql` — add `batches.version integer NOT NULL DEFAULT 0` to back the SSE
+**Follow-up migrations (new files only - never edit `0001`):**
+- `0002_batch_version.sql` - add `batches.version integer NOT NULL DEFAULT 0` to back the SSE
   `version` field (INV-11; resolves `consistency-check.md` P3-1). Bump it in every batch-mutating
   transaction.
 
@@ -205,7 +205,7 @@ Delivered: `0001_init.sql` (schema, enums-as-CHECK, counter constraints, FK, ind
 
 ---
 
-## 8. Phase 3 — Shared Contracts 🟡 PARTIAL
+## 8. Phase 3 - Shared Contracts 🟡 PARTIAL
 
 Extend `packages/types` (do not fork types into apps):
 
@@ -224,7 +224,7 @@ domain type locally.
 
 ---
 
-## 9. Phase 4 — Fastify API Foundation 🟡 PARTIAL
+## 9. Phase 4 - Fastify API Foundation 🟡 PARTIAL
 
 Finish the bootstrap:
 
@@ -241,18 +241,18 @@ a consistent `ApiError`; server starts and stops cleanly (no leaked connections)
 
 ---
 
-## 10. Phase 5 — Batch APIs 🔜 NEXT
+## 10. Phase 5 - Batch APIs 🔜 NEXT
 
-Implement the create/list/get logic behind the existing routes (names are fixed by `api.md` — do
+Implement the create/list/get logic behind the existing routes (names are fixed by `api.md` - do
 not rename). Fill `services/batches.ts` and `repositories/batches.ts`.
 
-- **POST `/batches`** — validate (JSON `{urls[]}` already wired; add CSV multipart parse →
+- **POST `/batches`** - validate (JSON `{urls[]}` already wired; add CSV multipart parse →
   per-row validation, reject the whole batch on malformed input, `api.md §7`). In **one DB
   transaction**: insert `batches` (`PENDING`, `total_count`) + `urls` rows, commit, **then** enqueue
   (Phase 6). Return `201 {id,status,totalCount}`. Duplicate-URL rows are kept, not deduped
   (`database.md §8`). Invalidate the batch-list cache (Phase 15).
-- **GET `/batches`** — paginated (`page`,`pageSize`), served through the 30s cache (INV-12).
-- **GET `/batches/:batchId`** — full `BatchDetail` (counters + URL rows) reconstructed from the DB,
+- **GET `/batches`** - paginated (`page`,`pageSize`), served through the 30s cache (INV-12).
+- **GET `/batches/:batchId`** - full `BatchDetail` (counters + URL rows) reconstructed from the DB,
   works cold with no client state (INV-1/11).
 
 **Acceptance (tag INV-1/17):** create persists batch+URLs **before** any job exists; cold GET after
@@ -261,12 +261,12 @@ identical persisted shapes; API integration tests green.
 
 ---
 
-## 11. Phase 6 — Queue Integration 🔜 NEXT (with Phase 5)
+## 11. Phase 6 - Queue Integration 🔜 NEXT (with Phase 5)
 
 Wire enqueue and address the DB/queue consistency window explicitly (ADR-028).
 
 - After the create transaction commits, enqueue one `url-check` job per URL (`urlCheckJobData` =
-  `{batchId,urlId}` only — identifiers, never mutable state, `api.md §22`).
+  `{batchId,urlId}` only - identifiers, never mutable state, `api.md §22`).
 - Configure the queue: `attempts: MAX_RETRIES+1` (=4, INV-5), `backoff:{type:'exponential',delay}`,
   `removeOnComplete`/`removeOnFail` retention policy.
 - **Consistency (ADR-028):** DB-commit-then-enqueue, plus a bounded **reconciliation sweep** that
@@ -279,9 +279,9 @@ only ids.
 
 ---
 
-## 12. Phase 7 — Worker 🟡 skeleton exists
+## 12. Phase 7 - Worker 🟡 skeleton exists
 
-Replace the no-op processor with real execution (still no rate/concurrency yet — those are 8/9):
+Replace the no-op processor with real execution (still no rate/concurrency yet - those are 8/9):
 
 - Bootstrap a BullMQ `Worker` on `URL_CHECK_QUEUE` (INV-2, separate process).
 - **Claim** conditionally: `UPDATE urls SET status='PROCESSING', started_at=now(),
@@ -299,7 +299,7 @@ result columns; a missing/terminal URL is skipped; SIGTERM drains cleanly.
 
 ---
 
-## 13. Phase 8 — Global Rate Limiting (10/sec) 🔴
+## 13. Phase 8 - Global Rate Limiting (10/sec) 🔴
 
 Enforce **globally** in the worker, immediately before the outbound HTTP call (`rate-limiting.md`).
 
@@ -313,13 +313,13 @@ timestamps and asserts ≤10/sec globally; a per-process limiter would fail this
 
 ---
 
-## 14. Phase 9 — Global Concurrency (5) 🔴
+## 14. Phase 9 - Global Concurrency (5) 🔴
 
 Enforce **globally**, distinct from rate (ADR-007/021/022).
 
 - Redis distributed semaphore of `MAX_CONCURRENCY` slots, acquired before the request, released in
   `finally`. **Slots are leases with a TTL > max request timeout** so a crashed worker's slot
-  auto-reclaims (ADR-022) — this closes the P0 leak identified in the review.
+  auto-reclaims (ADR-022) - this closes the P0 leak identified in the review.
 - Acquisition order: concurrency slot then rate permit (`rate-limiting §8`); release both on timeout,
   abort, failure, or cancel (`cancellation §15`).
 - Redis down → pause, no local fallback.
@@ -329,7 +329,7 @@ Enforce **globally**, distinct from rate (ADR-007/021/022).
 
 ---
 
-## 15. Phase 10 — Retries + Idempotency 🔴
+## 15. Phase 10 - Retries + Idempotency 🔴
 
 Follow `retries-and-idempotency.md` + ADR-023/024.
 
@@ -347,11 +347,11 @@ increment); permanent failure is not retried.
 
 ---
 
-## 16. Phase 11 — Cancellation 🔴
+## 16. Phase 11 - Cancellation 🔴
 
 Follow `cancellation.md` + ADR-011/026/027.
 
-- **POST `/batches/:batchId/cancel`** — conditional `UPDATE batches SET status='CANCELLED'
+- **POST `/batches/:batchId/cancel`** - conditional `UPDATE batches SET status='CANCELLED'
   WHERE status IN ('PENDING','PROCESSING')`; in the same tx bulk-cancel non-terminal URLs; invalidate
   cache; publish. Idempotent (repeat → current state, `api.md §14`).
 - Queued jobs check state and skip; in-flight requests abort where practical (`AbortController`),
@@ -364,15 +364,15 @@ finishes after cancel cannot revert it (race test both orderings); double-cancel
 
 ---
 
-## 17. Phase 12 — SSE / Live Updates 🔴
+## 17. Phase 12 - SSE / Live Updates 🔴
 
 Follow `live-updates.md` (INV-10/11).
 
 - Worker publishes small `batch.updated {batchId,version}` to Redis pub/sub **after** DB commit
   (ordering, `live-updates §7`).
-- **GET `/batches/:batchId/events`** — `text/event-stream`; each API instance subscribes to Redis and
+- **GET `/batches/:batchId/events`** - `text/event-stream`; each API instance subscribes to Redis and
   forwards to its locally connected clients (multi-instance, `scaling §8`). Heartbeat comment to
-  survive proxies. Events are **notifications only** — client refetches `GET /batches/:batchId`
+  survive proxies. Events are **notifications only** - client refetches `GET /batches/:batchId`
   (resolve `consistency-check.md P2-4` in favor of GET-then-subscribe, not pushing a snapshot).
 - Tolerate duplicate/missed/out-of-order events; reconcile on (re)connect (INV-11).
 
@@ -382,7 +382,7 @@ killing SSE entirely still lets `GET /batches/:batchId` return correct state.
 
 ---
 
-## 18. Phase 13 — Frontend Foundation 🟡 skeleton exists
+## 18. Phase 13 - Frontend Foundation 🟡 skeleton exists
 
 - Server Components by default; Client Components only for interactivity/SSE (INV-16, ADR-014).
 - `lib/api.ts` typed client using `@urlpulse/types`; `NEXT_PUBLIC_API_URL` only (no secrets in the
@@ -394,7 +394,7 @@ browser (INV-1/16).
 
 ---
 
-## 19. Phase 14 — Batch Creation UI 🔴
+## 19. Phase 14 - Batch Creation UI 🔴
 
 Manual textarea (one URL/line) + CSV upload; client validation for UX, backend authoritative;
 loading/error states; disable double-submit (`edge-cases §34`); navigate to detail on success.
@@ -404,7 +404,7 @@ validation errors; repeated clicks don't create duplicate batches.
 
 ---
 
-## 20. Phase 15 — Batch List 🔴
+## 20. Phase 15 - Batch List 🔴
 
 Recent batches, pagination per `api.md §8`, served via the **30s cache** (INV-12) with
 **invalidation on create and relevant state change** (INV-13); loading/error/empty states.
@@ -415,7 +415,7 @@ cache); cache hit within TTL, miss after; multi-instance cache is shared (Redis)
 
 ---
 
-## 21. Phase 16 — Batch Detail 🔴
+## 21. Phase 16 - Batch Detail 🔴
 
 Progress (`completed/total`), URL results table (status, HTTP status, latency, title, error,
 attempts), cancel + retry-failed actions (shown only when meaningful), CSV **download** of results.
@@ -425,7 +425,7 @@ those; cancel disabled/hidden on terminal batches; download reflects persisted s
 
 ---
 
-## 22. Phase 17 — Live Progress UX 🔴
+## 22. Phase 17 - Live Progress UX 🔴
 
 SSE client with reconnect + backoff, refetch-on-reconnect, LIVE/RECONNECTING/OFFLINE indicator;
 refresh-safe; multiple tabs safe.
@@ -435,7 +435,7 @@ state; connection loss recovers and reconciles.
 
 ---
 
-## 23. Phase 18 — Testing
+## 23. Phase 18 - Testing
 
 Map to `testing.md` invariants. Minimum suite:
 
@@ -443,7 +443,7 @@ Map to `testing.md` invariants. Minimum suite:
 - DB integration: conditional updates, atomic counters, cancellation race, retry-failed claim.
 - API integration: all six endpoints, validation, status codes, idempotent mutations, cache behavior.
 - Worker integration: claim, success/failed persistence, terminal-skip.
-- **Multi-worker (INV-14):** concurrency ≤5 (Phase 9), rate ≤10/sec (Phase 8) — must use ≥2 worker
+- **Multi-worker (INV-14):** concurrency ≤5 (Phase 9), rate ≤10/sec (Phase 8) - must use ≥2 worker
   processes so a per-process limiter cannot pass.
 - Retries/idempotency (INV-5/7), cancellation races (INV-8), SSE reconnect (INV-11), cache
   invalidation (INV-12/13), worker-crash slot recovery (INV-3/19), queue/DB reconciliation (Phase 6).
@@ -453,7 +453,7 @@ Map to `testing.md` invariants. Minimum suite:
 
 ---
 
-## 24. Phase 19 — Production Hardening
+## 24. Phase 19 - Production Hardening
 
 Structured logging + request/job correlation ids; graceful shutdown across api+worker (INV-19);
 readiness/liveness endpoints; **SSRF protections (INV-20):** HTTP(S)-only, block loopback, RFC-1918,
@@ -467,7 +467,7 @@ processes drain on SIGTERM; CI is green.
 
 ---
 
-## 25. Phase 20 — Final Verification
+## 25. Phase 20 - Final Verification
 
 Full `pnpm test` green; `pnpm build`, `pnpm lint`, `pnpm typecheck` clean; `docker compose up` +
 `pnpm dev` runs web+api+worker end to end; **multi-process** run demonstrates global rate/concurrency

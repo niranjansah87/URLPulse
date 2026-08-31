@@ -1,4 +1,4 @@
-# URLPulse — API Contract
+# URLPulse - API Contract
 
 **Version:** 1.0  
 **Status:** Draft  
@@ -169,7 +169,7 @@ Recommended status:
 
 ---
 
-# 7. POST `/batches` — CSV
+# 7. POST `/batches` - CSV
 
 CSV upload uses multipart/form-data.
 

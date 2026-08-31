@@ -1,4 +1,4 @@
-# URLPulse — Global Rate Limiting
+# URLPulse - Global Rate Limiting
 
 **Version:** 1.0  
 **Status:** Draft  

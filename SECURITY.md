@@ -41,7 +41,7 @@ The application is being implemented. As of now, no runtime security controls ar
 
 Before running URLPulse against untrusted input in production, deployments **should** implement and verify:
 
-**SSRF protection** — reject or restrict requests targeting:
+**SSRF protection** - reject or restrict requests targeting:
 
 - Private IPv4 ranges (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`)
 - Loopback (`127.0.0.0/8`, `::1`) and `localhost`
@@ -49,7 +49,7 @@ Before running URLPulse against untrusted input in production, deployments **sho
 - Cloud metadata endpoints (e.g. `169.254.169.254`)
 - Internal DNS names and internal-only hosts
 - IPv4/IPv6 edge cases and alternate encodings (decimal/octal/hex IPs, IPv4-mapped IPv6)
-- **Redirects** that resolve to any restricted destination — re-validate the target of every redirect hop, not just the initial URL
+- **Redirects** that resolve to any restricted destination - re-validate the target of every redirect hop, not just the initial URL
 
 **Input handling**
 
