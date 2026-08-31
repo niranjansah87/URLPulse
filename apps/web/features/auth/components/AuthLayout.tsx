@@ -1,5 +1,4 @@
 import { Logo } from "@/components/ui/Logo";
-import Link from "next/link";
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Reveal } from "@/components/motion/Reveal";

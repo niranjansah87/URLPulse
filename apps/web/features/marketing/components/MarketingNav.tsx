@@ -4,7 +4,6 @@ import { Logo } from "@/components/ui/Logo";
 import { useState } from "react";
 import Link from "next/link";
 import { Menu as MenuIcon, X } from "lucide-react";
-import { cn } from "@/lib/cn";
 import { Button, IconButton } from "@/components/ui/Button";
 import styles from "../landing.module.css";
 
