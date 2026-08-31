@@ -81,8 +81,18 @@ export function renderPasswordResetEmail(resetUrl: string, expiresMinutes: numbe
   return { subject, html, text };
 }
 
-function createEmailService(): EmailService {
-  const client = apiConfig.RESEND_API_KEY ? new Resend(apiConfig.RESEND_API_KEY) : null;
+/**
+ * Build an email service. Exported (with explicit key/from) so tests can
+ * construct a deterministic provider-less instance regardless of the ambient
+ * environment; the process singleton below binds it to the real config.
+ */
+export function createEmailService(
+  apiKey: string | undefined,
+  from = "URLPulse <noreply@urlpulse.dev>",
+): EmailService {
+  // No default on apiKey: passing `undefined` must mean "no provider" (a default
+  // parameter would resolve `undefined` back to the configured key).
+  const client = apiKey ? new Resend(apiKey) : null;
 
   return {
     async sendPasswordReset({ to, resetUrl, expiresMinutes }) {
@@ -94,7 +104,7 @@ function createEmailService(): EmailService {
         return;
       }
       const { error } = await client.emails.send({
-        from: apiConfig.RESEND_FROM_EMAIL,
+        from,
         to,
         subject,
         html,
@@ -110,4 +120,7 @@ function createEmailService(): EmailService {
 }
 
 /** Process-wide email service. Exported as an object so it can be spied in tests. */
-export const emailService: EmailService = createEmailService();
+export const emailService: EmailService = createEmailService(
+  apiConfig.RESEND_API_KEY,
+  apiConfig.RESEND_FROM_EMAIL,
+);

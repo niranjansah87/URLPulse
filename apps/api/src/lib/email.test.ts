@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { renderPasswordResetEmail, emailService } from "./email";
+import { renderPasswordResetEmail, createEmailService } from "./email";
 
 const RESET_URL = "http://localhost:3000/reset-password?token=abc123";
 
@@ -29,9 +29,12 @@ describe("renderPasswordResetEmail", () => {
 
 describe("emailService without a provider (dev/test)", () => {
   it("no-ops without throwing and never logs the reset URL or token", async () => {
+    // Construct a provider-less instance explicitly so the test is deterministic
+    // regardless of whether RESEND_API_KEY is set in the environment.
+    const service = createEmailService(undefined);
     const info = vi.spyOn(console, "info").mockImplementation(() => {});
     await expect(
-      emailService.sendPasswordReset({ to: "u@example.com", resetUrl: RESET_URL, expiresMinutes: 60 }),
+      service.sendPasswordReset({ to: "u@example.com", resetUrl: RESET_URL, expiresMinutes: 60 }),
     ).resolves.toBeUndefined();
     for (const call of info.mock.calls) {
       const line = call.map(String).join(" ");
