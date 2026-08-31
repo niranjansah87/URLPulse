@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { NotificationBell } from "@/components/ui/NotificationBell";
 import { Reveal } from "@/components/motion/Reveal";
 import { batchRepository } from "@/features/batches/lib/repository";
 import { serverAuthHeaders } from "@/lib/server-auth";
@@ -30,13 +29,10 @@ export default async function CreateBatchPage() {
         title="Create New Batch"
         description="Monitor multiple URLs at once"
         actions={
-          <>
-            <Link href="/batches/new" className={ui.btn} data-variant="primary" data-size="md">
-              <Plus size={16} strokeWidth={2} aria-hidden />
-              New Batch
-            </Link>
-            <NotificationBell />
-          </>
+          <Link href="/batches/new" className={ui.btn} data-variant="primary" data-size="md">
+            <Plus size={16} strokeWidth={2} aria-hidden />
+            New Batch
+          </Link>
         }
       />
       <div className={styles.layout}>
