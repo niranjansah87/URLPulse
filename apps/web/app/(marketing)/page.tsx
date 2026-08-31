@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Activity, BarChart3, Bell, Check, Clock, ListChecks, ShieldCheck, Zap } from "lucide-react";
+import { Activity, BarChart3, Bell, Clock, ListChecks, ShieldCheck, Zap } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/Reveal";
 import { MarketingFooter } from "@/features/marketing/components/MarketingFooter";
@@ -61,10 +61,6 @@ export default function LandingPage() {
         <section className={styles.container} id="product">
           <div className={styles.hero}>
             <Reveal>
-              <span className={styles.pill}>
-                <span className={styles.pillDot} aria-hidden />
-                Real-time URL Monitoring
-              </span>
               <h1 className={styles.headline}>
                 Monitor URLs
                 <br />
@@ -88,13 +84,6 @@ export default function LandingPage() {
                   </Button>
                 </Link>
               </div>
-              <ul className={styles.reassure}>
-                {["No credit card required", "Free 1,000 checks", "Cancel anytime"].map((t) => (
-                  <li key={t}>
-                    <Check size={14} aria-hidden /> {t}
-                  </li>
-                ))}
-              </ul>
             </Reveal>
             <Reveal delay={0.08}>
               <div className={styles.panelWrap}>
@@ -144,7 +133,8 @@ export default function LandingPage() {
           <Reveal>
             <div className={styles.product}>
               <div className={styles.productVisual}>
-                <img src="/illustration/dashboard-dark.png" alt="URLPulse dashboard: batches, progress, overall health and live activity" />
+                <img className={styles.illoLight} src="/illustration/dashboard-light.png" alt="URLPulse dashboard: batches, progress, overall health and live activity" />
+                <img className={styles.illoDark} src="/illustration/dashboard-dark.png" alt="URLPulse dashboard: batches, progress, overall health and live activity" />
               </div>
               <div>
                 <h2 className={styles.productTitle}>
