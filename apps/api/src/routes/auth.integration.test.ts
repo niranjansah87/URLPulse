@@ -3,6 +3,13 @@ import postgres from "postgres";
 import type { BatchRepository } from "../repositories/batches";
 import { emailService } from "../lib/email";
 
+// Mock Resend at the module boundary so NO real email is ever sent, even for
+// fire-and-forget sends (e.g. the lockout auto-reset) whose timing can fall
+// outside a method spy. Method spies below are still used for assertions.
+vi.mock("resend", () => ({
+  Resend: vi.fn(() => ({ emails: { send: vi.fn(async () => ({ data: { id: "test" }, error: null })) } })),
+}));
+
 /**
  * End-to-end authentication against a real PostgreSQL and the real Better Auth
  * handler mounted on Fastify. No Redis is required: an in-memory service and
@@ -39,11 +46,15 @@ function setCookie(res: { headers: Record<string, unknown> }): string {
 // Signup/reset now trigger welcome + verification + password-changed emails. Stub
 // those methods so the suite never sends real email even when RESEND_API_KEY is
 // set; the reset test still spies sendPasswordReset per-test to capture the token.
-// verifySpy is kept so the grace-period test can read the verification link.
+// verifySpy/welcomeSpy are kept so the grace-period test can read the
+// verification link and assert the welcome email fires only after verification.
 const armVerifySpy = () => vi.spyOn(emailService, "sendVerification").mockResolvedValue();
+const armWelcomeSpy = () => vi.spyOn(emailService, "sendWelcome").mockResolvedValue();
+const armResetSpy = () => vi.spyOn(emailService, "sendPasswordReset").mockResolvedValue();
 let verifySpy: ReturnType<typeof armVerifySpy>;
+let welcomeSpy: ReturnType<typeof armWelcomeSpy>;
 beforeAll(() => {
-  vi.spyOn(emailService, "sendWelcome").mockResolvedValue();
+  welcomeSpy = armWelcomeSpy();
   verifySpy = armVerifySpy();
   vi.spyOn(emailService, "sendPasswordResetSuccess").mockResolvedValue();
 });
@@ -257,7 +268,7 @@ describe.skipIf(!ready)("email verification grace period (integration)", () => {
   beforeAll(async () => {
     // Re-arm the email stubs (a prior describe's restoreAllMocks may have cleared
     // them) so no real email is sent and the verification link can be captured.
-    vi.spyOn(emailService, "sendWelcome").mockResolvedValue();
+    welcomeSpy = armWelcomeSpy();
     vi.spyOn(emailService, "sendPasswordResetSuccess").mockResolvedValue();
     verifySpy = armVerifySpy();
     const repo = {
@@ -300,12 +311,66 @@ describe.skipIf(!ready)("email verification grace period (integration)", () => {
     expect(blocked).toBeGreaterThan(0); // eventually blocked until verified
   });
 
-  it("unblocks sign-in after the email is verified", async () => {
+  it("sends the welcome email only AFTER verification, then unblocks sign-in", async () => {
+    expect(welcomeSpy).not.toHaveBeenCalled(); // welcome is NOT sent at sign-up
     const lastCall = verifySpy.mock.calls.at(-1)?.[0] as { verifyUrl: string } | undefined;
     const token = new URL(lastCall!.verifyUrl).searchParams.get("token")!;
     const verify = await app.inject({ method: "GET", url: `/api/auth/verify-email?token=${token}` });
     expect(verify.statusCode).toBeLessThan(400); // verification succeeds (redirect or 200)
     const after = await signIn();
     expect(after.statusCode).toBe(200); // verified users are never blocked
+    expect(welcomeSpy).toHaveBeenCalled(); // welcome fires on verification
+  });
+});
+
+describe.skipIf(!ready)("wrong-password lockout (integration)", () => {
+  let app: ReturnType<typeof buildServer>;
+  const email = `lock_${Date.now()}@example.com`;
+  const password = "correct-password-123";
+  let resetSpy: ReturnType<typeof armResetSpy>;
+
+  beforeAll(async () => {
+    // Re-arm all email stubs so nothing real is sent; capture the reset spy to
+    // assert the auto-reset-on-lock email.
+    armWelcomeSpy();
+    armVerifySpy();
+    vi.spyOn(emailService, "sendPasswordResetSuccess").mockResolvedValue();
+    resetSpy = armResetSpy();
+    const repo = {
+      list: async () => ({ items: [], total: 0 }),
+      getById: async () => null,
+      cancel: async () => "notfound" as const,
+      retryFailed: async () => "notfound" as const,
+      findReconcilableJobs: async () => [],
+      recoverStuck: async () => 0,
+    } as unknown as BatchRepository;
+    const service = createBatchService({ repo, enqueue: async () => {}, log: { info: () => {}, warn: () => {} } });
+    const eventBus = { start: async () => {}, addClient: () => () => {}, clientCount: () => 0 };
+    app = buildServer({ service, eventBus });
+    await app.ready();
+    const res = await app.inject({ method: "POST", url: "/api/auth/sign-up/email", payload: { email, password, name: "Lock" } });
+    expect(res.statusCode).toBe(200);
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  const wrongPassword = () =>
+    app.inject({ method: "POST", url: "/api/auth/sign-in/email", payload: { email, password: "definitely-wrong" } });
+
+  it("locks the account and auto-sends a reset email after 3 wrong passwords", async () => {
+    const before = resetSpy.mock.calls.length;
+    for (let i = 0; i < 3; i++) {
+      const r = await wrongPassword();
+      expect(r.statusCode).toBe(401); // each wrong password is unauthorized
+    }
+    expect(resetSpy.mock.calls.length).toBeGreaterThan(before); // reset email sent on lock
+  });
+
+  it("blocks all sign-in (even the correct password) with 403 while locked", async () => {
+    const r = await app.inject({ method: "POST", url: "/api/auth/sign-in/email", payload: { email, password } });
+    expect(r.statusCode).toBe(403);
+    expect(JSON.stringify(r.json()).toLowerCase()).toContain("lock");
   });
 });

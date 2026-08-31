@@ -1,6 +1,6 @@
 import { Pool } from "pg";
 import { betterAuth } from "better-auth";
-import { APIError } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { config } from "./env";
 import { apiConfig } from "./env";
 import { emailService } from "./email";
@@ -14,6 +14,10 @@ const VERIFICATION_TOKEN_TTL_SECONDS = 60 * 60 * 24; // 24 hours
  * verification becomes mandatory. Enforced in the session.create.before hook.
  */
 const MAX_UNVERIFIED_LOGINS = 3;
+/** Wrong-password lockout: after this many consecutive failures, lock the account. */
+const MAX_FAILED_LOGINS = 3;
+/** How long a locked account stays locked. */
+const LOCK_DURATION_MS = 30 * 60 * 1000; // 30 minutes
 
 /**
  * Better Auth instance for URLPulse.
@@ -40,6 +44,36 @@ export const authPool = new Pool({
   connectionString: config.DATABASE_URL,
   max: 5,
 });
+
+/**
+ * Wrong-password lockout state lives in server-only columns on the user row
+ * (`failedLoginCount`, `lockedUntil`; migration 0006). They are read/written via
+ * raw SQL here and deliberately NOT declared as Better Auth additionalFields, so
+ * they are never included in any user payload returned to the client. Failures
+ * are only ever counted for an existing account, so this cannot be used to probe
+ * which emails exist.
+ */
+interface LockState {
+  id: string;
+  failedLoginCount: number;
+  lockedUntil: Date | null;
+}
+
+async function getLockState(email: string): Promise<LockState | null> {
+  const { rows } = await authPool.query<LockState>(
+    'SELECT "id", "failedLoginCount", "lockedUntil" FROM "user" WHERE "email" = $1',
+    [email],
+  );
+  return rows[0] ?? null;
+}
+
+async function setLockState(id: string, failedLoginCount: number, lockedUntil: Date | null): Promise<void> {
+  await authPool.query('UPDATE "user" SET "failedLoginCount" = $2, "lockedUntil" = $3 WHERE "id" = $1', [
+    id,
+    failedLoginCount,
+    lockedUntil,
+  ]);
+}
 
 export const auth = betterAuth({
   baseURL: apiConfig.BETTER_AUTH_URL,
@@ -86,6 +120,9 @@ export const auth = betterAuth({
     async onPasswordReset({ user }) {
       // Safe audit event: identifier only, never the token or password.
       console.info("[auth] password reset succeeded", { userId: user.id });
+      // A completed reset clears any wrong-password lockout so the user can sign
+      // in immediately with the new password.
+      await setLockState(user.id, 0, null).catch(() => undefined);
       try {
         await emailService.sendPasswordResetSuccess({
           to: user.email,
@@ -127,6 +164,22 @@ export const auth = betterAuth({
         });
       }
     },
+    // The welcome email is sent once the address is confirmed (not at sign-up),
+    // so it only ever reaches verified users. Best-effort.
+    async afterEmailVerification(user) {
+      try {
+        await emailService.sendWelcome({
+          to: user.email,
+          name: user.name,
+          dashboardUrl: `${apiConfig.WEB_ORIGIN}/batches`,
+        });
+      } catch (err) {
+        console.error("[auth] welcome email delivery failed", {
+          userId: user.id,
+          error: (err as Error).message,
+        });
+      }
+    },
   },
   databaseHooks: {
     session: {
@@ -154,26 +207,62 @@ export const auth = betterAuth({
         },
       },
     },
-    user: {
-      create: {
-        // Fires once, after the new user row commits. Send the welcome email
-        // (best-effort: a delivery failure must never fail account creation).
-        after: async (user) => {
-          try {
-            await emailService.sendWelcome({
-              to: user.email,
-              name: user.name,
-              dashboardUrl: `${apiConfig.WEB_ORIGIN}/batches`,
-            });
-          } catch (err) {
-            console.error("[auth] welcome email delivery failed", {
-              userId: user.id,
-              error: (err as Error).message,
-            });
-          }
-        },
-      },
-    },
+  },
+  /**
+   * Wrong-password lockout (no Better Auth built-in). `before` blocks sign-in
+   * while an account is locked; `after` counts consecutive failures on
+   * /sign-in/email and, on the MAX_FAILED_LOGINS-th, locks the account for
+   * LOCK_DURATION_MS and auto-sends a password-reset email. Only existing
+   * accounts are ever counted, so this cannot be used to enumerate emails; a
+   * successful sign-in clears the counter.
+   */
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-in/email") return;
+      const email = (ctx.body as { email?: string } | undefined)?.email;
+      if (!email) return;
+      const state = await getLockState(email);
+      if (state?.lockedUntil && state.lockedUntil.getTime() > Date.now()) {
+        throw new APIError("FORBIDDEN", {
+          code: "ACCOUNT_LOCKED",
+          message:
+            "Too many failed sign-in attempts. Your account is locked for 30 minutes. We've emailed you a link to reset your password.",
+        });
+      }
+    }),
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-in/email") return;
+      const email = (ctx.body as { email?: string } | undefined)?.email;
+      if (!email) return;
+      const state = await getLockState(email);
+      if (!state) return; // unknown email: never tracked (enumeration-safe)
+      const returned = ctx.context.returned;
+      if (!(returned instanceof APIError)) {
+        // Genuine successful sign-in: clear any prior failures / lock.
+        if (state.failedLoginCount > 0 || state.lockedUntil) await setLockState(state.id, 0, null);
+        return;
+      }
+      // Count ONLY a genuine wrong-password failure (401). Other errors — the
+      // verification-required or already-locked 403s — are correct-password or
+      // pre-empted requests and must neither advance nor clear the counter.
+      const wrongPassword =
+        returned.status === "UNAUTHORIZED" || (returned as { statusCode?: number }).statusCode === 401;
+      if (!wrongPassword) return;
+      const count = state.failedLoginCount + 1;
+      if (count >= MAX_FAILED_LOGINS) {
+        await setLockState(state.id, 0, new Date(Date.now() + LOCK_DURATION_MS));
+        // Auto-send a reset link so a legitimate user who forgot their password
+        // has an immediate recovery path. Best-effort; failures are swallowed and
+        // never change the sign-in response.
+        try {
+          await auth.api.requestPasswordReset({ body: { email, redirectTo: "/reset-password" } });
+        } catch (err) {
+          console.error("[auth] lockout reset email failed", { userId: state.id, error: (err as Error).message });
+        }
+      } else {
+        await setLockState(state.id, count, null);
+      }
+    }),
   },
   /**
    * Abuse protection for the security-sensitive auth endpoints. Storage is the
