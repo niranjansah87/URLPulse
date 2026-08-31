@@ -144,6 +144,47 @@ with tight custom caps on the sensitive endpoints (password reset: **3 requests 
 5 min**; reset submit: 5 / 5 min; sign-in: 10 / min). Behind a proxy, forward the
 client IP so limits key on the real address.
 
+## Transactional email
+
+All account email is one reusable system in `apps/api/src/lib/email.ts`: a shared
+layout (`renderEmail`) + four templates + a Resend-backed `emailService`. Every
+template shares the header, card, CTA button, security notice, and footer, so they
+read as one product (light card, URLPulse-blue CTA, navy headings — matching the
+brand references) while staying email-client safe (tables + inline CSS, no JS/web
+fonts, an emoji hero rather than heavy images). Every email ships **HTML and a
+deliberate plain-text version**.
+
+| Email | Subject | Trigger (Better Auth) |
+| --- | --- | --- |
+| Welcome | `Welcome to URLPulse` | `databaseHooks.user.create.after` — once, after the user row commits |
+| Verification | `Verify your URLPulse email` | `emailVerification.sendVerificationEmail` — **on demand** (`sendOnSignUp: false`) |
+| Password reset | `Reset your URLPulse password` | `emailAndPassword.sendResetPassword` |
+| Password changed | `Your URLPulse password was changed` | `emailAndPassword.onPasswordReset` — only after a confirmed change |
+
+Boundaries: **Resend delivers; Better Auth owns tokens, expiry, hashing, and
+sessions; PostgreSQL holds the state.** Callers pass already-built, trusted URLs
+(from `WEB_ORIGIN` / Better Auth's config-derived verify URL — never a request
+Host header). Dynamic values (name, URLs) are HTML-escaped; recipients are
+stripped of CR/LF (defense-in-depth against header injection). Tokens, keys, and
+recipients are never logged, and every delivery failure is caught so it never
+fails account creation or changes the anti-enumeration reset response.
+
+**Verification stance:** the verification email is fully wired to Better Auth
+(real token, 24-hour expiry) but is **not auto-sent on sign-up**, because URLPulse
+does not gate sign-in on verification and a welcome email already goes out on
+account creation. Set `emailVerification.sendOnSignUp: true` to auto-send.
+
+**Sender:** `RESEND_FROM_EMAIL` (default `URLPulse <onboarding@resend.dev>`, the
+Resend shared test sender). Production requires a **Resend-verified domain**
+sender — set `RESEND_FROM_EMAIL` to a mailbox on a verified domain, or Resend
+rejects the send.
+
+**Local dev / tests:** when `RESEND_API_KEY` is unset the service no-ops safely
+(never printing the URL/token). Automated tests mock Resend or stub the service —
+no real email is ever sent. Manual smoke test (sends ONE real email; never commit
+a key): with a real `RESEND_API_KEY` and a verified `RESEND_FROM_EMAIL`, use the
+Better Auth flow (e.g. request a password reset for your own verified address).
+
 ## Environment variables
 
 | Variable | Required | Purpose |
@@ -151,14 +192,15 @@ client IP so limits key on the real address.
 | `BETTER_AUTH_SECRET` | prod (dev/test default) | Signs session cookies; must be fixed and shared across API instances. |
 | `BETTER_AUTH_URL` | no (default `http://localhost:4000`) | Public API base URL where Better Auth is mounted. |
 | `WEB_ORIGIN` | no (default `http://localhost:3000`) | Web origin trusted for credentialed CORS; also used to build the reset link. |
-| `RESEND_API_KEY` | prod (dev/test no-op) | Resend API key for sending password-reset email. |
-| `RESEND_FROM_EMAIL` | no (default `URLPulse <onboarding@resend.dev>`) | Verified sender for transactional email. |
+| `RESEND_API_KEY` | prod (dev/test no-op) | Resend API key for all transactional email (welcome, verification, reset, password-changed). |
+| `RESEND_FROM_EMAIL` | no (default `URLPulse <onboarding@resend.dev>`) | Sender; production needs a Resend-verified domain mailbox. |
 
 ## Intentionally not implemented
 
-Out of scope: OAuth/social providers, MFA, **email verification of sign-ups**
-(reset email is sent, but sign-up addresses are not verification-gated),
-organizations/teams, role-based access control, and billing. The Settings UI shows
+Out of scope: OAuth/social providers, MFA, **verification-gated sign-in** (the
+verification email is wired and available on demand, but sign-in is not blocked on
+it — see Transactional email), organizations/teams, role-based access control, and
+billing. The Settings UI shows
 honest placeholders for billing, team, and API keys.
 
 ## Local development & tests
