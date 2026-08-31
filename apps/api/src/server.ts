@@ -25,6 +25,7 @@ import { registerHealthRoutes } from "./routes/health";
 import { registerBatchRoutes } from "./routes/batches";
 import { registerAlertRoutes } from "./routes/alerts";
 import { registerSettingsRoutes } from "./routes/settings";
+import { registerDemoRoutes } from "./routes/demo";
 import type { Redis } from "ioredis";
 
 export interface ServerOverrides {
@@ -190,6 +191,8 @@ export function buildServer(overrides: ServerOverrides = {}) {
     requireAuth,
     csrfGuard,
   });
+  // Public demo (no auth, no persistence): landing-page "try it" checks.
+  app.register(registerDemoRoutes, { prefix: "/api", redis });
 
   app.addHook("onClose", async () => {
     if (queue) await queue.close().catch(() => undefined);
