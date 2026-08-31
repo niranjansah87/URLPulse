@@ -11,8 +11,8 @@ URLPulse favors **simple, correct, testable, and scalable** over complex and fas
 > The application workspace is being scaffolded. Until then, contributions are primarily to documentation and repository structure. Once `apps/`, `worker/`, and `docker-compose.yml` exist, the setup is:
 
 ```bash
-git clone https://github.com/niranjansah87/Urlpulse.git
-cd Urlpulse
+git clone https://github.com/niranjansah87/URLPulse.git
+cd URLPulse
 cp .env.example .env
 docker compose up --build
 ```

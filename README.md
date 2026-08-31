@@ -117,7 +117,7 @@ Live progress is delivered over **Server-Sent Events**, chosen because updates a
 Current repository (design + assets):
 
 ```text
-urlpulse/
+URLPulse/
 ├── docs/                 # Product, architecture, backend, frontend, infra, quality
 ├── public/               # Brand assets
 │   ├── brand/            #   logo/ (horizontal, vertical) + mark/
@@ -132,7 +132,7 @@ urlpulse/
 Planned application layout (not yet scaffolded):
 
 ```text
-urlpulse/
+URLPulse/
 ├── apps/
 │   ├── web/              # Next.js application
 │   └── api/              # Fastify API
@@ -155,8 +155,8 @@ urlpulse/
 ### Clone
 
 ```bash
-git clone https://github.com/niranjansah87/Urlpulse.git
-cd Urlpulse
+git clone https://github.com/niranjansah87/URLPulse.git
+cd URLPulse
 ```
 
 ### Configure environment
