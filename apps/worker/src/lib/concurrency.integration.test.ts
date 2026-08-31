@@ -61,6 +61,32 @@ describe.skipIf(!redisUp)("distributed concurrency limit (integration)", () => {
       }),
     );
 
+    // Never exceeds the global limit, and under 40-way contention it actually
+    // saturates it (proving it is not accidentally under-admitting).
     expect(max).toBeLessThanOrEqual(limit);
+    expect(max).toBe(limit);
+  });
+
+  it("reclaims a crashed worker's slot after the lease TTL (no permanent lock)", async () => {
+    const limit = 3;
+    const crashKey = `${key}:crash`;
+    await redis.del(crashKey);
+    // A short TTL so the test is fast; in production TTL > max request time.
+    const limiter = createConcurrencyLimiter(redis as unknown as RedisSemaphoreClient, {
+      limit,
+      leaseTtlMs: 400,
+      key: crashKey,
+      pollMs: 10,
+    });
+
+    // Fill every slot and NEVER release — simulating `limit` crashed workers.
+    for (let i = 0; i < limit; i += 1) await limiter.acquire();
+
+    // Wait past the lease TTL: the leases expire and slots are reclaimable.
+    await sleep(600);
+    const recovered = await limiter.acquire();
+    expect(recovered).toBeDefined();
+    await recovered.release();
+    await redis.del(crashKey);
   });
 });
