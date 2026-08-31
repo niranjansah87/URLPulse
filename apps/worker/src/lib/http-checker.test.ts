@@ -1,6 +1,6 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { checkUrl, type CheckOptions } from "./http-checker";
 
 const OPTS: CheckOptions = {
@@ -94,5 +94,29 @@ describe("checkUrl", () => {
     const r = await checkUrl(`${base}/ok`, { ...OPTS, allowPrivateHosts: false });
     expect(r.errorCode).toBe("BLOCKED_ADDRESS");
     expect(r.status).toBe("FAILED");
+  });
+
+  it("acquires one rate permit PER outbound request, including each redirect hop", async () => {
+    const direct = vi.fn(async () => {});
+    await checkUrl(`${base}/ok`, OPTS, direct);
+    expect(direct).toHaveBeenCalledTimes(1);
+
+    const redirected = vi.fn(async () => {});
+    const r = await checkUrl(`${base}/redir`, OPTS, redirected);
+    expect(r.status).toBe("SUCCESS");
+    expect(redirected).toHaveBeenCalledTimes(2); // initial + one redirect = two requests
+  });
+
+  it("does not acquire a permit for a target blocked before the request", async () => {
+    const onRequest = vi.fn(async () => {});
+    await checkUrl(`${base}/ok`, { ...OPTS, allowPrivateHosts: false }, onRequest);
+    expect(onRequest).not.toHaveBeenCalled();
+  });
+
+  it("propagates an admission failure instead of marking the URL failed", async () => {
+    const onRequest = vi.fn(async () => {
+      throw new Error("redis down");
+    });
+    await expect(checkUrl(`${base}/ok`, OPTS, onRequest)).rejects.toThrow("redis down");
   });
 });

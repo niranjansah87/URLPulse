@@ -7,10 +7,15 @@
  *  - body:      at most `maxBodyBytes` are read (title extraction only)
  *
  * Redirects are followed manually (`redirect: "manual"`) so each hop's protocol
- * can be validated. NOTE (Phase 12 seam): `assertAllowedTarget` currently only
- * enforces the scheme; SSRF host/IP validation (loopback, private ranges, cloud
- * metadata, DNS rebinding) is added here in the security phase and must run for
- * the initial URL and every redirect target.
+ * and target can be validated, and — critically — so that EVERY outbound request
+ * is counted by the global rate limiter. Following a redirect issues another real
+ * HTTP request, so `onRequest` (the global rate permit) is acquired before every
+ * hop, not just the first; otherwise a redirect chain would let one permit fan
+ * out into several outbound requests and break the global 10 req/s guarantee.
+ *
+ * `onRequest` failures are infrastructure failures (e.g. Redis down during
+ * admission), not URL failures: they propagate out of `checkUrl` so the worker
+ * returns the URL to PENDING and retries, rather than marking it FAILED.
  */
 import { assertPublicUrl, BlockedTargetError } from "./ssrf";
 
@@ -44,6 +49,17 @@ class TargetError extends Error {
   }
 }
 
+/** Wraps an `onRequest` (admission) failure so it is rethrown as-is, never
+ * misclassified as a URL network failure. */
+class AdmissionError extends Error {
+  constructor(readonly reason: unknown) {
+    super("admission failed");
+  }
+}
+
+/** Acquire a global rate permit for one outbound request; injected by the worker. */
+export type OnRequest = () => Promise<void>;
+
 async function assertAllowedTarget(url: URL, allowPrivateHosts: boolean): Promise<void> {
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new TargetError("UNSUPPORTED_PROTOCOL", `Unsupported protocol: ${url.protocol}`);
@@ -57,7 +73,11 @@ async function assertAllowedTarget(url: URL, allowPrivateHosts: boolean): Promis
   }
 }
 
-export async function checkUrl(rawUrl: string, opts: CheckOptions): Promise<UrlCheckResult> {
+export async function checkUrl(
+  rawUrl: string,
+  opts: CheckOptions,
+  onRequest?: OnRequest,
+): Promise<UrlCheckResult> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs);
   const startedAt = Date.now();
@@ -72,6 +92,16 @@ export async function checkUrl(rawUrl: string, opts: CheckOptions): Promise<UrlC
 
     for (let hops = 0; ; hops += 1) {
       await assertAllowedTarget(current, opts.allowPrivateHosts);
+
+      // Every hop is a real outbound request: acquire a global rate permit for
+      // each. A blocked target above never reaches here, so it consumes no permit.
+      if (onRequest) {
+        try {
+          await onRequest();
+        } catch (err) {
+          throw new AdmissionError(err);
+        }
+      }
 
       const res = await fetch(current, {
         method: "GET",
@@ -119,6 +149,9 @@ export async function checkUrl(rawUrl: string, opts: CheckOptions): Promise<UrlC
 
     return failed(null, elapsed(startedAt), "NO_RESPONSE", "No usable response", true);
   } catch (err) {
+    // Admission (rate-limiter/Redis) failure is infrastructure, not a URL result:
+    // rethrow so the worker returns the URL to PENDING and retries.
+    if (err instanceof AdmissionError) throw err.reason;
     if (err instanceof TargetError) {
       return failed(null, elapsed(startedAt), err.code, err.message, false);
     }

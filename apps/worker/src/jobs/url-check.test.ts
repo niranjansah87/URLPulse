@@ -55,7 +55,7 @@ function slotLimiter() {
 
 function proc(
   repo: UrlRepository,
-  checkUrl: () => Promise<UrlCheckResult>,
+  checkUrl: (url: string, opts: CheckOptions, onRequest?: () => Promise<void>) => Promise<UrlCheckResult>,
   rateLimiter: { acquire: () => Promise<void> } = passLimiter(),
   concurrency = slotLimiter(),
 ) {
@@ -124,10 +124,13 @@ describe("urlCheckProcessor", () => {
     expect(repo.persistResult).not.toHaveBeenCalled();
   });
 
-  it("acquires a global rate permit before performing the check", async () => {
+  it("acquires a global rate permit for the outbound request (via onRequest)", async () => {
     const order: string[] = [];
     const rateLimiter = { acquire: vi.fn(async () => void order.push("acquire")) };
-    const checkUrl = vi.fn(async () => {
+    // A real checkUrl calls onRequest once per outbound request; the permit is
+    // therefore acquired before the request work runs.
+    const checkUrl = vi.fn(async (_url: string, _opts: CheckOptions, onRequest?: () => Promise<void>) => {
+      await onRequest?.();
       order.push("check");
       return success;
     });
@@ -143,8 +146,14 @@ describe("urlCheckProcessor", () => {
       }),
     };
     const concurrency = slotLimiter();
+    // The real checkUrl propagates an onRequest (admission) failure rather than
+    // swallowing it; emulate that so the processor's infra path is exercised.
+    const checkUrl = vi.fn(async (_url: string, _opts: CheckOptions, onRequest?: () => Promise<void>) => {
+      await onRequest?.();
+      return success;
+    });
     await expect(
-      proc(repo, vi.fn(async () => success), rateLimiter, concurrency)(job({ batchId: BATCH, urlId: URL_ID })),
+      proc(repo, checkUrl, rateLimiter, concurrency)(job({ batchId: BATCH, urlId: URL_ID })),
     ).rejects.toThrow("redis down");
     expect(repo.releaseForRetry).toHaveBeenCalledWith(URL_ID);
     expect(concurrency.release).toHaveBeenCalled(); // slot never leaked

@@ -18,7 +18,11 @@ export interface ConcurrencyPort {
 
 export interface ProcessorDeps {
   repo: UrlRepository;
-  checkUrl: (url: string, opts: CheckOptions) => Promise<UrlCheckResult>;
+  checkUrl: (
+    url: string,
+    opts: CheckOptions,
+    onRequest?: () => Promise<void>,
+  ) => Promise<UrlCheckResult>;
   checkOptions: CheckOptions;
   /** Global distributed concurrency limiter (INV-3). Acquired before the permit. */
   concurrency: ConcurrencyPort;
@@ -69,15 +73,15 @@ export function createUrlCheckProcessor(deps: ProcessorDeps) {
     }
 
     try {
-      // Global admission immediately before the outbound request, in the
-      // documented order: distributed concurrency slot, then rate permit
-      // (rate-limiting.md §8). The slot is always released in the finally; a
-      // crashed worker's slot is reclaimed by lease expiry (ADR-022).
+      // Global admission for the whole check: one distributed concurrency slot
+      // held across all hops (a URL check = one in-flight slot regardless of
+      // redirects). The rate permit is acquired PER outbound request via the
+      // onRequest hook, so each redirect hop is counted against the global 10
+      // req/s limit (rate-limiting.md §8). The slot is always released in the
+      // finally; a crashed worker's slot is reclaimed by lease expiry (ADR-022).
       const slot = await concurrency.acquire();
       try {
-        await rateLimiter.acquire();
-
-        const result = await checkUrl(claimed.url, checkOptions);
+        const result = await checkUrl(claimed.url, checkOptions, () => rateLimiter.acquire());
 
         // attemptsMade is the number of attempts already completed (0 on the
         // first run). Retry a transient failure only while attempts remain.
