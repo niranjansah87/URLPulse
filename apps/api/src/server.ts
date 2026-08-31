@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyError } from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
@@ -19,7 +20,15 @@ export interface ServerOverrides {
 }
 
 export function buildServer(overrides: ServerOverrides = {}) {
-  const app = Fastify({ logger: true });
+  const app = Fastify({
+    logger: true,
+    // Correlate logs across a request: honor an inbound X-Request-Id (e.g. from
+    // a gateway) or generate one. Fastify stamps every log line with reqId.
+    genReqId: (req) => {
+      const header = req.headers["x-request-id"];
+      return (typeof header === "string" && header.length > 0 && header) || randomUUID();
+    },
+  });
   const db = createDb();
   const redis = createRedis();
 

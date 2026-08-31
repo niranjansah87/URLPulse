@@ -16,4 +16,15 @@ describe("loadServerConfig", () => {
   it("throws when a required variable is missing", () => {
     expect(() => loadServerConfig({ REDIS_URL: "redis://localhost:6379" })).toThrow(/DATABASE_URL/);
   });
+
+  it("applies defaults for the database pool settings", () => {
+    const config = loadServerConfig(validEnv);
+    expect(config.DB_POOL_MAX).toBe(10);
+    expect(config.DB_STATEMENT_TIMEOUT_MS).toBe(30_000);
+  });
+
+  it("coerces overridden pool settings from strings", () => {
+    const config = loadServerConfig({ ...validEnv, DB_POOL_MAX: "25" });
+    expect(config.DB_POOL_MAX).toBe(25);
+  });
 });
