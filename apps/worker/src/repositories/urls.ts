@@ -14,6 +14,7 @@ export interface UrlRepository {
   claim(urlId: string): Promise<{ url: string } | null>;
   persistResult(urlId: string, result: UrlCheckResult): Promise<"applied" | "skipped">;
   releaseForRetry(urlId: string): Promise<"applied" | "skipped">;
+  recoverStuck(olderThanMs: number): Promise<number>;
 }
 
 export function createUrlRepository(db: Db): UrlRepository {
@@ -105,6 +106,26 @@ export function createUrlRepository(db: Db): UrlRepository {
         WHERE id = ${urlId} AND status = 'PROCESSING'
       `;
       return rows.count > 0 ? "applied" : "skipped";
+    },
+
+    /**
+     * Crash recovery (INV-11): reclaim URLs that have been PROCESSING longer than
+     * `olderThanMs` in a still-active batch back to PENDING, so a worker that
+     * crashed after claiming but before persisting does not strand a URL. Bounded
+     * by the started_at threshold so an in-flight check is never reclaimed. Safe
+     * to run repeatedly. Returns the number reclaimed.
+     */
+    async recoverStuck(olderThanMs) {
+      const rows = await db`
+        UPDATE urls u
+        SET status = 'PENDING', started_at = NULL, updated_at = now()
+        FROM batches b
+        WHERE u.batch_id = b.id
+          AND u.status = 'PROCESSING'
+          AND b.status = 'PROCESSING'
+          AND u.started_at < now() - make_interval(secs => ${olderThanMs} / 1000.0)
+      `;
+      return rows.count;
     },
   };
 }

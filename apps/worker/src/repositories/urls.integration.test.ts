@@ -113,4 +113,34 @@ describe.skipIf(!dbUp)("worker url repository (integration)", () => {
     const [b] = await sql<{ status: string }[]>`SELECT status FROM batches WHERE id = ${batchId}`;
     expect(b!.status).toBe("FAILED");
   });
+
+  it("does not overwrite a terminal url with a stale result", async () => {
+    const { urlIds } = await seed(1);
+    await repo.claim(urlIds[0]!);
+    await repo.persistResult(urlIds[0]!, ok);
+    const stale = await repo.persistResult(urlIds[0]!, { ...ok, httpStatus: 500, status: "FAILED" });
+    expect(stale).toBe("skipped");
+    const [u] = await sql<{ status: string; http_status: number }[]>`
+      SELECT status, http_status FROM urls WHERE id = ${urlIds[0]!}
+    `;
+    expect(u!.status).toBe("SUCCESS");
+    expect(u!.http_status).toBe(200);
+  });
+
+  it("recovers a url stuck in PROCESSING back to PENDING", async () => {
+    const { urlIds } = await seed(1);
+    await repo.claim(urlIds[0]!);
+    await sql`UPDATE urls SET started_at = now() - interval '10 minutes' WHERE id = ${urlIds[0]!}`;
+    const recovered = await repo.recoverStuck(60_000);
+    expect(recovered).toBe(1);
+    const [u] = await sql<{ status: string }[]>`SELECT status FROM urls WHERE id = ${urlIds[0]!}`;
+    expect(u!.status).toBe("PENDING");
+  });
+
+  it("does not recover a freshly-claimed (in-flight) url", async () => {
+    const { urlIds } = await seed(1);
+    await repo.claim(urlIds[0]!);
+    const recovered = await repo.recoverStuck(60_000);
+    expect(recovered).toBe(0);
+  });
 });

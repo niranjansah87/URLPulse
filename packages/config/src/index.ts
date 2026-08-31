@@ -41,6 +41,12 @@ const serverEnvSchema = z.object({
   // single check can hold a slot (HTTP_TIMEOUT_MS plus margin) so a live request
   // never loses its slot, while a crashed worker's slot is reclaimed on expiry.
   CONCURRENCY_LEASE_TTL_MS: z.coerce.number().int().positive().default(30_000),
+
+  // A URL left PROCESSING longer than this (e.g. a worker crashed after claiming
+  // but before persisting) is considered stuck and reclaimed to PENDING by the
+  // reconciliation sweep. Must exceed the longest legitimate check (HTTP timeout
+  // plus margin) so an in-flight request is never reclaimed.
+  STUCK_PROCESSING_MS: z.coerce.number().int().positive().default(60_000),
 });
 
 export type ServerConfig = z.infer<typeof serverEnvSchema>;

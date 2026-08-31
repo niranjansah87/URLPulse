@@ -40,6 +40,7 @@ function repoWith(over: Partial<UrlRepository>): UrlRepository {
     claim: vi.fn(async () => ({ url: "https://a.com" })),
     persistResult: vi.fn(async () => "applied" as const),
     releaseForRetry: vi.fn(async () => "applied" as const),
+    recoverStuck: vi.fn(async () => 0),
     ...over,
   } as UrlRepository;
 }
