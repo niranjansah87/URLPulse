@@ -37,17 +37,24 @@ A final implementation may also containerize the API, worker, and frontend if th
 
 ---
 
-# 3. Target Developer Experience
+# 3. Developer Experience (current scaffold)
 
-The preferred workflow is:
+Infrastructure runs in Docker; application processes run on the host via pnpm for
+fast iteration:
 
 ```bash
-docker compose up --build
+pnpm install
+cp .env.example .env
+docker compose up -d      # PostgreSQL + Redis
+pnpm db:migrate           # apply SQL migrations
+pnpm dev                  # web + api + worker in parallel
 ```
 
-or the repository's final equivalent.
+Individual processes: `pnpm dev:web`, `pnpm dev:api`, `pnpm dev:worker`.
 
-The exact command must be documented in `README.md` once implementation is finalized.
+The `docker-compose.yml` intentionally provisions only PostgreSQL and Redis. The
+web, API, and worker are not containerized for local development (see §18 and
+ADR-029/ADR-030).
 
 ---
 

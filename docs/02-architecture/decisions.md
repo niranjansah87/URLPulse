@@ -542,6 +542,48 @@ configuration and must be documented with the worker.
 
 ---
 
+# ADR-029 — Web Serves a Copy of Brand Assets
+
+## Decision
+
+Canonical brand assets live in the repo-root `public/`. Next.js only serves files
+under its own `apps/web/public/`, so the assets the web app references are copied
+there (excluding the large logo reveal video). The root copy remains the source
+of truth for the brand.
+
+## Reason
+
+Next.js cannot serve arbitrary files outside its `public/` directory, and importing
+large binaries through the bundler is inappropriate for logos/icons. A small copy is
+the standard, boring solution; a symlink is not portable across contributors and CI
+on all platforms.
+
+## Consequences
+
+If a brand asset changes, update the root `public/` copy and re-sync `apps/web/public/`.
+
+---
+
+# ADR-030 — Scaffold Tooling: pnpm Workspace, postgres.js, zod, SQL Migrations
+
+## Decision
+
+- **pnpm workspace** (no Turborepo/Nx) — the repository is small; a task runner is
+  unnecessary. Root scripts use pnpm filtering.
+- **postgres.js** as the PostgreSQL client — lightweight and strongly typed; satisfies
+  "no ORM chosen for popularity" (database.md, no ORM was mandated).
+- **zod** for runtime validation and as the single source of shared types in
+  `@urlpulse/types` (satisfies ADR-013 and api.md §18).
+- **Plain SQL migrations** applied by a minimal runner — reproducible from empty,
+  no migration framework dependency (database.md §18).
+
+## Reason
+
+Each choice is the smallest strongly-typed option that satisfies a documented
+requirement without adding a framework. None conflicts with an existing decision.
+
+---
+
 # Decision Summary
 
 | Decision | Choice |

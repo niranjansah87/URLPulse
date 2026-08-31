@@ -116,37 +116,29 @@ Live progress is delivered over **Server-Sent Events**, chosen because updates a
 
 ## Project Structure
 
-Current repository (design + assets):
-
-```text
-URLPulse/
-├── docs/                 # Product, architecture, backend, frontend, infra, quality
-├── public/               # Brand assets
-│   ├── brand/            #   logo/ (horizontal, vertical) + mark/
-│   ├── icons/            #   favicons, apple-touch, PWA icons
-│   ├── og/               #   Open Graph images
-│   └── site.webmanifest
-├── CLAUDE.md             # Engineering guardrails for contributors and coding agents
-├── LICENSE
-└── README.md
-```
-
-Planned application layout (not yet scaffolded):
+pnpm workspace monorepo:
 
 ```text
 URLPulse/
 ├── apps/
-│   ├── web/              # Next.js application
-│   └── api/              # Fastify API
-├── worker/               # BullMQ worker process
+│   ├── web/              # Next.js App Router UI (@urlpulse/web)
+│   ├── api/              # Fastify API + SQL migrations (@urlpulse/api)
+│   └── worker/           # BullMQ worker (@urlpulse/worker)
 ├── packages/
-│   └── shared/           # Shared TypeScript types
-└── docker-compose.yml
+│   ├── types/            # Shared domain/API types + zod schemas (@urlpulse/types)
+│   └── config/           # Server env loading/validation (@urlpulse/config)
+├── docs/                 # Product, architecture, backend, frontend, infra, quality
+├── public/               # Canonical brand assets (served copy lives in apps/web/public)
+├── docker-compose.yml    # Local PostgreSQL + Redis
+├── pnpm-workspace.yaml
+├── package.json          # Root scripts (dev, build, lint, typecheck, test)
+├── tsconfig.base.json
+└── .env.example
 ```
 
-## Getting Started
+> **Status:** The runnable skeleton exists — web, API, and worker start; the API health endpoint works; the schema migrates. URL health-checking logic (batch creation, processing, live updates) is the next phase; the batch endpoints currently return `501 Not Implemented`.
 
-> The application is not yet scaffolded, so runnable commands do not exist yet. This section documents the **intended** local workflow; it will be finalized once `apps/`, `worker/`, and `docker-compose.yml` land.
+## Getting Started
 
 ### Prerequisites
 
@@ -154,30 +146,30 @@ URLPulse/
 - [pnpm](https://pnpm.io/)
 - Docker + Docker Compose
 
-### Clone
+### Setup
 
 ```bash
 git clone https://github.com/niranjansah87/URLPulse.git
 cd URLPulse
-```
 
-### Configure environment
-
-```bash
+pnpm install
 cp .env.example .env
-# edit .env as needed
+
+# start local infrastructure (PostgreSQL + Redis)
+docker compose up -d
+
+# create the database schema
+pnpm db:migrate
+
+# run web + api + worker together
+pnpm dev
 ```
 
-### Start (target workflow)
-
-```bash
-docker compose up --build
-```
-
-Once running, the intended local URLs are:
+Local URLs:
 
 - Web UI: `http://localhost:3000`
 - API: `http://localhost:4000`
+- API health: `http://localhost:4000/health`
 - PostgreSQL: `localhost:5432`
 - Redis: `localhost:6379`
 
@@ -190,35 +182,31 @@ See [`.env.example`](./.env.example) for the full list. Never commit a real `.en
 | `DATABASE_URL` | PostgreSQL connection string |
 | `REDIS_URL` | Redis connection string |
 | `API_PORT` | Fastify API port (default `4000`) |
-| `WEB_PORT` | Next.js port (default `3000`) |
 | `RATE_LIMIT_RPS` | Global outbound request cap (default `10`) |
 | `MAX_CONCURRENCY` | Max URL checks in flight (default `5`) |
 | `MAX_RETRIES` | Retry attempts for transient failures (default `3`) |
+| `BATCH_LIST_CACHE_SECONDS` | Batch-list cache lifetime (default `30`) |
+| `NEXT_PUBLIC_API_URL` | Browser-facing API base URL (web) |
 
 ## Development
 
-> Package scripts do not exist until the workspace is scaffolded. The intended commands are:
-
 ```bash
-# install dependencies
-pnpm install
+pnpm install          # install all workspace dependencies
 
-# run the full stack in development
-pnpm dev
+pnpm dev              # run web + api + worker in parallel
+pnpm dev:web          # Next.js only
+pnpm dev:api          # Fastify API only
+pnpm dev:worker       # BullMQ worker only
 
-# run individual processes
-pnpm dev:api
-pnpm dev:worker
-pnpm dev:web
+pnpm db:migrate       # apply SQL migrations
 
-# quality gates
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
+pnpm lint             # ESLint
+pnpm typecheck        # tsc --noEmit across all packages
+pnpm test             # Vitest across all packages
+pnpm build            # next build (web) + typecheck (api/worker/packages)
 ```
 
-This README must be updated to remove the "intended" caveats once these scripts exist.
+The API and worker run under `tsx` in both development and this scaffold phase, so they have no separate compile step; `pnpm build` runs `next build` for the web app and type-checks the rest.
 
 ## Testing
 

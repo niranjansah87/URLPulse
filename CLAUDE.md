@@ -299,15 +299,22 @@ Instead, coordinate through shared Redis-backed state so the global limit holds 
 
 # 9. Repository Layout
 
+pnpm workspace (`pnpm-workspace.yaml`: `apps/*`, `packages/*`).
+
 ```text
+apps/web         Next.js App Router UI (@urlpulse/web)
+apps/api         Fastify API + SQL migrations (@urlpulse/api)
+apps/worker      BullMQ worker (@urlpulse/worker)
+packages/types   Shared domain/API types + zod schemas (@urlpulse/types)
+packages/config  Server env loading/validation, server-only (@urlpulse/config)
 docs/            Product, architecture, backend, frontend, infra, quality docs
-public/          Brand assets (brand/, icons/, og/) + site.webmanifest
-apps/            (planned) web (Next.js) + api (Fastify)
-worker/          (planned) BullMQ worker process
-packages/        (planned) shared TypeScript types
+public/          Canonical brand assets; served copy in apps/web/public (ADR-029)
+docker-compose.yml  Local PostgreSQL + Redis
 ```
 
-Application code is not yet scaffolded. Documentation is the current source of design intent.
+The runnable skeleton exists. URL health-checking logic is not implemented yet:
+batch endpoints return `501`, and the worker processor is a validating no-op.
+Documentation under `docs/` remains the source of design intent.
 
 ---
 
@@ -342,4 +349,15 @@ These are hard invariants. Violating them is a correctness bug.
 
 # 12. Development Commands
 
-Application code is not yet scaffolded, so package scripts do not exist yet. Once the workspace is created, this section must document the real commands (install, dev, api, worker, web, lint, typecheck, test, build) and the `docker compose` workflow. Do not document commands that do not exist.
+```bash
+pnpm install                     # install workspace deps
+docker compose up -d             # local PostgreSQL + Redis
+pnpm db:migrate                  # apply SQL migrations (apps/api/src/migrations)
+pnpm dev                         # web + api + worker in parallel
+pnpm dev:web | dev:api | dev:worker
+pnpm lint | typecheck | test | build
+```
+
+API and worker run under `tsx` (no separate build step this phase). `pnpm build`
+runs `next build` for web and `tsc --noEmit` for the rest. Migrations are plain
+SQL files applied by a minimal runner (`apps/api/src/migrate.ts`) — no ORM.
