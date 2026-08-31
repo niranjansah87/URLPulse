@@ -29,6 +29,7 @@ function fakeRepo(over: Partial<BatchRepository> = {}): BatchRepository {
     cancel: vi.fn(async () => "cancelled" as const),
     retryFailed: vi.fn(async () => ({ claimed: [] })),
     findReconcilableJobs: vi.fn(async () => []),
+    recoverStuck: vi.fn(async () => 0),
     ...over,
   } as BatchRepository;
 }
@@ -175,5 +176,13 @@ describe("batchService.reconcile", () => {
 
     expect(result.reEnqueued).toBe(2);
     expect(enqueued).toEqual(jobs);
+  });
+
+  it("reclaims stuck URLs before re-enqueuing", async () => {
+    const repo = fakeRepo({ recoverStuck: vi.fn(async () => 3) });
+    const service = createBatchService({ repo, enqueue: async () => {}, log: noopLog });
+    const result = await service.reconcile();
+    expect(repo.recoverStuck).toHaveBeenCalled();
+    expect(result.recovered).toBe(3);
   });
 });

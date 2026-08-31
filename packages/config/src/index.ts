@@ -47,6 +47,11 @@ const serverEnvSchema = z.object({
   // reconciliation sweep. Must exceed the longest legitimate check (HTTP timeout
   // plus margin) so an in-flight request is never reclaimed.
   STUCK_PROCESSING_MS: z.coerce.number().int().positive().default(60_000),
+
+  // How often the API runs the reconciliation sweep (re-enqueue PENDING work that
+  // has no queue job, reclaim stuck PROCESSING URLs). Idempotent, so multiple API
+  // instances running it concurrently is safe.
+  RECONCILE_INTERVAL_MS: z.coerce.number().int().positive().default(30_000),
 });
 
 export type ServerConfig = z.infer<typeof serverEnvSchema>;

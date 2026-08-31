@@ -49,8 +49,17 @@ export function buildServer(overrides: ServerOverrides = {}) {
       repo: createBatchRepository(db),
       enqueue: (data) => enqueueUrlCheck(q, data),
       publish: (batchId) => redis.publish(BATCH_EVENTS_CHANNEL, buildBatchUpdatedMessage(batchId)).then(() => undefined),
+      stuckProcessingMs: config.STUCK_PROCESSING_MS,
       log: app.log,
     });
+
+    // Periodic reconciliation sweep (ADR-028): only on the real service path, so
+    // tests do not start timers. Idempotent across instances.
+    const timer = setInterval(() => {
+      void service.reconcile().catch((err) => app.log.error(err, "reconciliation failed"));
+    }, config.RECONCILE_INTERVAL_MS);
+    timer.unref?.();
+    app.addHook("onClose", async () => clearInterval(timer));
   }
 
   // The event bus fans out cross-instance batch.updated notifications to local

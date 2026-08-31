@@ -190,6 +190,24 @@ export function createBatchRepository(db: Db) {
       `;
       return rows.map((r) => ({ batchId: r.batchId, urlId: r.urlId }));
     },
+
+    /**
+     * Reclaim URLs stuck PROCESSING beyond a threshold in an active batch back to
+     * PENDING (crash recovery, INV-11). Bounded by started_at so an in-flight
+     * check is never reclaimed; idempotent. Returns the number reclaimed.
+     */
+    async recoverStuck(olderThanMs: number): Promise<number> {
+      const rows = await db`
+        UPDATE urls u
+        SET status = 'PENDING', started_at = NULL, updated_at = now()
+        FROM batches b
+        WHERE u.batch_id = b.id
+          AND u.status = 'PROCESSING'
+          AND b.status = 'PROCESSING'
+          AND u.started_at < now() - make_interval(secs => ${olderThanMs} / 1000.0)
+      `;
+      return rows.count;
+    },
   };
 }
 

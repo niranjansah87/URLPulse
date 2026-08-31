@@ -25,6 +25,8 @@ export interface BatchServiceDeps {
   repo: BatchRepository;
   enqueue: EnqueuePort;
   publish?: PublishPort;
+  /** Age after which a PROCESSING URL is considered stuck and reclaimed. */
+  stuckProcessingMs?: number;
   log: ServiceLogger;
 }
 
@@ -34,7 +36,13 @@ export interface BatchServiceDeps {
  * PostgreSQL is committed first and is the source of truth; a failed enqueue is
  * logged and left for the reconciliation sweep, never hidden by deleting rows.
  */
-export function createBatchService({ repo, enqueue, publish, log }: BatchServiceDeps) {
+export function createBatchService({
+  repo,
+  enqueue,
+  publish,
+  stuckProcessingMs = 60_000,
+  log,
+}: BatchServiceDeps) {
   async function notify(batchId: string): Promise<void> {
     if (!publish) return;
     // A failed notification must not roll back or fail a committed mutation
@@ -140,13 +148,17 @@ export function createBatchService({ repo, enqueue, publish, log }: BatchService
      * commit-then-enqueue-fails window (ADR-028). Scheduling it on an interval is
      * a later (hardening) concern; the operation itself lives here.
      */
-    async reconcile(): Promise<{ reEnqueued: number }> {
+    async reconcile(): Promise<{ recovered: number; reEnqueued: number }> {
+      // First reclaim URLs stranded in PROCESSING by a crashed worker (they
+      // become PENDING), then re-enqueue every PENDING URL that has no live job.
+      // Both steps are idempotent, so concurrent API instances are safe.
+      const recovered = await repo.recoverStuck(stuckProcessingMs);
       const jobs = await repo.findReconcilableJobs();
       const reEnqueued = await enqueueAll(jobs);
-      if (jobs.length > 0) {
-        log.info({ candidates: jobs.length, reEnqueued }, "reconciliation sweep");
+      if (recovered > 0 || jobs.length > 0) {
+        log.info({ recovered, candidates: jobs.length, reEnqueued }, "reconciliation sweep");
       }
-      return { reEnqueued };
+      return { recovered, reEnqueued };
     },
   };
 }
