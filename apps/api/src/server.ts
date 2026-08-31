@@ -49,6 +49,15 @@ export function buildServer(overrides: ServerOverrides = {}) {
         ],
         remove: true,
       },
+      // Human-readable, colorized lines in dev; raw JSON in production so log
+      // aggregators can parse it. pino-pretty is a dev-only dependency.
+      transport:
+        config.NODE_ENV === "production"
+          ? undefined
+          : {
+              target: "pino-pretty",
+              options: { colorize: true, translateTime: "SYS:HH:MM:ss", ignore: "pid,hostname", singleLine: true },
+            },
     },
     // Correlate logs across a request: honor an inbound X-Request-Id (e.g. from
     // a gateway) or generate one. Fastify stamps every log line with reqId.

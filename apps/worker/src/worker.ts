@@ -40,9 +40,19 @@ export function startWorker(): Worker<UrlCheckJobData> {
     key: "sem:outbound",
   });
 
+  // Human-readable lines in dev; structured JSON in production for aggregators.
+  const pretty = config.NODE_ENV !== "production";
+  const format = (level: "info" | "warn", obj: object, msg?: string): string => {
+    if (!pretty) return JSON.stringify({ level, msg, ...obj });
+    const time = new Date().toLocaleTimeString("en-GB");
+    const fields = Object.entries(obj)
+      .map(([k, v]) => `${k}=${typeof v === "string" ? v : JSON.stringify(v)}`)
+      .join(" ");
+    return `${time} ${level.toUpperCase().padEnd(4)} ${msg ?? ""}${fields ? `  ${fields}` : ""}`;
+  };
   const log = {
-    info: (obj: object, msg?: string) => console.log(JSON.stringify({ level: "info", msg, ...obj })),
-    warn: (obj: object, msg?: string) => console.warn(JSON.stringify({ level: "warn", msg, ...obj })),
+    info: (obj: object, msg?: string) => console.log(format("info", obj, msg)),
+    warn: (obj: object, msg?: string) => console.warn(format("warn", obj, msg)),
   };
 
   const processor = createUrlCheckProcessor({
