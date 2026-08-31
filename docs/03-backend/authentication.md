@@ -56,6 +56,8 @@ Migrations (forward-only plain SQL, applied by `apps/api/src/migrate.ts`):
   distributed rate limiting (see Abuse protection below).
 - `0005_user_unverified_login_count.sql` — `user.unverifiedLoginCount`, backing
   the email-verification grace period (see Transactional email).
+- `0006_user_login_lockout.sql` — `user.failedLoginCount` / `user.lockedUntil`,
+  backing the wrong-password lockout (see Transactional email → Wrong-password lockout).
 
 Deleting a user cascades to their sessions, accounts, and batches.
 
@@ -158,7 +160,7 @@ deliberate plain-text version**.
 
 | Email | Subject | Trigger (Better Auth) |
 | --- | --- | --- |
-| Welcome | `Welcome to URLPulse` | `databaseHooks.user.create.after` — once, after the user row commits |
+| Welcome | `Welcome to URLPulse` | `emailVerification.afterEmailVerification` — once, after the user verifies their email |
 | Verification | `Verify your URLPulse email` | `emailVerification.sendVerificationEmail` — **on sign-up** (`sendOnSignUp: true`) and on the grace-period resend |
 | Password reset | `Reset your URLPulse password` | `emailAndPassword.sendResetPassword` |
 | Password changed | `Your URLPulse password was changed` | `emailAndPassword.onPasswordReset` — only after a confirmed change |
@@ -179,7 +181,19 @@ blocks sign-in with `403 EMAIL_VERIFICATION_REQUIRED` until they verify. The
 grace count (`user.unverifiedLoginCount`, migration `0005`) is server-owned
 (`input:false`, never client-settable) and increments only for unverified users;
 verified users are never counted or blocked. On the block, the frontend resends
-the link via `authClient.sendVerificationEmail`. Verifying auto-signs the user in.
+the link via `authClient.sendVerificationEmail`. Verifying auto-signs the user in
+and, at that point, the **welcome email is sent** (not at sign-up), so it only
+ever reaches a confirmed address.
+
+**Wrong-password lockout.** Better Auth has no per-account lockout, so it is added
+with request hooks: after **3 consecutive wrong passwords** the account is locked
+for **30 minutes** (`before` hook rejects sign-in with `403 ACCOUNT_LOCKED`) and a
+password-reset email is sent automatically so a genuine user has an immediate
+recovery path. State lives in server-only columns (`failedLoginCount`,
+`lockedUntil`; migration `0006`) that are **not** additionalFields, so they never
+appear in any client payload. Only existing accounts are ever counted (no
+enumeration); a successful sign-in or a completed reset clears the lock. The
+frontend shows a distinct toast for `ACCOUNT_LOCKED` vs `EMAIL_VERIFICATION_REQUIRED`.
 
 **Sender:** `RESEND_FROM_EMAIL` (default `URLPulse <onboarding@resend.dev>`, the
 Resend shared test sender). Production requires a **Resend-verified domain**
@@ -213,7 +227,7 @@ honest placeholders for billing, team, and API keys.
 
 ```bash
 docker compose up -d          # PostgreSQL + Redis
-pnpm db:migrate               # applies 0001..0005
+pnpm db:migrate               # applies 0001..0006
 pnpm dev                      # web + api + worker
 
 pnpm --filter @urlpulse/api test   # unit always; integration when DB reachable
