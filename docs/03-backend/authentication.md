@@ -54,6 +54,8 @@ Migrations (forward-only plain SQL, applied by `apps/api/src/migrate.ts`):
   are invisible rather than leaking.
 - `0004_rate_limit.sql` — Better Auth's `rateLimit` table, backing DB-based
   distributed rate limiting (see Abuse protection below).
+- `0005_user_unverified_login_count.sql` — `user.unverifiedLoginCount`, backing
+  the email-verification grace period (see Transactional email).
 
 Deleting a user cascades to their sessions, accounts, and batches.
 
@@ -157,7 +159,7 @@ deliberate plain-text version**.
 | Email | Subject | Trigger (Better Auth) |
 | --- | --- | --- |
 | Welcome | `Welcome to URLPulse` | `databaseHooks.user.create.after` — once, after the user row commits |
-| Verification | `Verify your URLPulse email` | `emailVerification.sendVerificationEmail` — **on demand** (`sendOnSignUp: false`) |
+| Verification | `Verify your URLPulse email` | `emailVerification.sendVerificationEmail` — **on sign-up** (`sendOnSignUp: true`) and on the grace-period resend |
 | Password reset | `Reset your URLPulse password` | `emailAndPassword.sendResetPassword` |
 | Password changed | `Your URLPulse password was changed` | `emailAndPassword.onPasswordReset` — only after a confirmed change |
 
@@ -169,10 +171,15 @@ stripped of CR/LF (defense-in-depth against header injection). Tokens, keys, and
 recipients are never logged, and every delivery failure is caught so it never
 fails account creation or changes the anti-enumeration reset response.
 
-**Verification stance:** the verification email is fully wired to Better Auth
-(real token, 24-hour expiry) but is **not auto-sent on sign-up**, because URLPulse
-does not gate sign-in on verification and a welcome email already goes out on
-account creation. Set `emailVerification.sendOnSignUp: true` to auto-send.
+**Verification stance (soft gate).** A verification email is sent on sign-up
+(Better Auth's real token, 24-hour expiry, `autoSignInAfterVerification`). Sign-in
+is **not hard-gated**: an unverified user may sign in up to **3 times** — each
+sign-in shows a reminder toast — after which `databaseHooks.session.create.before`
+blocks sign-in with `403 EMAIL_VERIFICATION_REQUIRED` until they verify. The
+grace count (`user.unverifiedLoginCount`, migration `0005`) is server-owned
+(`input:false`, never client-settable) and increments only for unverified users;
+verified users are never counted or blocked. On the block, the frontend resends
+the link via `authClient.sendVerificationEmail`. Verifying auto-signs the user in.
 
 **Sender:** `RESEND_FROM_EMAIL` (default `URLPulse <onboarding@resend.dev>`, the
 Resend shared test sender). Production requires a **Resend-verified domain**
@@ -197,17 +204,16 @@ Better Auth flow (e.g. request a password reset for your own verified address).
 
 ## Intentionally not implemented
 
-Out of scope: OAuth/social providers, MFA, **verification-gated sign-in** (the
-verification email is wired and available on demand, but sign-in is not blocked on
-it — see Transactional email), organizations/teams, role-based access control, and
-billing. The Settings UI shows
+Out of scope: OAuth/social providers, MFA, organizations/teams, role-based access
+control, and billing. (Email verification IS implemented as a soft gate — see
+Transactional email.) The Settings UI shows
 honest placeholders for billing, team, and API keys.
 
 ## Local development & tests
 
 ```bash
 docker compose up -d          # PostgreSQL + Redis
-pnpm db:migrate               # applies 0001..0004 (incl. rateLimit table)
+pnpm db:migrate               # applies 0001..0005
 pnpm dev                      # web + api + worker
 
 pnpm --filter @urlpulse/api test   # unit always; integration when DB reachable
