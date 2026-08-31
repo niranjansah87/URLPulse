@@ -139,8 +139,18 @@ export default function LandingPage() {
           <Reveal>
             <div className={styles.product}>
               <div className={styles.productVisual}>
-                <img className={styles.illoLight} src="/illustration/dashboard-light.png" alt="URLPulse dashboard: batches, progress, overall health and live activity" />
-                <img className={styles.illoDark} src="/illustration/dashboard-dark.png" alt="URLPulse dashboard: batches, progress, overall health and live activity" />
+                <video
+                  className={styles.productVideo}
+                  autoPlay
+                  muted
+                  playsInline
+                  poster="/illustration/dashboard-light.png"
+                  aria-label="URLPulse logo animation"
+                >
+                  <source src="/brand/urlpulse-logo-reveal.mp4" type="video/mp4" />
+                </video>
+                <img className={`${styles.productFallback} ${styles.productFallbackLight}`} src="/illustration/dashboard-light.png" alt="URLPulse dashboard: batches, progress, overall health and live activity" />
+                <img className={`${styles.productFallback} ${styles.productFallbackDark}`} src="/illustration/dashboard-dark.png" alt="URLPulse dashboard: batches, progress, overall health and live activity" />
               </div>
               <div>
                 <h2 className={styles.productTitle}>

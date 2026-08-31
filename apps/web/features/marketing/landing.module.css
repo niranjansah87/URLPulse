@@ -55,51 +55,10 @@
     display: block;
   }
 }
-.navLinks {
-  display: flex;
-  align-items: center;
-  gap: var(--space-6);
-  margin: 0 auto;
-}
-.navLink {
-  font-size: var(--text-base);
-  font-weight: var(--fw-medium);
-  color: var(--color-text-secondary);
-}
-.navLink:hover {
-  color: var(--color-text);
-  text-decoration: none;
-}
 .navActions {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-}
-.menuBtn {
-  display: none;
-}
-.mobileMenu {
-  display: none;
-}
-@media (max-width: 880px) {
-  .navLinks,
-  .navActions {
-    display: none;
-  }
-  .menuBtn {
-    display: inline-flex;
-    margin-left: auto;
-  }
-  .mobileMenu {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-    padding: var(--space-3) 0 var(--space-4);
-    border-top: var(--border-width) solid var(--color-border);
-  }
-  .mobileMenu .navLink {
-    padding: var(--space-2) 0;
-  }
 }
 
 /* Desktop: logo left, actions pinned to the right end. */
@@ -456,6 +415,42 @@
   width: 100%;
   height: auto;
   display: block;
+}
+.productVisual video {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+/* Dashboard fallback shown only when motion is reduced (video hidden then).
+   Own classes (not illoLight/illoDark) so the global illo theme-swap rules
+   don't force it visible. Specificity beats `.productVisual img` (0,1,1). */
+.productVisual img.productFallback {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .productVisual video.productVideo {
+    display: none;
+  }
+  .productVisual img.productFallbackLight {
+    display: block;
+  }
+  .productVisual img.productFallbackDark {
+    display: none;
+  }
+  :global(:root[data-theme="dark"]) .productVisual img.productFallbackLight {
+    display: none;
+  }
+  :global(:root[data-theme="dark"]) .productVisual img.productFallbackDark {
+    display: block;
+  }
+}
+@media (prefers-reduced-motion: reduce) and (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .productVisual img.productFallbackLight {
+    display: none;
+  }
+  :global(:root:not([data-theme="light"])) .productVisual img.productFallbackDark {
+    display: block;
+  }
 }
 .productTitle {
   font-size: var(--text-3xl);
