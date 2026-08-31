@@ -8,6 +8,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "start": "node scripts/start.mjs",
     "dev": "pnpm -r --parallel dev",
     "dev:web": "pnpm --filter @urlpulse/web dev",
     "dev:api": "pnpm --filter @urlpulse/api dev",
@@ -15,7 +16,7 @@
     "build": "pnpm -r build",
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test",
+    "test": "node scripts/with-env.mjs pnpm -r test",
     "db:migrate": "pnpm --filter @urlpulse/api migrate"
   },
   "devDependencies": {
