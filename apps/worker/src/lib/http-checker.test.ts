@@ -3,7 +3,12 @@ import type { AddressInfo } from "node:net";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { checkUrl, type CheckOptions } from "./http-checker";
 
-const OPTS: CheckOptions = { timeoutMs: 1000, maxRedirects: 5, maxBodyBytes: 65_536 };
+const OPTS: CheckOptions = {
+  timeoutMs: 1000,
+  maxRedirects: 5,
+  maxBodyBytes: 65_536,
+  allowPrivateHosts: true, // the test server is on 127.0.0.1
+};
 
 let server: http.Server;
 let base: string;
@@ -83,5 +88,11 @@ describe("checkUrl", () => {
   it("reports INVALID_URL for an unparseable input", async () => {
     const r = await checkUrl("not a url", OPTS);
     expect(r.errorCode).toBe("INVALID_URL");
+  });
+
+  it("blocks a loopback target when private hosts are not allowed (SSRF)", async () => {
+    const r = await checkUrl(`${base}/ok`, { ...OPTS, allowPrivateHosts: false });
+    expect(r.errorCode).toBe("BLOCKED_ADDRESS");
+    expect(r.status).toBe("FAILED");
   });
 });

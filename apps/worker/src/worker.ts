@@ -52,6 +52,7 @@ export function startWorker(): Worker<UrlCheckJobData> {
       timeoutMs: config.HTTP_TIMEOUT_MS,
       maxRedirects: config.HTTP_MAX_REDIRECTS,
       maxBodyBytes: config.HTTP_MAX_BODY_BYTES,
+      allowPrivateHosts: config.HTTP_ALLOW_PRIVATE_HOSTS,
     },
     concurrency,
     rateLimiter,

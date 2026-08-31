@@ -65,16 +65,24 @@ export type BatchDetail = z.infer<typeof batchDetailSchema>;
  * rejected). JSON and CSV inputs both validate through this schema so the two
  * paths cannot diverge.
  */
+/** Resource bounds (INV-12): a batch cannot be unbounded in count or URL length. */
+export const MAX_URLS_PER_BATCH = 10_000;
+export const MAX_URL_LENGTH = 2_048;
+
 export const httpUrlSchema = z
   .string()
   .trim()
+  .max(MAX_URL_LENGTH, `URL exceeds ${MAX_URL_LENGTH} characters`)
   .url()
   .refine((u) => /^https?:\/\//i.test(u), {
     message: "URL must use http or https",
   });
 
 export const createBatchRequestSchema = z.object({
-  urls: z.array(httpUrlSchema).min(1, "at least one URL is required"),
+  urls: z
+    .array(httpUrlSchema)
+    .min(1, "at least one URL is required")
+    .max(MAX_URLS_PER_BATCH, `a batch may contain at most ${MAX_URLS_PER_BATCH} URLs`),
 });
 export type CreateBatchRequest = z.infer<typeof createBatchRequestSchema>;
 

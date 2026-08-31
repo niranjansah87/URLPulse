@@ -52,6 +52,15 @@ const serverEnvSchema = z.object({
   // has no queue job, reclaim stuck PROCESSING URLs). Idempotent, so multiple API
   // instances running it concurrently is safe.
   RECONCILE_INTERVAL_MS: z.coerce.number().int().positive().default(30_000),
+
+  // SSRF: block loopback/private/link-local/metadata targets. Enable ONLY for
+  // local development against localhost; MUST be false in production. Using a
+  // string transform because z.coerce.boolean treats any non-empty string (incl.
+  // "false") as true.
+  HTTP_ALLOW_PRIVATE_HOSTS: z
+    .string()
+    .optional()
+    .transform((v) => v === "true"),
 });
 
 export type ServerConfig = z.infer<typeof serverEnvSchema>;

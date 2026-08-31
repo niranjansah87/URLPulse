@@ -5,7 +5,7 @@ import { createUrlCheckProcessor, RetryableCheckError } from "./url-check";
 import type { UrlRepository } from "../repositories/urls";
 import type { CheckOptions, UrlCheckResult } from "../lib/http-checker";
 
-const OPTS: CheckOptions = { timeoutMs: 1000, maxRedirects: 5, maxBodyBytes: 1000 };
+const OPTS: CheckOptions = { timeoutMs: 1000, maxRedirects: 5, maxBodyBytes: 1000, allowPrivateHosts: true };
 const MAX_ATTEMPTS = 4;
 const noopLog = { info: () => {}, warn: () => {} };
 const BATCH = "11111111-1111-1111-1111-111111111111";

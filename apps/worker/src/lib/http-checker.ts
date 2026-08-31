@@ -12,6 +12,8 @@
  * metadata, DNS rebinding) is added here in the security phase and must run for
  * the initial URL and every redirect target.
  */
+import { assertPublicUrl, BlockedTargetError } from "./ssrf";
+
 export interface UrlCheckResult {
   status: "SUCCESS" | "FAILED";
   httpStatus: number | null;
@@ -27,6 +29,8 @@ export interface CheckOptions {
   timeoutMs: number;
   maxRedirects: number;
   maxBodyBytes: number;
+  /** Allow loopback/private targets. Only for local dev/tests; false in prod. */
+  allowPrivateHosts: boolean;
 }
 
 const USER_AGENT = "URLPulse-HealthChecker/1.0";
@@ -40,10 +44,16 @@ class TargetError extends Error {
   }
 }
 
-/** Phase 12 extends this with resolved-IP/SSRF checks. */
-function assertAllowedTarget(url: URL): void {
+async function assertAllowedTarget(url: URL, allowPrivateHosts: boolean): Promise<void> {
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new TargetError("UNSUPPORTED_PROTOCOL", `Unsupported protocol: ${url.protocol}`);
+  }
+  if (allowPrivateHosts) return;
+  try {
+    await assertPublicUrl(url);
+  } catch (err) {
+    if (err instanceof BlockedTargetError) throw new TargetError(err.code, err.message);
+    throw err;
   }
 }
 
@@ -61,7 +71,7 @@ export async function checkUrl(rawUrl: string, opts: CheckOptions): Promise<UrlC
     }
 
     for (let hops = 0; ; hops += 1) {
-      assertAllowedTarget(current);
+      await assertAllowedTarget(current, opts.allowPrivateHosts);
 
       const res = await fetch(current, {
         method: "GET",
