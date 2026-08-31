@@ -64,7 +64,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
   async function resendVerification(address: string) {
     try {
-      await authClient.sendVerificationEmail({ email: address, callbackURL: "/batches" });
+      await authClient.sendVerificationEmail({ email: address, callbackURL: "/verify-email" });
     } catch {
       // best-effort; the toast below still tells the user to check their inbox
     }
@@ -172,7 +172,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         onChange={setPassword}
         placeholder={mode === "signup" ? "Create a password" : "Enter your password"}
         autoComplete={mode === "signup" ? "new-password" : "current-password"}
-        hint={mode === "signup" ? "Use at least 8 characters with letters, numbers & symbols." : undefined}
+        showStrength={mode === "signup"}
       />
 
       {mode === "signup" ? (
