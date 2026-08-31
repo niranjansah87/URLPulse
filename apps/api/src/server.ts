@@ -86,11 +86,12 @@ export function buildServer(overrides: ServerOverrides = {}) {
     void eventBus.start().catch((err) => app.log.error(err, "event bus subscribe failed"));
   }
 
-  // Credentialed CORS: the web app (a separate origin) must send the session
-  // cookie, so ACAO reflects the request origin (never "*") and credentials are
-  // allowed. In production, restrict to the configured web origin.
+  // Credentialed CORS: the web app (a separate origin) sends the session cookie,
+  // so credentials are allowed and the allowed origin is the configured web
+  // origin only — never "*" and never a reflected arbitrary origin, in any
+  // environment. Arbitrary-origin reflection + credentials would defeat CORS.
   app.register(cors, {
-    origin: config.NODE_ENV === "production" ? [apiConfig.WEB_ORIGIN] : true,
+    origin: [apiConfig.WEB_ORIGIN],
     credentials: true,
   });
   app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024, files: 1 } });
@@ -136,11 +137,20 @@ export function buildServer(overrides: ServerOverrides = {}) {
     reply.status(404).send(body);
   });
 
-  // CSRF: only the configured web origin may make state-changing batch requests.
-  const csrfGuard = createCsrfGuard([apiConfig.WEB_ORIGIN]);
+  // The web origin is the single trusted browser origin: it gates CSRF, the SSE
+  // CORS reflection, and @fastify/cors above.
+  const allowedOrigins = [apiConfig.WEB_ORIGIN];
+  const csrfGuard = createCsrfGuard(allowedOrigins);
 
   registerHealthRoutes(app, { db, redis });
-  app.register(registerBatchRoutes, { prefix: "/api", service, eventBus, requireAuth, csrfGuard });
+  app.register(registerBatchRoutes, {
+    prefix: "/api",
+    service,
+    eventBus,
+    requireAuth,
+    csrfGuard,
+    allowedOrigins,
+  });
 
   app.addHook("onClose", async () => {
     if (queue) await queue.close().catch(() => undefined);

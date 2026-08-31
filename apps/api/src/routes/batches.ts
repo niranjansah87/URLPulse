@@ -19,6 +19,8 @@ interface BatchRoutesOptions {
   eventBus: EventBus;
   requireAuth: RequireAuth;
   csrfGuard: CsrfGuard;
+  /** Origins permitted to read the credentialed SSE stream (== CORS allowlist). */
+  allowedOrigins: readonly string[];
 }
 
 const SSE_HEARTBEAT_MS = 15_000;
@@ -35,7 +37,8 @@ export async function registerBatchRoutes(
   app: FastifyInstance,
   opts: BatchRoutesOptions,
 ): Promise<void> {
-  const { service, eventBus, requireAuth, csrfGuard } = opts;
+  const { service, eventBus, requireAuth, csrfGuard, allowedOrigins } = opts;
+  const allowed = new Set(allowedOrigins);
 
   // Reject cross-site state-changing requests before anything else (CSRF), then
   // authenticate. On failure each throws (403 / 401) before any batch logic runs.
@@ -106,14 +109,23 @@ export async function registerBatchRoutes(
     reply.hijack();
     const raw = reply.raw;
     // reply.hijack() bypasses @fastify/cors, so the credentialed EventSource
-    // needs these headers written explicitly or the browser blocks the stream.
+    // needs these headers written explicitly. Only reflect the Origin when it is
+    // in the allowlist — reflecting an arbitrary origin with
+    // allow-credentials:true would let any site read the user's batch events.
     const origin = req.headers.origin;
+    const corsOrigin = typeof origin === "string" && allowed.has(origin) ? origin : undefined;
     raw.writeHead(200, {
       "content-type": "text/event-stream",
       "cache-control": "no-cache, no-transform",
       connection: "keep-alive",
       "x-accel-buffering": "no",
-      ...(origin ? { "access-control-allow-origin": origin, "access-control-allow-credentials": "true", vary: "Origin" } : {}),
+      ...(corsOrigin
+        ? {
+            "access-control-allow-origin": corsOrigin,
+            "access-control-allow-credentials": "true",
+            vary: "Origin",
+          }
+        : {}),
     });
     raw.write(": connected\n\n");
 
