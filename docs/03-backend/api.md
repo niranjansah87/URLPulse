@@ -521,8 +521,9 @@ Fastify at `/api/auth/*` with PostgreSQL-backed sessions. See
   API instances (§20), and the SSE stream (§11) is authenticated and
   ownership-checked before a client is subscribed.
 
-Out of scope (intentional): OAuth/social login, MFA, password reset, email
-verification, organizations/teams, and RBAC.
+Email/password reset is implemented (Better Auth + transactional email). Out of
+scope (intentional): OAuth/social login, MFA, email verification,
+organizations/teams, and RBAC.
 
 ---
 

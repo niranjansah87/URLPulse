@@ -317,7 +317,12 @@ This also allows worker capacity to scale independently from HTTP traffic.
 
 ---
 
-# ADR-016 - No Authentication
+# ADR-016 - No Authentication (SUPERSEDED)
+
+> **Superseded.** Authentication was originally out of scope. It has since been
+> added as a deliberate extension: email/password auth via Better Auth with
+> PostgreSQL-backed sessions, and per-user batch ownership. See
+> `docs/03-backend/authentication.md`. The decision below is retained for history.
 
 ## Decision
 
@@ -601,5 +606,5 @@ requirement without adding a framework. None conflicts with an existing decision
 | Worker scaling | Shared BullMQ |
 | API/worker separation | Separate processes |
 | Client/server types | Shared TypeScript |
-| Auth | Out of scope |
+| Auth | Email/password via Better Auth; per-user ownership (ADR-016 superseded) |
 | UI priority | Function over polish |
