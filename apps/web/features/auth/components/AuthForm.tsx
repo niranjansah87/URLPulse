@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { motion } from "motion/react";
 import { toast } from "sonner";
+import { ArrowRight, Mail, ShieldCheck, User } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { authClient } from "../client";
+import { PasswordInput } from "./PasswordInput";
 import styles from "./auth.module.css";
 
 type Mode = "login" | "signup";
@@ -19,6 +20,26 @@ function safeNext(value: string | null): string {
 /** A signed-in session with the user's verification state (Better Auth shape). */
 interface SignInData {
   user?: { emailVerified?: boolean };
+}
+
+/** Text input with a leading icon (name / email), matching the references. */
+function IconField({
+  label,
+  icon,
+  ...input
+}: {
+  label: string;
+  icon: ReactNode;
+} & React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <label className={styles.field}>
+      <span className={styles.label}>{label}</span>
+      <span className={styles.inputWrap}>
+        <span className={styles.inputIcon}>{icon}</span>
+        <input className={styles.input} {...input} />
+      </span>
+    </label>
+  );
 }
 
 /**
@@ -35,6 +56,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [remember, setRemember] = useState(true);
+  const [agree, setAgree] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -49,8 +73,20 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
-    setBusy(true);
     const address = email.trim();
+
+    if (mode === "signup") {
+      if (password !== confirm) {
+        setError("Passwords do not match.");
+        return;
+      }
+      if (!agree) {
+        setError("Please accept the Terms of Service and Privacy Policy to continue.");
+        return;
+      }
+    }
+
+    setBusy(true);
     try {
       if (mode === "signup") {
         const result = await authClient.signUp.email({ name: name.trim(), email: address, password });
@@ -66,10 +102,19 @@ export function AuthForm({ mode }: { mode: Mode }) {
         return;
       }
 
-      const result = await authClient.signIn.email({ email: address, password });
+      const result = await authClient.signIn.email({ email: address, password, rememberMe: remember });
       if (result.error) {
+        const code = result.error.code;
+        // Too many wrong passwords: the account is locked and a reset link was
+        // already emailed by the API — don't resend a verification email here.
+        if (code === "ACCOUNT_LOCKED") {
+          toast.error("Account temporarily locked", {
+            description: "Too many failed attempts. We've emailed you a password reset link.",
+          });
+          return;
+        }
         // Grace period exhausted: verification now required. Resend and inform.
-        if (result.error.code === "EMAIL_VERIFICATION_REQUIRED" || result.error.status === 403) {
+        if (code === "EMAIL_VERIFICATION_REQUIRED") {
           await resendVerification(address);
           toast.info("Please verify your email", {
             description: "We've sent a new verification link to your inbox.",
@@ -89,55 +134,77 @@ export function AuthForm({ mode }: { mode: Mode }) {
       router.replace(safeNext(params.get("next")));
       router.refresh();
     } catch {
-      setError("Can't reach the sign-in service. Please try again.");
+      setError(mode === "signup" ? "Can't reach the sign-up service. Please try again." : "Can't reach the sign-in service. Please try again.");
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <motion.form
-      className={styles.form}
-      onSubmit={submit}
-      noValidate
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: "easeOut" }}
-    >
+    <form className={styles.form} onSubmit={submit} noValidate>
       {mode === "signup" ? (
-        <label className={styles.field}>
-          <span className={styles.label}>Full name</span>
-          <input className={styles.input} type="text" autoComplete="name" required value={name} onChange={(e) => setName(e.target.value)} />
-        </label>
-      ) : null}
-      <label className={styles.field}>
-        <span className={styles.label}>Email</span>
-        <input className={styles.input} type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-      </label>
-      <label className={styles.field}>
-        <span className={styles.label}>Password</span>
-        <input
-          className={styles.input}
-          type="password"
-          autoComplete={mode === "signup" ? "new-password" : "current-password"}
+        <IconField
+          label="Full name"
+          icon={<User size={18} />}
+          type="text"
+          autoComplete="name"
+          placeholder="Enter your full name"
           required
-          minLength={8}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          aria-describedby={mode === "signup" ? "pw-hint" : undefined}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
         />
-        {mode === "signup" ? (
-          <span id="pw-hint" className={styles.hint}>
-            At least 8 characters.
-          </span>
-        ) : null}
-      </label>
+      ) : null}
+
+      <IconField
+        label="Email address"
+        icon={<Mail size={18} />}
+        type="email"
+        autoComplete="email"
+        placeholder="Enter your email"
+        required
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+
+      <PasswordInput
+        label="Password"
+        value={password}
+        onChange={setPassword}
+        placeholder={mode === "signup" ? "Create a password" : "Enter your password"}
+        autoComplete={mode === "signup" ? "new-password" : "current-password"}
+        hint={mode === "signup" ? "Use at least 8 characters with letters, numbers & symbols." : undefined}
+      />
+
+      {mode === "signup" ? (
+        <PasswordInput
+          label="Confirm password"
+          value={confirm}
+          onChange={setConfirm}
+          placeholder="Confirm your password"
+          autoComplete="new-password"
+          invalid={confirm.length > 0 && confirm !== password}
+        />
+      ) : null}
 
       {mode === "login" ? (
-        <p className={styles.switch} style={{ textAlign: "right", marginTop: "calc(-1 * var(--space-2))" }}>
-          <Link href="/forgot-password">Forgot password?</Link>
-        </p>
-      ) : null}
+        <div className={styles.row}>
+          <label className={styles.check}>
+            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+            Remember me
+          </label>
+          <Link href="/forgot-password" className={styles.link}>
+            Forgot password?
+          </Link>
+        </div>
+      ) : (
+        <label className={styles.check}>
+          <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} required />
+          <span>
+            I agree to the <Link href="/#legal" className={styles.link}>Terms of Service</Link> and{" "}
+            <Link href="/#legal" className={styles.link}>Privacy Policy</Link>
+          </span>
+        </label>
+      )}
 
       {error ? (
         <p className={styles.error} role="alert">
@@ -145,21 +212,36 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </p>
       ) : null}
 
-      <Button type="submit" variant="accent" size="lg" disabled={busy} aria-busy={busy} style={{ width: "100%" }}>
-        {busy ? (mode === "signup" ? "Creating account…" : "Signing in…") : mode === "signup" ? "Create account" : "Sign in"}
+      <Button type="submit" variant="accent" size="lg" className={styles.submit} disabled={busy} aria-busy={busy}>
+        {busy ? (mode === "signup" ? "Creating account…" : "Signing in…") : mode === "signup" ? "Create account" : "Login"}
+        <ArrowRight size={18} aria-hidden />
       </Button>
+
+      <div className={styles.divider}>or</div>
+
+      {mode === "login" ? (
+        <div className={styles.note}>
+          <span className={styles.noteIcon}>
+            <ShieldCheck size={20} strokeWidth={1.75} />
+          </span>
+          <span>
+            <span className={styles.noteTitle}>Secure &amp; private</span>
+            <span className={styles.noteText}>Your data is encrypted and never shared.</span>
+          </span>
+        </div>
+      ) : null}
 
       <p className={styles.switch}>
         {mode === "signup" ? (
           <>
-            Already have an account? <Link href="/login">Sign in</Link>
+            Already have an account? <Link href="/login" className={styles.link}>Login</Link>
           </>
         ) : (
           <>
-            New to URLPulse? <Link href="/signup">Create an account</Link>
+            Don&apos;t have an account? <Link href="/signup" className={styles.link}>Sign up</Link>
           </>
         )}
       </p>
-    </motion.form>
+    </form>
   );
 }
