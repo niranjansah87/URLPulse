@@ -582,33 +582,53 @@ One bad URL must not stop the entire queue.
 
 # 37. Malicious or Problematic URLs
 
-The system should consider SSRF risk if arbitrary URLs are accepted.
+The worker accepts arbitrary user-supplied URLs, so SSRF is treated as a
+first-class risk. The protection is implemented in `packages/outbound/src/ssrf.ts`
+and enforced in `apps/worker/src/lib/http-checker.ts`:
 
-Potential protections include:
+- **Scheme restricted to http/https** - validated in the shared URL schema and
+  again per hop; other schemes are rejected (`UNSUPPORTED_PROTOCOL`).
+- **Hostname is resolved (DNS) and every resolved IP is checked** before the
+  request, so a public-looking name that resolves to a private address is blocked.
+- **Blocked ranges:** loopback (`127.0.0.0/8`, `::1`), private v4
+  (`10/8`, `172.16/12`, `192.168/16`), link-local (`169.254/16`, including the
+  `169.254.169.254` cloud-metadata address, and `fe80::/10`), unique-local
+  (`fc00::/7`), CGNAT (`100.64/10`), `0.0.0.0/8`, multicast/reserved, and
+  IPv4-mapped IPv6 equivalents.
+- **Every redirect hop is re-validated** (redirects are followed manually), so a
+  redirect to an internal address is caught, not just the initial URL.
+- **Redirects are bounded** (`HTTP_MAX_REDIRECTS`, default 5).
+- A blocked target consumes no rate-limit permit and is recorded as a
+  non-retryable failure (`BLOCKED_ADDRESS` / `DNS_ERROR`).
 
-- Restricting schemes to HTTP/HTTPS
-- Blocking localhost
-- Blocking private IP ranges
-- Blocking link-local addresses
-- Re-checking resolved addresses
-- Restricting redirects
+Local development can allow private targets with `HTTP_ALLOW_PRIVATE_HOSTS=true`;
+this MUST be `false` in production (the default).
 
-The exact security policy must be defined before production deployment.
+**Residual risk (documented, not silently ignored):** a full DNS-rebinding
+defense would pin the validated IP for the actual socket connection. With
+`fetch`, pinning the connect IP is not straightforward, so a narrow TOCTOU window
+remains between validation and connect. Accepted for this project's scope; the
+upgrade path is a custom agent/lookup that connects to the already-validated IP.
 
 ---
 
 # 38. Resource Exhaustion
 
-Protect against:
+Bounds are enforced so one request or URL cannot exhaust the worker or API:
 
-- Excessive CSV size
-- Excessive URL count
-- Extremely long URLs
-- Slow HTTP responses
-- Too many simultaneous clients
-- Unbounded SSE connections
+- **CSV size** - multipart upload capped at 5 MB (`@fastify/multipart`).
+- **JSON body** - capped at 4 MB (Fastify `bodyLimit`).
+- **URL count** - at most `MAX_URLS_PER_BATCH` (10,000) per batch.
+- **URL length** - at most `MAX_URL_LENGTH` (2,048) characters.
+- **Slow responses** - each check is aborted after `HTTP_TIMEOUT_MS` (default
+  10s) via an `AbortController`.
+- **Response body** - only the first `HTTP_MAX_BODY_BYTES` (default 256 KB) are
+  read, for `<title>` extraction; the rest is discarded.
+- **SSE connections** - each stream deregisters its client on close/error and
+  sends periodic heartbeats so dead connections are reclaimed.
 
-Limits should be enforced at API boundaries.
+Limits are enforced at the API boundary (schemas, Fastify limits) and in the
+worker's HTTP checker.
 
 ---
 

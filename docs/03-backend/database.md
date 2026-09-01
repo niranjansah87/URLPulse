@@ -123,7 +123,7 @@ The exact transition rules are defined in `job-lifecycle.md`.
 ## 4.2 Ownership
 
 `user_id` references the Better Auth `"user"` table (`ON DELETE CASCADE`) and is
-set from the authenticated session when a batch is created — never from the
+set from the authenticated session when a batch is created - never from the
 request body. Every batch read and mutation filters `WHERE user_id = <session
 user>`, so a user only ever sees or changes their own batches; a batch owned by
 someone else is reported as `404`, not leaked.
@@ -503,6 +503,26 @@ Database schema changes must be represented as migrations.
 The repository should not rely on manually editing a production database.
 
 Migration history should be reproducible for a fresh environment.
+
+### Forward-only, applied by a minimal runner
+
+Migrations are plain, ordered SQL files in `apps/api/src/migrations` (e.g.
+`0001_init.sql`), applied by a small runner (`apps/api/src/migrate.ts`, run via
+`pnpm db:migrate`). The runner records applied files and applies only new ones,
+so `pnpm db:migrate` is idempotent and reproducible on a fresh database.
+
+This is deliberately **forward-only**: there are no `down`/rollback scripts. For
+a take-home this keeps the runner auditable (no ORM, no migration framework) and
+avoids the false safety of rollbacks that are rarely correct against real data.
+Each migration is written to be safe and additive (`CREATE TABLE IF NOT EXISTS`,
+`ADD COLUMN IF NOT EXISTS`, nullable new columns), so re-running is a no-op and a
+partially-applied set can be completed by re-running. To undo a change with more
+time, the pattern would be a new forward migration that reverses it, or - in a
+disposable local environment - recreating the database and re-migrating.
+
+Trade-off and upgrade path: a production system that needs auditable rollbacks
+would adopt a migration tool with paired up/down steps (Flyway, Drizzle,
+node-pg-migrate). That is intentionally out of scope here.
 
 ---
 

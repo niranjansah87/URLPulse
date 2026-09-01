@@ -89,7 +89,7 @@ Example:
 DATABASE_URL=postgresql://...
 REDIS_URL=redis://...
 API_PORT=4000
-NEXT_PUBLIC_API_URL=http://localhost:4000
+NEXT_PUBLIC_API_URL=http://localhost:4000/api
 ```
 
 Do not commit secrets.

@@ -16,7 +16,7 @@
 
 ## Overview
 
-URLPulse lets you submit a collection of URLs — pasted directly or uploaded as CSV — and checks each one independently in the background while streaming progress and results to the browser in real time.
+URLPulse lets you submit a collection of URLs - pasted directly or uploaded as CSV - and checks each one independently in the background while streaming progress and results to the browser in real time.
 
 For every URL, URLPulse records the final **HTTP status code**, **response time**, **page title** (when available), and its **success / failure state**. Each URL is processed as its own background job, so large batches never block the API and individual URLs can succeed, fail, retry, or be cancelled independently.
 
@@ -24,7 +24,7 @@ For every URL, URLPulse records the final **HTTP status code**, **response time*
 
 **One command** clones-to-running: it loads `.env`, prompts once for anything missing, validates PostgreSQL and Redis, runs migrations, then starts the API, worker, and web app together.
 
-You need **Node.js 20+**, **pnpm**, a reachable **PostgreSQL**, and a reachable **Redis** (local or hosted — no Docker required).
+You need **Node.js 20+**, **pnpm**, a reachable **PostgreSQL**, and a reachable **Redis** (local or hosted - no Docker required).
 
 ```bash
 git clone https://github.com/niranjansah87/URLPulse.git
@@ -72,16 +72,16 @@ Open **http://localhost:3000**, create an account, paste or upload some URLs, an
 5. Runs the project's **migrations** (`pnpm --filter @urlpulse/api migrate`).
 6. Starts the **API**, **worker**, and **web** as three separate processes and tears them all down (no orphans) on `Ctrl+C`.
 
-> The launcher is orchestration only. It never merges the worker into the API — process separation is a design requirement (see [Architecture](#architecture)).
+> The launcher is orchestration only. It never merges the worker into the API - process separation is a design requirement (see [Architecture](#architecture)).
 
 ## Environment Variables
 
-Copy [`.env.example`](./.env.example) to `.env` (or let the launcher create it). **Never commit a real `.env`** — it is gitignored. Only `DATABASE_URL` and `REDIS_URL` have no safe default; everything else defaults for local development.
+Copy [`.env.example`](./.env.example) to `.env` (or let the launcher create it). **Never commit a real `.env`** - it is gitignored. Only `DATABASE_URL` and `REDIS_URL` have no safe default; everything else defaults for local development.
 
 | Variable | Required | Secret | Default | Purpose |
 |----------|:--------:|:------:|---------|---------|
-| `DATABASE_URL` | ✅ | ✅ | — | PostgreSQL connection string (source of truth) |
-| `REDIS_URL` | ✅ | ✅ | — | Redis connection string (BullMQ, rate limit, pub/sub) |
+| `DATABASE_URL` | ✅ | ✅ | - | PostgreSQL connection string (source of truth) |
+| `REDIS_URL` | ✅ | ✅ | - | Redis connection string (BullMQ, rate limit, pub/sub) |
 | `NODE_ENV` | | | `development` | `development` \| `test` \| `production` |
 | `API_PORT` | | | `4000` | Fastify API port |
 | `NEXT_PUBLIC_API_URL` | | | `http://localhost:4000/api` | Browser-facing API base (web) |
@@ -89,7 +89,7 @@ Copy [`.env.example`](./.env.example) to `.env` (or let the launcher create it).
 | `WEB_ORIGIN` | | | `http://localhost:3000` | Web origin trusted for credentialed CORS |
 | `BETTER_AUTH_URL` | | | `http://localhost:4000` | Public API base where Better Auth is mounted |
 | `BETTER_AUTH_SECRET` | prod only | ✅ | dev insecure default | Signs session cookies. **Required in production**; generate with `openssl rand -base64 32` |
-| `RESEND_API_KEY` | prod only | ✅ | — (email no-ops) | Resend key for password-reset email. **Required in production**; unset in dev/test makes email a safe no-op |
+| `RESEND_API_KEY` | prod only | ✅ | - (email no-ops) | Resend key for password-reset email. **Required in production**; unset in dev/test makes email a safe no-op |
 | `RESEND_FROM_EMAIL` | | | `URLPulse <onboarding@resend.dev>` | Verified sender for reset email |
 | `RATE_LIMIT_RPS` | | | `10` | Global outbound request cap |
 | `MAX_CONCURRENCY` | | | `5` | Max URL checks in flight |
@@ -99,7 +99,7 @@ Copy [`.env.example`](./.env.example) to `.env` (or let the launcher create it).
 | `HTTP_MAX_REDIRECTS` | | | `5` | Redirect cap per check |
 | `HTTP_MAX_BODY_BYTES` | | | `262144` | Response body cap (title parsing) |
 | `HTTP_ALLOW_PRIVATE_HOSTS` | | | `false` | SSRF: allow loopback/private targets. **Must be `false` in production** |
-| `DB_POOL_MAX` | | | `10` | Per-process PG pool size (shared budget — see below) |
+| `DB_POOL_MAX` | | | `10` | Per-process PG pool size (shared budget - see below) |
 | `CONCURRENCY_LEASE_TTL_MS` | | | `30000` | Distributed concurrency lease TTL |
 | `STUCK_PROCESSING_MS` | | | `60000` | Reclaim a `PROCESSING` URL to `PENDING` after this (crash recovery) |
 | `RECONCILE_INTERVAL_MS` | | | `30000` | How often the API runs the reconciliation sweep |
@@ -132,23 +132,24 @@ flowchart TD
 
 | Component | Responsibility |
 |-----------|----------------|
-| **Next.js web** (`apps/web`) | UI for submission, batch list, and live batch detail. A projection of backend state — never authoritative. |
+| **Next.js web** (`apps/web`) | UI for submission, batch list, and live batch detail. A projection of backend state - never authoritative. |
 | **Fastify API** (`apps/api`) | Accepts submissions, persists state, enqueues jobs, serves reads, streams SSE, mounts auth. Stateless; horizontally scalable. |
 | **Worker** (`apps/worker`) | Separate process. Consumes jobs, performs checks under the global rate limit and concurrency cap, writes results idempotently. |
 | **PostgreSQL** | Authoritative application state (batches, URLs, counters, sessions). |
 | **Redis** | BullMQ backing store, global rate-limiter coordination, pub/sub fan-out for live updates. |
 | **`packages/types`** | Shared domain/API types + zod schemas used by both client and server. |
 | **`packages/config`** | Server-only env loading/validation (never imported by the browser bundle). |
+| **`packages/outbound`** | Redis-coordinated global rate limiter + SSRF guard used by the worker's outbound checks. |
 
-**Source of truth:** PostgreSQL is authoritative. Redis, BullMQ, browser state, and SSE events are infrastructure and transport — any batch page can be opened directly or refreshed and fully reconstructed from the API. Deep design lives in [`docs/`](./docs/README.md).
+**Source of truth:** PostgreSQL is authoritative. Redis, BullMQ, browser state, and SSE events are infrastructure and transport - any batch page can be opened directly or refreshed and fully reconstructed from the API. Deep design lives in [`docs/`](./docs/README.md).
 
 ## Background Processing
 
-- **One job per URL** — the API enqueues one BullMQ job per URL with `jobId = urlId`, so duplicate enqueues collapse to a single job (idempotent submission).
-- **Concurrency = 5** — at most 5 checks are in flight at once, enforced by a Redis-coordinated lease (not a per-process counter).
-- **Global rate limit = 10 req/s** — enforced **across the whole system** via shared Redis state, so it holds regardless of worker count. It is never `10 × workerCount`. See [`docs/03-backend/rate-limiting.md`](./docs/03-backend/rate-limiting.md).
-- **Retries** — up to **3** attempts for *transient* failures (timeouts, 5xx, connection errors) with **exponential backoff**. Permanent failures (invalid URL, SSRF-blocked host) are not retried.
-- **Multiple workers** — concurrency and rate limiting are both Redis-coordinated, so running N workers scales throughput without exceeding either global limit.
+- **One job per URL** - the API enqueues one BullMQ job per URL with `jobId = urlId`, so duplicate enqueues collapse to a single job (idempotent submission).
+- **Concurrency = 5** - at most 5 checks are in flight at once, enforced by a Redis-coordinated lease (not a per-process counter).
+- **Global rate limit = 10 req/s** - enforced **across the whole system** via shared Redis state, so it holds regardless of worker count. It is never `10 × workerCount`. See [`docs/03-backend/rate-limiting.md`](./docs/03-backend/rate-limiting.md).
+- **Retries** - up to **3 retries** for *transient* failures (timeouts, 5xx, connection errors) with **exponential backoff** - i.e. **4 total attempts** (1 initial + 3 retries; BullMQ `attempts = MAX_RETRIES + 1`). Permanent failures (invalid URL, 4xx, SSRF-blocked host, unresolvable DNS) are not retried.
+- **Multiple workers** - concurrency and rate limiting are both Redis-coordinated, so running N workers scales throughput without exceeding either global limit.
 
 Concurrency and rate limiting are **separate constraints**: a worker acquires both a concurrency slot and a rate-limit permit before making an outbound request.
 
@@ -157,7 +158,7 @@ Concurrency and rate limiting are **separate constraints**: a worker acquires bo
 BullMQ delivers **at-least-once**, so jobs must be safe to run more than once.
 
 - Enqueue is idempotent (`jobId = urlId`).
-- Result persistence uses **conditional state transitions** — a URL is written only from a non-terminal state, so replaying a completed job does not double-count progress or flip a success to a failure.
+- Result persistence uses **conditional state transitions** - a URL is written only from a non-terminal state, so replaying a completed job does not double-count progress or flip a success to a failure.
 - Batch counters are derived from URL rows, not incremented blindly.
 - **Crash between HTTP call and persistence:** the URL stays `PROCESSING`; the reconciliation sweep reclaims it to `PENDING` after `STUCK_PROCESSING_MS`, and it is retried. The worst case is a repeated HTTP request, never a corrupted count.
 
@@ -173,18 +174,18 @@ Cancelling a batch transitions it conditionally (only from `PENDING`/`PROCESSING
 
 ## Retry Failed
 
-Retrying a batch atomically claims **only** its `FAILED` URLs back to `PENDING` (resetting attempt counts) and re-enqueues them. Successful URLs are never touched or re-run. The claim is conditional (`WHERE status = 'FAILED'`), so a second concurrent retry finds no rows — idempotent.
+Retrying a batch atomically claims **only** its `FAILED` URLs back to `PENDING` (resetting attempt counts) and re-enqueues them. Successful URLs are never touched or re-run. The claim is conditional (`WHERE status = 'FAILED'`), so a second concurrent retry finds no rows - idempotent.
 
 ## Caching
 
-The batch-list endpoint is cached in Redis for **30 seconds** (`BATCH_LIST_CACHE_SECONDS`). To avoid visibly stale data, the cache is **invalidated on mutation** — creating a batch or a batch changing state clears it — so a new or updated batch appears immediately. Because the cache lives in Redis, invalidation is shared across all API instances.
+The batch-list endpoint is cached in Redis for **30 seconds** (`BATCH_LIST_CACHE_SECONDS`). Invalidation is version-based: a shared Redis counter (`BATCH_LIST_CACHE_VERSION_KEY`) is part of every cache key, and bumping it (`INCR`) orphans all cached pages at once - immediate, and shared across all API instances. **Every batch-level state change invalidates the cache immediately:** creation, cancellation, and retry-failed (from the API), and the worker-driven transitions PENDING → PROCESSING (first URL claimed) and → COMPLETED/FAILED (last URL done) - the worker bumps the same key. What is deliberately *not* invalidated is per-URL progress within a batch (that would defeat the cache); the 30-second TTL bounds any such intermediate staleness, and the batch **detail** page is uncached and always live via SSE.
 
 ## Next.js Decisions
 
 Deliberate choices (see [`docs/04-frontend/frontend-architecture.md`](./docs/04-frontend/frontend-architecture.md)):
 
 - **Server Components** fetch the authoritative batch snapshot server-side via `API_INTERNAL_URL`, so a directly-opened or refreshed batch URL renders correct state with no client round-trip.
-- **Client Components** own only the live layer — the SSE subscription and optimistic UI — and always reconcile against the server snapshot.
+- **Client Components** own only the live layer - the SSE subscription and optimistic UI - and always reconcile against the server snapshot.
 - **Routing** gives every batch its own URL (`/batches/[id]`) that works cold in a new tab.
 - **Refresh-safe:** UI state is a projection; nothing important lives only in React state.
 
@@ -193,7 +194,7 @@ Deliberate choices (see [`docs/04-frontend/frontend-architecture.md`](./docs/04-
 Running multiple API instances behind a load balancer is correct by design:
 
 - **PostgreSQL** is the single shared source of truth; API instances are stateless.
-- **Redis/BullMQ** is a shared queue and coordination layer — the global rate limit and concurrency cap are Redis-backed, so they hold across all API instances and all workers.
+- **Redis/BullMQ** is a shared queue and coordination layer - the global rate limit and concurrency cap are Redis-backed, so they hold across all API instances and all workers.
 - **Auth sessions** are PostgreSQL-backed, so any instance can serve any authenticated request.
 - **Live updates** fan out through Redis pub/sub, so a client on instance A sees events produced anywhere.
 - **Cache** invalidation is shared through Redis.
@@ -244,13 +245,13 @@ See [`docs/06-quality/testing.md`](./docs/06-quality/testing.md) and [`docs/06-q
 
 URLPulse makes outbound HTTP requests to user-supplied URLs, so **SSRF is a primary consideration**: hosts are validated and loopback/private/link-local/metadata targets are blocked unless `HTTP_ALLOW_PRIVATE_HOSTS=true` (local dev only). Every outbound check is time-bounded, redirect-bounded, and body-bounded so one URL cannot hang a worker or exhaust memory. Batches are owned by the authenticated user; ownership is derived from the session (never the client) and cross-user access returns `404`. See [`SECURITY.md`](./SECURITY.md) and [`docs/03-backend/authentication.md`](./docs/03-backend/authentication.md).
 
-## Trade-offs — with more time
+## Trade-offs - with more time
 
-- **Broader end-to-end tests** — a full browser E2E covering submit → live progress → cancel → retry, plus a multi-worker rate-limit soak test in CI.
-- **Observability** — structured metrics and tracing (OpenTelemetry) around the rate limiter and queue depth, rather than the current log lines.
-- **Cache invalidation granularity** — per-user targeted invalidation instead of clearing the batch-list cache wholesale.
-- **Worker shutdown** — drain in-flight checks on `SIGTERM` before exit rather than relying solely on lease/reconciliation recovery.
-- **Deployment infrastructure** — container images and a deploy pipeline (intentionally out of scope; the app runs without Docker).
+- **Broader end-to-end tests** - a full browser E2E covering submit → live progress → cancel → retry, plus a multi-worker rate-limit soak test in CI.
+- **Observability** - structured metrics and tracing (OpenTelemetry) around the rate limiter and queue depth, rather than the current log lines.
+- **Cache invalidation granularity** - per-user targeted invalidation instead of clearing the batch-list cache wholesale.
+- **Worker shutdown** - drain in-flight checks on `SIGTERM` before exit rather than relying solely on lease/reconciliation recovery.
+- **Deployment infrastructure** - container images and a deploy pipeline (intentionally out of scope; the app runs without Docker).
 
 ## Assumptions
 
@@ -258,20 +259,10 @@ Where the brief was ambiguous:
 
 - **Authentication is in scope** because batches are per-user; minimal email/password auth via Better Auth with PostgreSQL-backed sessions. Ownership is enforced at the data boundary.
 - **Redis may be hosted/remote**; the launcher and app support `redis://` and `rediss://` with credentials.
-- **Docker is optional**, not required — `docker-compose.yml` is a convenience for local PostgreSQL + Redis only.
+- **Docker is optional**, not required - `docker-compose.yml` is a convenience for local PostgreSQL + Redis only.
 - **"Transient" failures** eligible for retry are timeouts, connection errors, and 5xx responses; 4xx and invalid/blocked URLs are permanent.
 - **CSV parsing** extracts URLs leniently: blank rows are skipped, malformed rows are reported, and duplicates within a batch collapse by `jobId`.
 
-## Loom Walkthrough
-
-A 3–5 minute walkthrough covers:
-
-1. **~30s** — Product demo: submit URLs, watch live progress, open results.
-2. **~60s** — Architecture: web / API / worker separation, PostgreSQL as source of truth, Redis as infrastructure.
-3. **~60s** — Infrastructure choices: BullMQ job-per-URL, hosted Redis, migrations.
-4. **~45s** — Retries, global rate limiting, idempotency (and why it's at-least-once).
-5. **~45s** — Live updates (SSE + pub/sub) and horizontal scaling.
-6. **~30s** — Trade-offs and what's next.
 
 ## Documentation
 
@@ -287,7 +278,8 @@ URLPulse/
 │   └── worker/           # BullMQ worker (@urlpulse/worker)
 ├── packages/
 │   ├── types/            # Shared domain/API types + zod schemas (@urlpulse/types)
-│   └── config/           # Server env loading/validation (@urlpulse/config)
+│   ├── config/           # Server env loading/validation (@urlpulse/config)
+│   └── outbound/         # Global rate limiter + SSRF guard (@urlpulse/outbound)
 ├── scripts/
 │   ├── start.mjs         # Cross-platform one-command launcher
 │   ├── start.sh          # Linux/macOS wrapper
@@ -305,4 +297,4 @@ URLPulse/
 
 ## Author
 
-**Niranjan Sah** — [niranjansah87.com.np](https://niranjansah87.com.np/) · [github.com/niranjansah87](https://github.com/niranjansah87)
+**Niranjan Sah** - [niranjansah87.com.np](https://niranjansah87.com.np/) · [github.com/niranjansah87](https://github.com/niranjansah87)
