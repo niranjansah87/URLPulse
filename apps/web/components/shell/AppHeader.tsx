@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ChevronDown, LogOut, Menu as MenuIcon, Settings } from "lucide-react";
+import { ChevronDown, LogOut, Menu as MenuIcon } from "lucide-react";
 import { IconButton } from "@/components/ui/Button";
 import { Menu } from "@/components/ui/Menu";
 import { NotificationBell } from "@/components/ui/NotificationBell";
@@ -12,7 +12,7 @@ import styles from "./shell.module.css";
 
 /**
  * Top bar for the app frame: the alerts bell, theme toggle, and a profile pill
- * whose menu holds Settings / Sign out. On small screens it also carries the
+ * whose menu holds Sign out. On small screens it also carries the
  * button that opens the sidebar drawer. These controls live here (not the
  * sidebar) so the sidebar stays purely navigational.
  */
@@ -47,7 +47,6 @@ export function AppHeader({ onOpenNav }: { onOpenNav: () => void }) {
             </span>
           }
           items={[
-            { label: "Settings", icon: <Settings size={14} />, href: "/settings" },
             {
               label: "Sign out",
               icon: <LogOut size={14} />,

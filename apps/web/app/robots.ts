@@ -9,7 +9,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://urlpulse.dev";
  */
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: [{ userAgent: "*", allow: "/", disallow: ["/batches", "/history", "/alerts", "/settings"] }],
+    rules: [{ userAgent: "*", allow: "/", disallow: ["/batches", "/history", "/alerts"] }],
     sitemap: `${siteUrl}/sitemap.xml`,
   };
 }

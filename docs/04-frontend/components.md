@@ -1,4 +1,4 @@
-# UrlPulse — Components
+# UrlPulse - Components
 
 Visual rules for core components. Colors/sizes reference token names
 (`design-tokens.md`, `color-system.md`). Motion references `motion.md`. All colors below
@@ -16,11 +16,11 @@ shadow between shell regions.
 
 - **Branding:** horizontal logo (mark + wordmark) at top, theme-aware variant from
   `public/brand/logo/horizontal/`. Collapses to the mark in narrow contexts.
-- **Navigation:** icon + label rows (Batches, Create Batch, History, Alerts, Settings).
+- **Navigation:** icon + label rows (Batches, Create Batch, History, Alerts).
   - Default: `--color-text-secondary` text, muted icon, transparent bg.
   - Hover: `--color-bg` row tint.
   - **Active:** `--color-accent-subtle` row, `--color-accent` icon + text, `--radius-sm`.
-    Also carry a non-color cue (e.g. medium weight) — never color alone.
+    Also carry a non-color cue (e.g. medium weight) - never color alone.
 - **Promo card (optional):** the quiet card near the bottom (thin blue sparkline motif).
   Subtle, dismissible, never competes with nav.
 - **User/profile area:** avatar (initials, `--radius-pill`), name (`--text-sm` medium),
@@ -71,7 +71,7 @@ solid, no axes/labels). Four across desktop.
 A primary UrlPulse element. Thin bar (height ~6–8px, `--radius-pill`) on a `--color-border`
 track; fill = status solid (accent running / success completed / error failed). Pair with:
 `%` (tabular) and `x / total` count. Optional subtle activity shimmer on the running fill
-(see `motion.md` — reduced-motion disables it). No 3D, no gloss.
+(see `motion.md` - reduced-motion disables it). No 3D, no gloss.
 
 ## Tables (batch list)
 
@@ -85,8 +85,8 @@ Optimize for scanning. Columns: Batch (name + `#id` muted), Status (badge), Prog
 
 ## URL result (batch detail)
 
-Per URL, show: URL (mono/sans, truncated + tooltip), HTTP status (mono; colored by class —
-2xx success, 3xx neutral/info, 4xx warning, 5xx error — with label, not color only), latency
+Per URL, show: URL (mono/sans, truncated + tooltip), HTTP status (mono; colored by class -
+2xx success, 3xx neutral/info, 4xx warning, 5xx error - with label, not color only), latency
 (mono ms), final state (badge), error (message + code when failed), timestamp (metadata).
 Attempt count shown for retried/failed rows.
 

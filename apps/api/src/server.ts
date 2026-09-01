@@ -20,11 +20,9 @@ import { createBatchRepository } from "./repositories/batches";
 import { createBatchService, type BatchService } from "./services/batches";
 import { createAlertRepository } from "./repositories/alerts";
 import { createAlertService } from "./services/alerts";
-import { createSettingsRepository } from "./repositories/settings";
 import { registerHealthRoutes } from "./routes/health";
 import { registerBatchRoutes } from "./routes/batches";
 import { registerAlertRoutes } from "./routes/alerts";
-import { registerSettingsRoutes } from "./routes/settings";
 import { registerDemoRoutes } from "./routes/demo";
 import type { Redis } from "ioredis";
 
@@ -119,7 +117,7 @@ export function buildServer(overrides: ServerOverrides = {}) {
 
   // Credentialed CORS: the web app (a separate origin) sends the session cookie,
   // so credentials are allowed and the allowed origin is the configured web
-  // origin only — never "*" and never a reflected arbitrary origin, in any
+  // origin only - never "*" and never a reflected arbitrary origin, in any
   // environment. Arbitrary-origin reflection + credentials would defeat CORS.
   app.register(cors, {
     origin: [apiConfig.WEB_ORIGIN],
@@ -138,7 +136,7 @@ export function buildServer(overrides: ServerOverrides = {}) {
     registerAuthRoutes(app, auth);
   }
   // NOTE: `authPool` is a process-wide singleton shared by every Better Auth
-  // instance. It is deliberately NOT closed in this server's onClose — doing so
+  // instance. It is deliberately NOT closed in this server's onClose - doing so
   // would kill auth for any other server built in the same process (e.g. tests,
   // or multiple instances). It is drained once at process shutdown (see isMain).
 
@@ -185,12 +183,6 @@ export function buildServer(overrides: ServerOverrides = {}) {
   app.register(registerAlertRoutes, {
     prefix: "/api",
     service: createAlertService(createAlertRepository(db)),
-    requireAuth,
-    csrfGuard,
-  });
-  app.register(registerSettingsRoutes, {
-    prefix: "/api",
-    repo: createSettingsRepository(db),
     requireAuth,
     csrfGuard,
   });

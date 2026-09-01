@@ -25,7 +25,7 @@ const LOCK_DURATION_MS = 30 * 60 * 1000; // 30 minutes
  * Placement: mounted inside the Fastify API (not Next.js) so the API natively
  * owns identity and can enforce batch ownership. Sessions are PostgreSQL-backed
  * (Better Auth's default database strategy), which means they survive process
- * restarts and are valid across every horizontally scaled API instance — no
+ * restarts and are valid across every horizontally scaled API instance - no
  * in-memory server state and no Redis dependency for auth (Redis stays reserved
  * for BullMQ / pub-sub). See docs/03-backend/authentication.md.
  *
@@ -94,7 +94,7 @@ export const auth = betterAuth({
     revokeSessionsOnPasswordReset: true,
     /**
      * Send the reset email. The reset URL is built from the trusted, configured
-     * WEB_ORIGIN — never from a request Host header — so it cannot be poisoned
+     * WEB_ORIGIN - never from a request Host header - so it cannot be poisoned
      * into an open redirect. Failures are caught and logged safely (never the
      * token) and never rethrown, so the public forget-password response stays
      * generic and cannot be used to tell whether an account exists.
@@ -246,8 +246,8 @@ export const auth = betterAuth({
         if (state.failedLoginCount > 0 || state.lockedUntil) await setLockState(state.id, 0, null);
         return;
       }
-      // Count ONLY a genuine wrong-password failure (401). Other errors — the
-      // verification-required or already-locked 403s — are correct-password or
+      // Count ONLY a genuine wrong-password failure (401). Other errors - the
+      // verification-required or already-locked 403s - are correct-password or
       // pre-empted requests and must neither advance nor clear the counter.
       const wrongPassword =
         returned.status === "UNAUTHORIZED" || (returned as { statusCode?: number }).statusCode === 401;
@@ -289,12 +289,9 @@ export const auth = betterAuth({
     },
   },
   user: {
-    // Account deletion is surfaced in the Settings "Danger Zone". Deleting a user
-    // cascades to their sessions, accounts, and batches (FK ON DELETE CASCADE).
-    deleteUser: { enabled: true },
     additionalFields: {
       // Tracks how many times an unverified user has signed in (grace period).
-      // input:false — clients can never set it; only the server increments it.
+      // input:false - clients can never set it; only the server increments it.
       unverifiedLoginCount: { type: "number", defaultValue: 0, input: false, required: false },
     },
   },

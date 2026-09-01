@@ -533,7 +533,7 @@ Fastify at `/api/auth/*` with PostgreSQL-backed sessions. See
   is derived from the session, never from the request body. Every read and
   mutation filters `WHERE user_id = <session user>`.
 - **Ownership is not leaked.** A batch owned by another user is indistinguishable
-  from one that does not exist — both return `404 NOT_FOUND` — for get, cancel,
+  from one that does not exist - both return `404 NOT_FOUND` - for get, cancel,
   retry-failed, and the SSE stream.
 - Sessions are database-backed, so they hold across restarts and across multiple
   API instances (§20), and the SSE stream (§11) is authenticated and
@@ -646,48 +646,7 @@ The API should nevertheless keep domain responses and route responsibilities cle
 
 ---
 
-# 25. User Settings
-
-Per-user monitoring defaults (the check-defining fields surfaced in Settings →
-Monitoring). PostgreSQL (`user_settings`, one row per user) is authoritative; the
-UI reconstructs settings from the API on any device. Purely cosmetic UI
-preferences (timezone, language, dashboard toggles) are **not** stored server-side
-— they remain device-local in the browser.
-
-Both routes are authenticated and scoped to the session user's id (never the
-client). A user with no row yet reads the documented defaults.
-
-## GET `/settings`
-
-Returns the session user's settings.
-
-```json
-{
-  "data": {
-    "checkIntervalMinutes": 5,
-    "timeoutSeconds": 10,
-    "retryAttempts": 2,
-    "userAgent": "URLPulse Bot",
-    "statusCodesDown": "400, 401, 403, 404, 429, 500, 502, 503, 504",
-    "followRedirects": true,
-    "sslValidation": true
-  }
-}
-```
-
-## POST `/settings`
-
-Replaces the user's settings with the **full** object (validated by
-`userSettingsSchema`). The write is an atomic upsert — last write wins, which is
-correct for a user editing their own settings. Returns the saved settings in the
-same shape as GET. Invalid bodies return `400 VALIDATION_ERROR`.
-
-`statusCodesDown` is a length-bounded free-form string (the client is the editing
-surface); it is not yet applied to real checks, so it is not strictly parsed.
-
----
-
-# 26. Related Documents
+# 25. Related Documents
 
 ```text
 docs/01-product/requirements.md
