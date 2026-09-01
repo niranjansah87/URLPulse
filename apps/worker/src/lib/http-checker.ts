@@ -7,7 +7,7 @@
  *  - body:      at most `maxBodyBytes` are read (title extraction only)
  *
  * Redirects are followed manually (`redirect: "manual"`) so each hop's protocol
- * and target can be validated, and — critically — so that EVERY outbound request
+ * and target can be validated, and - critically - so that EVERY outbound request
  * is counted by the global rate limiter. Following a redirect issues another real
  * HTTP request, so `onRequest` (the global rate permit) is acquired before every
  * hop, not just the first; otherwise a redirect chain would let one permit fan

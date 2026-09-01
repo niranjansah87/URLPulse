@@ -18,7 +18,7 @@ interface LogoProps {
  * URLPulse brand logo, used everywhere the brand appears.
  *
  * Composition: the mark (icon) is a fixed anchor; the wordmark sits beside it and,
- * on hover/focus, retracts INTO the mark and fades — then slides back out on
+ * on hover/focus, retracts INTO the mark and fades - then slides back out on
  * un-hover. Pure CSS (no JS/re-render), theme-aware (light/dark assets swap with
  * the active theme), and reduced-motion safe. Both mark and wordmark ship as
  * light+dark images toggled by CSS so the correct pair shows in either theme.

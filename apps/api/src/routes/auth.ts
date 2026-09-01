@@ -5,7 +5,7 @@ import type { Auth } from "../lib/auth";
 /**
  * Mount Better Auth's request handler at /api/auth/*. Better Auth speaks the Web
  * Fetch API (Request/Response); this adapter converts Fastify's Node request into
- * a Request, runs the handler, and copies the Response back — including every
+ * a Request, runs the handler, and copies the Response back - including every
  * Set-Cookie header (getSetCookie preserves multiples, which a naive header copy
  * would collapse). This is the ONLY place auth HTTP is handled; application
  * routes read the resulting session via the requireAuth boundary.

@@ -1,4 +1,4 @@
-# Dashboard — Visual Reference
+# Dashboard - Visual Reference
 
 The **primary** reference screen and the source of truth for the overall visual language.
 

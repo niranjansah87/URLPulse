@@ -49,10 +49,3 @@ export class ConflictError extends ApiDomainError {
     super(409, "CONFLICT", message);
   }
 }
-
-/** Thrown by scaffolded methods whose logic belongs to a later milestone. */
-export class NotImplementedError extends ApiDomainError {
-  constructor(what: string) {
-    super(501, "NOT_IMPLEMENTED", `${what} is not implemented yet`);
-  }
-}

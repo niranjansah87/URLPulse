@@ -6,7 +6,7 @@ export type OnRequest = () => Promise<void>;
 /**
  * Synchronous, unauthenticated URL check for the landing-page demo. A trimmed
  * cousin of the worker's checkUrl (apps/worker/src/lib/http-checker.ts): same
- * SSRF guard and bounds, and — like the worker — it acquires a global rate
+ * SSRF guard and bounds, and - like the worker - it acquires a global rate
  * permit before every outbound request (including each redirect hop) via
  * `onRequest`, so demo traffic counts toward the system-wide 10 req/s budget.
  * No persistence and no queue; results are returned inline and never stored.

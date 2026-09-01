@@ -1,4 +1,4 @@
-# History — Visual Reference
+# History - Visual Reference
 
 Reference images for the historical batches view (past runs, filtering, pagination).
 

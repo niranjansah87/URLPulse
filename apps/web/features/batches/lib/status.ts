@@ -43,7 +43,7 @@ const HTTP_TEXT: Record<number, string> = {
 
 /** Human-readable HTTP status; falls back to the bare code. */
 export function httpStatusText(code: number | null): string {
-  if (code === null) return "—";
+  if (code === null) return "-";
   return HTTP_TEXT[code] ?? String(code);
 }
 

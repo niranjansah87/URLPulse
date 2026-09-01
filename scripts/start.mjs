@@ -5,7 +5,7 @@
 // wrappers (start.sh, start.ps1) and `npm run start` all delegate to. It loads
 // .env, prompts once for any missing required credential, validates PostgreSQL
 // and Redis, runs migrations, then starts the API, worker, and web as three
-// separate processes — preserving the architectural separation the project
+// separate processes - preserving the architectural separation the project
 // requires. Ctrl+C tears all three down without leaving orphans.
 
 import net from "node:net";
@@ -137,7 +137,7 @@ async function collectMissing(env) {
     process.exit(1);
   }
 
-  console.log(`\n${C.bold}First-time setup — a few values are missing.${C.reset}`);
+  console.log(`\n${C.bold}First-time setup - a few values are missing.${C.reset}`);
   console.log(`${C.dim}Input is hidden for secrets. Values are saved to .env (never committed).${C.reset}\n`);
   const collected = {};
   for (const v of missing) {
@@ -177,7 +177,7 @@ function tcpProbe(host, port, timeoutMs = 5000) {
 }
 
 // Minimal RESP round-trip: AUTH (if credentials present) then PING. Proves the
-// remote Redis is reachable AND that the credentials are valid — the failure
+// remote Redis is reachable AND that the credentials are valid - the failure
 // the evaluator is most likely to hit with a hosted instance.
 function redisPing(redisUrl, timeoutMs = 6000) {
   return new Promise((resolve) => {

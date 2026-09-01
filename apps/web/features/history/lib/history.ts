@@ -3,7 +3,7 @@ import type { Tone } from "@/features/batches/lib/status";
 
 /**
  * Pure helpers for the History view. Filtering/sorting run client-side over the
- * fetched page — the list API only supports page/pageSize today. When it grows
+ * fetched page - the list API only supports page/pageSize today. When it grows
  * server-side filters, move these params into `batchesApi.list`.
  */
 
@@ -73,7 +73,7 @@ export function computeStats(rows: BatchRow[]): HistoryStats {
   return s;
 }
 
-/** Batches per day over the last `days` days (oldest → newest) — a real trend for the sparklines. */
+/** Batches per day over the last `days` days (oldest → newest) - a real trend for the sparklines. */
 export function dailySeries(rows: BatchRow[], pick: (r: BatchRow) => boolean, days = 7, now = Date.now()): number[] {
   const series = new Array<number>(days).fill(0);
   const start = now - (days - 1) * DAY_MS;

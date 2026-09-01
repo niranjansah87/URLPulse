@@ -1,4 +1,4 @@
-# Create Batch — Visual Reference
+# Create Batch - Visual Reference
 
 Reference images for the batch-creation flow (manual URL entry + CSV upload).
 

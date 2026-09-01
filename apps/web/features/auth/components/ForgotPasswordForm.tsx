@@ -11,7 +11,7 @@ const GENERIC_SENT = "If an account exists for that email, you'll receive a pass
 
 /**
  * Request a password reset. Anti-enumeration: a valid submission always shows the
- * same generic confirmation whether or not the email has an account — the server
+ * same generic confirmation whether or not the email has an account - the server
  * never reveals existence, and neither does this UI. The reset URL is built
  * server-side from the trusted WEB_ORIGIN; `redirectTo` is only a same-site path.
  */

@@ -2,11 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Clock, FileUp, Hourglass, Link2, Play, RefreshCw } from "lucide-react";
+import { FileUp, Link2, Play } from "lucide-react";
 import { httpUrlSchema, MAX_URLS_PER_BATCH } from "@urlpulse/types";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/cn";
 import { ApiClientError } from "@/lib/api";
@@ -16,21 +15,8 @@ import styles from "./create.module.css";
 type Mode = "manual" | "file";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
-const PREFS_KEY = "urlpulse-batch-defaults";
 /** URLs a guest tried in the landing demo, carried through signup (StartBatchPanel). */
 const PENDING_URLS_KEY = "urlpulse-pending-urls";
-
-/** User preference only — the backend applies its documented system settings today. */
-interface Prefs {
-  intervalMinutes: number;
-  timeoutSeconds: number;
-  retryAttempts: number;
-}
-const DEFAULT_PREFS: Prefs = { intervalMinutes: 5, timeoutSeconds: 10, retryAttempts: 2 };
-
-const INTERVALS = [1, 5, 15, 30, 60];
-const TIMEOUTS = [5, 10, 30, 60];
-const RETRIES = [0, 1, 2, 3];
 
 interface Entry {
   line: number;
@@ -58,20 +44,9 @@ export function CreateBatchForm() {
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const gutterRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(PREFS_KEY);
-      if (stored) setPrefs({ ...DEFAULT_PREFS, ...(JSON.parse(stored) as Partial<Prefs>) });
-    } catch {
-      /* ignore bad storage */
-    }
-  }, []);
 
   // Pick up URLs a guest tried in the landing demo (stashed before signup), then
   // clear them so they only prefill once.
@@ -90,23 +65,10 @@ export function CreateBatchForm() {
     if (urls.length > 0) {
       setMode("manual");
       setText(urls.join("\n"));
-      toast.show({ title: "We kept your URLs", body: "Picked up from the demo — review and create your batch.", tone: "success" });
+      toast.show({ title: "We kept your URLs", body: "Picked up from the demo - review and create your batch.", tone: "success" });
     }
     // Run once on mount; toast is stable for the session.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const updatePrefs = (patch: Partial<Prefs>) => {
-    setPrefs((p) => {
-      const next = { ...p, ...patch };
-      try {
-        localStorage.setItem(PREFS_KEY, JSON.stringify(next));
-      } catch {
-        /* storage unavailable */
-      }
-      return next;
-    });
-  };
 
   const entries = useMemo(() => parseEntries(text), [text]);
   const valid = entries.filter((e) => e.error === null);
@@ -145,7 +107,8 @@ export function CreateBatchForm() {
     }
   };
 
-  const urlsLabel = mode === "file" ? (file ? file.name : "—") : String(valid.length);
+  const urlsLabel = mode === "file" ? (file ? file.name : "-") : String(valid.length);
+  const methodLabel = mode === "file" ? "CSV upload" : "Manual input";
 
   return (
     <Card>
@@ -301,83 +264,13 @@ export function CreateBatchForm() {
           2
         </span>
         <div>
-          <h2 className={styles.stepTitle}>Configure Settings</h2>
-          <p className={styles.stepSub}>Set how your URLs should be monitored</p>
-        </div>
-      </div>
-      <div className={styles.settingsGrid}>
-        <SettingField icon={<Clock size={18} strokeWidth={1.75} />} label="Check Interval" hint="How often to check each URL" htmlFor="pref-interval">
-          <Select id="pref-interval" value={String(prefs.intervalMinutes)} onChange={(e) => updatePrefs({ intervalMinutes: Number(e.target.value) })}>
-            {INTERVALS.map((m) => (
-              <option key={m} value={m}>
-                {m} minute{m === 1 ? "" : "s"}
-              </option>
-            ))}
-          </Select>
-        </SettingField>
-        <SettingField icon={<Hourglass size={18} strokeWidth={1.75} />} label="Timeout" hint="Max time to wait for response" htmlFor="pref-timeout">
-          <Select id="pref-timeout" value={String(prefs.timeoutSeconds)} onChange={(e) => updatePrefs({ timeoutSeconds: Number(e.target.value) })}>
-            {TIMEOUTS.map((s) => (
-              <option key={s} value={s}>
-                {s} seconds
-              </option>
-            ))}
-          </Select>
-        </SettingField>
-        <SettingField icon={<RefreshCw size={18} strokeWidth={1.75} />} label="Retry Attempts" hint="Retry on failure" htmlFor="pref-retries">
-          <Select id="pref-retries" value={String(prefs.retryAttempts)} onChange={(e) => updatePrefs({ retryAttempts: Number(e.target.value) })}>
-            {RETRIES.map((r) => (
-              <option key={r} value={r}>
-                {r} attempt{r === 1 ? "" : "s"}
-              </option>
-            ))}
-          </Select>
-        </SettingField>
-      </div>
-      <p className={styles.note}>
-        Saved as your defaults. Per-batch settings apply once configurable checks ship; batches currently run with the
-        system defaults.
-      </p>
-
-      <div className={styles.advanced}>
-        <button
-          type="button"
-          className={styles.advancedToggle}
-          aria-expanded={advancedOpen}
-          aria-controls="advanced-options"
-          onClick={() => setAdvancedOpen((o) => !o)}
-        >
-          Advanced Options (Headers, Expected Status, etc.)
-          <ChevronDown
-            size={16}
-            aria-hidden
-            style={{ transition: "transform var(--dur-base) var(--ease-standard)", transform: advancedOpen ? "rotate(180deg)" : undefined }}
-          />
-        </button>
-        {advancedOpen ? (
-          <div id="advanced-options" className={styles.advancedBody}>
-            Custom headers and expected status codes are coming soon.
-          </div>
-        ) : null}
-      </div>
-
-      <div className={styles.divider} />
-
-      {/* Step 3 */}
-      <div className={styles.stepHead}>
-        <span className={styles.stepNum} aria-hidden>
-          3
-        </span>
-        <div>
           <h2 className={styles.stepTitle}>Review &amp; Create</h2>
-          <p className={styles.stepSub}>Review your settings and start monitoring</p>
+          <p className={styles.stepSub}>URLs are checked with the system defaults (timeout, retries, rate limits)</p>
         </div>
       </div>
       <div className={styles.reviewGrid}>
         <ReviewTile icon={<Link2 size={16} />} label="URLs" value={urlsLabel} />
-        <ReviewTile icon={<Clock size={16} />} label="Check Interval" value={`${prefs.intervalMinutes} minutes`} />
-        <ReviewTile icon={<Hourglass size={16} />} label="Timeout" value={`${prefs.timeoutSeconds} seconds`} />
-        <ReviewTile icon={<RefreshCw size={16} />} label="Retry Attempts" value={String(prefs.retryAttempts)} />
+        <ReviewTile icon={<FileUp size={16} />} label="Source" value={methodLabel} />
       </div>
 
       {submitError ? (
@@ -395,35 +288,6 @@ export function CreateBatchForm() {
         </Button>
       </div>
     </Card>
-  );
-}
-
-function SettingField({
-  icon,
-  label,
-  hint,
-  htmlFor,
-  children,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  hint: string;
-  htmlFor: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className={styles.field}>
-      <div className={styles.fieldHead}>
-        <span aria-hidden>{icon}</span>
-        <div>
-          <label htmlFor={htmlFor} className={styles.fieldLabel}>
-            {label}
-          </label>
-          <div className={styles.fieldHint}>{hint}</div>
-        </div>
-      </div>
-      {children}
-    </div>
   );
 }
 

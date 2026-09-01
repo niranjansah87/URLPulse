@@ -6,7 +6,7 @@ import styles from "./ui.module.css";
 
 /**
  * Search field with a ⌘/Ctrl-K focus shortcut. Presentational for now (no
- * results wiring) — the shortcut and clear affordance are real so it behaves
+ * results wiring) - the shortcut and clear affordance are real so it behaves
  * correctly once search lands.
  */
 export function SearchInput({

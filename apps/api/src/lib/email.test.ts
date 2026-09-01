@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Capture Resend sends without a network call — no real email is ever sent.
+// Capture Resend sends without a network call - no real email is ever sent.
 interface SendPayload {
   from: string;
   to: string;

@@ -39,7 +39,7 @@ function isCsv(file: File): boolean {
 /**
  * Landing-page batch entry. A signed-in user creates a real, persisted batch and
  * is taken to its detail page. A guest runs the capped, unauthenticated demo
- * (apps/api /demo/checks) and sees results inline, with a CTA to sign up — their
+ * (apps/api /demo/checks) and sees results inline, with a CTA to sign up - their
  * pasted URLs are stashed so signup can pick up where they left off.
  */
 export function StartBatchPanel() {
@@ -143,7 +143,7 @@ export function StartBatchPanel() {
         <div>
           <div className={styles.panelTitle}>{results ? "Demo results" : "Start a New Batch"}</div>
           <p className={styles.panelSub}>
-            {results ? "A quick, free preview — sign up to save and monitor more" : authed ? "Paste URLs or drop a CSV to get started" : "Try it free — paste a few URLs, no account needed"}
+            {results ? "A quick, free preview - sign up to save and monitor more" : authed ? "Paste URLs or drop a CSV to get started" : "Try it free - paste a few URLs, no account needed"}
           </p>
         </div>
       </div>
@@ -254,7 +254,7 @@ function DemoResults({ results, reduce, onReset }: { results: DemoCheckResult[];
             </span>
             <span className={styles.resultMeta}>
               <span className={styles.resultStatus} data-ok={r.ok}>
-                {r.httpStatus ?? r.error ?? "—"}
+                {r.httpStatus ?? r.error ?? "-"}
               </span>
               {r.responseTimeMs !== null ? <span className={styles.resultTime}>{r.responseTimeMs} ms</span> : null}
             </span>

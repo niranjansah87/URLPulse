@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from "vitest";
 import postgres from "postgres";
 import type { BatchRepository } from "../repositories/batches";
 import { emailService } from "../lib/email";
@@ -57,6 +57,22 @@ beforeAll(() => {
   welcomeSpy = armWelcomeSpy();
   verifySpy = armVerifySpy();
   vi.spyOn(emailService, "sendPasswordResetSuccess").mockResolvedValue();
+});
+
+// Better Auth stores its rate-limit counters in the DB (storage: "database"),
+// keyed by client IP and shared by every test in this file (all inject from the
+// same loopback IP). Left alone they accumulate across tests and across repeated
+// runs within the 60–300s windows, tripping a 429 on later sign-in/sign-up-heavy
+// tests. Reset before each test so every test starts with a clean rate budget;
+// this does not weaken any assertion (no test expects a 429).
+beforeEach(async () => {
+  if (!ready) return;
+  const sql = postgres(process.env.DATABASE_URL!, { max: 1 });
+  try {
+    await sql`TRUNCATE "rateLimit"`;
+  } finally {
+    await sql.end();
+  }
 });
 
 describe.skipIf(!ready)("authentication flow (integration)", () => {

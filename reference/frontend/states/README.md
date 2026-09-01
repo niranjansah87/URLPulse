@@ -1,4 +1,4 @@
-# States — Visual Reference
+# States - Visual Reference
 
 Reference crops for empty / loading / error / processing / completion states, so they are
 treated as deliberate product surfaces rather than afterthoughts.

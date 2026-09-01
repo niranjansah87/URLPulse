@@ -30,6 +30,14 @@ export interface ProcessorDeps {
   rateLimiter: RateLimiterPort;
   /** Publish a batch.updated notification after a committed state change. */
   publish: (batchId: string) => Promise<void>;
+  /**
+   * Invalidate the batch-list cache after a batch-level state change (ADR-012):
+   * PENDING → PROCESSING when work starts, and → terminal when it finishes. Only
+   * batch-level transitions call this (never per-URL), so the cache is not
+   * defeated. Best-effort - a failure never fails the job. Injected so the worker
+   * bumps the shared Redis version key without importing the API's cache module.
+   */
+  invalidateListCache: () => Promise<void>;
   /** Max attempts per round (initial + retries), = MAX_RETRIES + 1 (INV-5). */
   maxAttempts: number;
   log: ProcessorLogger;
@@ -57,7 +65,13 @@ export class RetryableCheckError extends Error {
  * claimed or terminal and returns without doing work or double-counting.
  */
 export function createUrlCheckProcessor(deps: ProcessorDeps) {
-  const { repo, checkUrl, checkOptions, concurrency, rateLimiter, publish, maxAttempts, log } = deps;
+  const { repo, checkUrl, checkOptions, concurrency, rateLimiter, publish, invalidateListCache, maxAttempts, log } =
+    deps;
+
+  const invalidateCache = (): Promise<void> =>
+    invalidateListCache().catch((err) =>
+      log.warn({ err: (err as Error).message }, "batch-list cache invalidation failed"),
+    );
 
   return async function urlCheckProcessor(job: Job<UrlCheckJobData>): Promise<void> {
     const { batchId, urlId } = urlCheckJobDataSchema.parse(job.data);
@@ -65,12 +79,12 @@ export function createUrlCheckProcessor(deps: ProcessorDeps) {
     const claimed = await repo.claim(urlId);
     if (!claimed) {
       // Not PENDING: another worker owns it, it is terminal, or it was cancelled.
-      // NOTE (Phase 6): a crash between claim and persist leaves a URL stuck in
-      // PROCESSING; recovering those (lease expiry / PROCESSING→PENDING reclaim)
-      // is the crash-hardening phase and is intentionally not handled here yet.
       log.info({ jobId: job.id, batchId, urlId }, "url not claimable; skipping");
       return;
     }
+    // This claim just lifted the batch PENDING → PROCESSING: a batch-level state
+    // change, so the cached batch list must not keep showing it as PENDING.
+    if (claimed.batchActivated) await invalidateCache();
 
     try {
       // Global admission for the whole check: one distributed concurrency slot
@@ -95,22 +109,25 @@ export function createUrlCheckProcessor(deps: ProcessorDeps) {
             );
             throw new RetryableCheckError(result.errorCode ?? "UNKNOWN");
           }
-          // Release skipped: cancellation/another transition won — do not retry.
+          // Release skipped: cancellation/another transition won - do not retry.
           log.info({ jobId: job.id, batchId, urlId }, "retry aborted; url no longer processing");
           return;
         }
 
-        const outcome = await repo.persistResult(urlId, result);
+        const { outcome, batchFinalized } = await repo.persistResult(urlId, result);
         log.info(
           { jobId: job.id, batchId, urlId, status: result.status, httpStatus: result.httpStatus, outcome },
           "url check complete",
         );
         // Publish AFTER the DB commit (live-updates.md §7). Best-effort: a failed
-        // notification never fails the job — clients reconcile from PostgreSQL.
+        // notification never fails the job - clients reconcile from PostgreSQL.
         if (outcome === "applied") {
           await publish(batchId).catch((err) =>
             log.warn({ batchId, urlId, err: (err as Error).message }, "batch.updated publish failed"),
           );
+          // The batch just reached a terminal state: invalidate the list cache so
+          // COMPLETED/FAILED shows immediately, not after the 30s TTL (ADR-012).
+          if (batchFinalized) await invalidateCache();
         }
       } finally {
         await slot.release().catch(() => undefined);

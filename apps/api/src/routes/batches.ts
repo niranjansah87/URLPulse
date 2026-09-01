@@ -29,7 +29,7 @@ const SSE_HEARTBEAT_MS = 15_000;
  * Batch HTTP surface. Endpoint names and the :batchId param follow
  * docs/03-backend/api.md exactly. Every route is authenticated (the plugin-wide
  * preHandler below) and every operation is scoped to the session user's id,
- * which comes from the session — never from the client. Ownership is enforced in
+ * which comes from the session - never from the client. Ownership is enforced in
  * the service/repository: a batch owned by another user is indistinguishable
  * from one that does not exist (404), so ownership is never leaked.
  */
@@ -45,7 +45,7 @@ export async function registerBatchRoutes(
   app.addHook("preHandler", csrfGuard);
   app.addHook("preHandler", requireAuth);
 
-  // POST /batches — JSON { urls: [...] } or a CSV multipart upload.
+  // POST /batches - JSON { urls: [...] } or a CSV multipart upload.
   app.post("/batches", async (req, reply) => {
     const userId = requireUser(req).id;
     const urls = req.isMultipart() ? await readCsvUrls(req) : (req.body as { urls?: unknown })?.urls;
@@ -55,7 +55,7 @@ export async function registerBatchRoutes(
     return body;
   });
 
-  // GET /batches — the session user's batches only, paginated.
+  // GET /batches - the session user's batches only, paginated.
   app.get("/batches", async (req) => {
     const userId = requireUser(req).id;
     const parsed = listBatchesQuerySchema.safeParse(req.query);
@@ -66,7 +66,7 @@ export async function registerBatchRoutes(
     return { data: items, meta };
   });
 
-  // GET /batches/:batchId — authoritative persisted state from PostgreSQL.
+  // GET /batches/:batchId - authoritative persisted state from PostgreSQL.
   app.get<{ Params: { batchId: string } }>("/batches/:batchId", async (req) => {
     const userId = requireUser(req).id;
     const { batchId } = req.params;
@@ -76,7 +76,7 @@ export async function registerBatchRoutes(
     return body;
   });
 
-  // POST /batches/:batchId/cancel — idempotent; returns authoritative state.
+  // POST /batches/:batchId/cancel - idempotent; returns authoritative state.
   app.post<{ Params: { batchId: string } }>("/batches/:batchId/cancel", async (req) => {
     const userId = requireUser(req).id;
     const { batchId } = req.params;
@@ -86,7 +86,7 @@ export async function registerBatchRoutes(
     return body;
   });
 
-  // POST /batches/:batchId/retry-failed — resets only FAILED URLs and requeues.
+  // POST /batches/:batchId/retry-failed - resets only FAILED URLs and requeues.
   app.post<{ Params: { batchId: string } }>("/batches/:batchId/retry-failed", async (req) => {
     const userId = requireUser(req).id;
     const { batchId } = req.params;
@@ -96,7 +96,7 @@ export async function registerBatchRoutes(
     return body;
   });
 
-  // GET /batches/:batchId/events — SSE stream of batch.updated notifications.
+  // GET /batches/:batchId/events - SSE stream of batch.updated notifications.
   // Notifications only; the client refetches authoritative state (ADR-005).
   app.get<{ Params: { batchId: string } }>("/batches/:batchId/events", async (req, reply) => {
     const userId = requireUser(req).id;
@@ -110,7 +110,7 @@ export async function registerBatchRoutes(
     const raw = reply.raw;
     // reply.hijack() bypasses @fastify/cors, so the credentialed EventSource
     // needs these headers written explicitly. Only reflect the Origin when it is
-    // in the allowlist — reflecting an arbitrary origin with
+    // in the allowlist - reflecting an arbitrary origin with
     // allow-credentials:true would let any site read the user's batch events.
     const origin = req.headers.origin;
     const corsOrigin = typeof origin === "string" && allowed.has(origin) ? origin : undefined;

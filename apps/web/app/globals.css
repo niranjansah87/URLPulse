@@ -1,7 +1,7 @@
 /*
  * URLPulse design tokens + base. Values are the source of truth documented in
  * docs/04-frontend/design-tokens.md and color-system.md. Do not scatter raw
- * values in components — reference these custom properties.
+ * values in components - reference these custom properties.
  */
 
 :root {

@@ -7,7 +7,7 @@ import { ForbiddenError } from "./errors";
  * Session auth uses cookies, and in production those cookies are SameSite=None
  * (the web app and API are different origins), so the browser will attach them to
  * cross-site requests. CORS restricts who can READ a response but does not stop
- * the request — and thus the state change — from happening. So every unsafe
+ * the request - and thus the state change - from happening. So every unsafe
  * (non-GET) batch request must prove it came from an allowed origin.
  *
  * The `Origin` header is set by the browser and cannot be forged by page script,
@@ -15,7 +15,7 @@ import { ForbiddenError } from "./errors";
  * while permitting the real web app. Safe methods (GET/HEAD/OPTIONS) are exempt;
  * cross-site reads are already blocked from being read by credentialed CORS.
  *
- * Non-browser clients (no Origin header) are rejected on unsafe methods — the
+ * Non-browser clients (no Origin header) are rejected on unsafe methods - the
  * API's mutating surface is consumed by the browser web app; server-to-server
  * callers are out of scope for this project.
  */

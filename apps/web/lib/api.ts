@@ -3,15 +3,15 @@ import type { ApiError, ApiSuccess, ErrorCode } from "@urlpulse/types";
 /**
  * Browser/server-safe API client. Only NEXT_PUBLIC_* env reaches the client
  * bundle; server secrets never do. Every call returns the `data` payload or
- * throws an ApiClientError with a stable, user-mappable `code` — components
+ * throws an ApiClientError with a stable, user-mappable `code` - components
  * never see raw fetch/transport errors.
  */
 export const API_BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api").replace(/\/$/, "");
-/** Origin of the API (no /api suffix) — used for auth and SSE endpoints. */
+/** Origin of the API (no /api suffix) - used for auth and SSE endpoints. */
 export const API_ORIGIN = API_BASE.replace(/\/api$/, "");
 /**
  * Base used for calls made from the Next.js server (Server Components). Lets
- * deployments point at an internal service address (and, in dev, IPv4 loopback —
+ * deployments point at an internal service address (and, in dev, IPv4 loopback -
  * Node may resolve `localhost` to ::1 while the API binds IPv4). Browser calls
  * always use the public API_BASE.
  */

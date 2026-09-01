@@ -1,5 +1,5 @@
 /*
- * UrlPulseLoader — a living recreation of the brand logo reveal
+ * UrlPulseLoader - a living recreation of the brand logo reveal
  * (public/brand/urlpulse-logo-reveal.mp4). One shared timeline (--upl-T) drives
  * every element on infinite, in-lockstep keyframes, so the mark assembles,
  * synchronises, reveals the wordmark, then recedes and reconstructs seamlessly.
@@ -224,7 +224,7 @@
     opacity: 0;
     transform: scale(0.5);
   }
-  /* snaps into the ring gap, slightly overshooting — the connection lock-in */
+  /* snaps into the ring gap, slightly overshooting - the connection lock-in */
   46% {
     opacity: 1;
     transform: scale(1.12);

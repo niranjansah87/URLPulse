@@ -2,7 +2,7 @@
 
 These images are the **primary visual source of truth** for the UrlPulse frontend.
 
-## Canonical reference — Dashboard
+## Canonical reference - Dashboard
 
 Both themes are present:
 
@@ -21,7 +21,7 @@ render additionally shows an Overall Health donut and a Live Activity feed. See
 
 ## Page reference folders
 
-Each page has a folder for its light/dark reference renders. **Do not fabricate screenshots** —
+Each page has a folder for its light/dark reference renders. **Do not fabricate screenshots** -
 add real renders as they are produced.
 
 | Folder | Page | Route |
@@ -39,7 +39,7 @@ add real renders as they are produced.
 | [`alerts/`](./alerts/README.md) | Alerts | `/alerts` |
 | [`settings/`](./settings/README.md) | Settings | `/settings` |
 | [`states/`](./states/README.md) | Empty / loading / error / completion states | `/batches/states` (showcase) |
-| [`components/`](./components/README.md) | Component-level reference notes | — |
+| [`components/`](./components/README.md) | Component-level reference notes | - |
 
 Illustrations used by these pages live in [`public/illustration/`](../../public/illustration)
 (`urlpulse-dashboard-illustration-{light,dark}`, `login-light`, `signup-{light,dark}`,
@@ -50,13 +50,13 @@ illustration for the other theme.
 ## How to use this reference
 
 - Implementation should match the reference's **layout, hierarchy, spacing, color,
-  typography, and interaction intent** — not just approximate it.
+  typography, and interaction intent** - not just approximate it.
 - The reference is **more authoritative than generic UI conventions**. When a common SaaS
   pattern conflicts with the reference, follow the reference.
 - The written specs in `docs/04-frontend/` encode the rules extracted from these images.
   Read them alongside the reference.
 - **Changes to the visual direction must be documented** in `docs/04-frontend/` (and noted
-  here if a reference image changes) — never diverge silently.
+  here if a reference image changes) - never diverge silently.
 
 ## Related
 

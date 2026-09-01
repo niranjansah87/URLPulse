@@ -7,7 +7,7 @@ import { apiConfig } from "./env";
  * One reusable layout (`renderEmail`) + four templates (welcome, verification,
  * password reset, password reset success) + a Resend-backed service. Templates
  * share the header, card, CTA button, security notice, and footer, so they read
- * as one product — matching the brand references (light card on a light ground,
+ * as one product - matching the brand references (light card on a light ground,
  * URLPulse blue CTA, navy headings, the horizontal brand logo in the header)
  * while staying email-client safe (tables + inline CSS, no JS, no web fonts, an
  * emoji hero instead of a heavy per-template illustration). The logo is the one
@@ -196,7 +196,7 @@ function renderEmail(content: EmailContent): { html: string; text: string } {
   ];
   if (expiryNote) textLines.push("", expiryNote);
   if (security) textLines.push("", security);
-  textLines.push("", "—", "URLPulse", FOOTER_TAGLINE, ASSET_ORIGIN, `© ${year} URLPulse. All rights reserved.`);
+  textLines.push("", "-", "URLPulse", FOOTER_TAGLINE, ASSET_ORIGIN, `© ${year} URLPulse. All rights reserved.`);
   const text = textLines.join("\n");
 
   return { html, text };
@@ -206,7 +206,7 @@ function renderEmail(content: EmailContent): { html: string; text: string } {
 
 export function renderWelcomeEmail(name: string | undefined, dashboardUrl: string): RenderedEmail {
   const { html, text } = renderEmail({
-    preview: "Your URLPulse account is ready — start monitoring your URLs.",
+    preview: "Your URLPulse account is ready - start monitoring your URLs.",
     heroEmoji: "🎉",
     heroTint: "#eff6ff",
     heading: "Welcome to URLPulse!",

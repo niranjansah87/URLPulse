@@ -1,4 +1,4 @@
-# UrlPulse — Color System
+# UrlPulse - Color System
 
 Light and dark themes. Values here are authoritative for color; token *names* are defined
 in `design-tokens.md`. Aligns with `apps/web/app/globals.css`.
@@ -12,12 +12,12 @@ no-flash + reduced-motion handling already in the app shell).
 ## Principles
 
 - **Blue guides attention; it does not coat the UI.** Use it for links, active nav,
-  in-progress state, focus rings, and the brand mark — not for backgrounds, headings, or
+  in-progress state, focus rings, and the brand mark - not for backgrounds, headings, or
   every icon.
 - **The primary button is neutral near-black in light mode and blue in dark mode**, per the
   reference. The solid button *commits*; blue *points*. This keeps the canvas calm.
 - **Green/amber/red are state, never branding.** Keep them restrained (muted, not neon)
-  and always pair them with an icon/label (see `accessibility.md` — never color alone).
+  and always pair them with an icon/label (see `accessibility.md` - never color alone).
 - **Few colored backgrounds.** Tinted "subtle" fills are reserved for status pills, the
   active nav row, and metric icon tiles.
 

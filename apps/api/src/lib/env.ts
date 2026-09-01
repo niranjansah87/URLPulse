@@ -6,7 +6,7 @@ export const config = loadServerConfig();
 
 /**
  * API-only configuration. Kept separate from the shared @urlpulse/config schema
- * so the worker process — which never mounts auth — is not forced to carry an
+ * so the worker process - which never mounts auth - is not forced to carry an
  * auth secret. BETTER_AUTH_SECRET signs session cookies; it MUST be a fixed,
  * shared value so sessions stay valid across restarts and across horizontally
  * scaled API instances. In production it is required and startup fails without

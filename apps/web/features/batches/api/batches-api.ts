@@ -63,7 +63,7 @@ export const batchesApi = {
       try {
         onUpdate(JSON.parse((e as MessageEvent).data) as SseBatchUpdated);
       } catch {
-        /* malformed notification — ignore; next refetch reconciles */
+        /* malformed notification - ignore; next refetch reconciles */
       }
     });
     source.onopen = () => onStateChange?.("live");

@@ -3,7 +3,7 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
 import styles from "./ui.module.css";
 
-/** Native select styled to the design system — keyboard/screen-reader behavior for free. */
+/** Native select styled to the design system - keyboard/screen-reader behavior for free. */
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(function Select(
   { className, children, ...rest },
   ref,

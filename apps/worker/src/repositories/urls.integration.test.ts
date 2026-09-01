@@ -81,8 +81,10 @@ describe.skipIf(!dbUp)("worker url repository (integration)", () => {
     await repo.claim(urlIds[0]!);
     const applied = await repo.persistResult(urlIds[0]!, ok);
     const dup = await repo.persistResult(urlIds[0]!, ok);
-    expect(applied).toBe("applied");
-    expect(dup).toBe("skipped");
+    expect(applied.outcome).toBe("applied");
+    expect(applied.batchFinalized).toBe(true); // sole URL completing finalizes the batch
+    expect(dup.outcome).toBe("skipped");
+    expect(dup.batchFinalized).toBe(false);
     const [b] = await sql<{ completed_count: number }[]>`
       SELECT completed_count FROM batches WHERE id = ${batchId}
     `;
@@ -121,7 +123,7 @@ describe.skipIf(!dbUp)("worker url repository (integration)", () => {
     await repo.claim(urlIds[0]!);
     await repo.persistResult(urlIds[0]!, ok);
     const stale = await repo.persistResult(urlIds[0]!, { ...ok, httpStatus: 500, status: "FAILED" });
-    expect(stale).toBe("skipped");
+    expect(stale.outcome).toBe("skipped");
     const [u] = await sql<{ status: string; http_status: number }[]>`
       SELECT status, http_status FROM urls WHERE id = ${urlIds[0]!}
     `;

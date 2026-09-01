@@ -302,19 +302,22 @@ Instead, coordinate through shared Redis-backed state so the global limit holds 
 pnpm workspace (`pnpm-workspace.yaml`: `apps/*`, `packages/*`).
 
 ```text
-apps/web         Next.js App Router UI (@urlpulse/web)
-apps/api         Fastify API + SQL migrations (@urlpulse/api)
-apps/worker      BullMQ worker (@urlpulse/worker)
-packages/types   Shared domain/API types + zod schemas (@urlpulse/types)
-packages/config  Server env loading/validation, server-only (@urlpulse/config)
-docs/            Product, architecture, backend, frontend, infra, quality docs
-public/          Canonical brand assets; served copy in apps/web/public (ADR-029)
-docker-compose.yml  Local PostgreSQL + Redis
+apps/web          Next.js App Router UI (@urlpulse/web)
+apps/api          Fastify API + SQL migrations (@urlpulse/api)
+apps/worker       BullMQ worker (@urlpulse/worker)
+packages/types    Shared domain/API types + zod schemas (@urlpulse/types)
+packages/config   Server env loading/validation, server-only (@urlpulse/config)
+packages/outbound Global Redis rate limiter + SSRF guard (@urlpulse/outbound)
+docs/             Product, architecture, backend, frontend, infra, quality docs
+public/           Canonical brand assets; served copy in apps/web/public (ADR-029)
+docker-compose.yml   Local PostgreSQL + Redis
 ```
 
-The runnable skeleton exists. URL health-checking logic is not implemented yet:
-batch endpoints return `501`, and the worker processor is a validating no-op.
-Documentation under `docs/` remains the source of design intent.
+The system is fully implemented: real batch endpoints, a BullMQ worker performing
+real HTTP health checks, the Redis-coordinated global rate limiter and concurrency
+limiter, idempotent conditional state transitions, SSE live updates with
+cross-instance pub/sub fan-out, and version-keyed batch-list caching. Documentation
+under `docs/` remains the source of design intent.
 
 ---
 

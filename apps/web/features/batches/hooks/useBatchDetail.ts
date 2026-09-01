@@ -10,7 +10,7 @@ export type LiveState = "live" | "reconnecting" | "offline";
 
 /**
  * Live batch detail state. PostgreSQL (via the API) stays the source of truth:
- * SSE `batch.updated` events are notifications only — every event triggers a
+ * SSE `batch.updated` events are notifications only - every event triggers a
  * refetch of the authoritative snapshot, and a reconnect refetches too, so a
  * missed event can never leave the page stale (live-updates.md).
  */

@@ -3,7 +3,7 @@
 import { useCurrentUser } from "@/features/auth/useCurrentUser";
 import styles from "./dashboard.module.css";
 
-/** "Welcome back, <first name>" — greets the signed-in user; falls back to a
+/** "Welcome back, <first name>" - greets the signed-in user; falls back to a
  * plain greeting while the session loads or when no name is available. */
 export function HeroGreeting() {
   const { user } = useCurrentUser();

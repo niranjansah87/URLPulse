@@ -24,7 +24,7 @@ export function OverallHealthCard({ rows }: { rows: BatchRow[] }) {
     { label: "Cancelled", value: count(["CANCELLED"]), tone: "neutral" },
   ];
   const finished = completed + failed;
-  const rate = finished === 0 ? "—" : `${((completed / finished) * 100).toFixed(1)}%`;
+  const rate = finished === 0 ? "-" : `${((completed / finished) * 100).toFixed(1)}%`;
   const total = rows.length;
   const pct = (v: number) => (total === 0 ? "0.0%" : `${((v / total) * 100).toFixed(1)}%`);
 

@@ -1,16 +1,22 @@
-import type { BatchListMeta, BatchSummary, ListBatchesQuery } from "@urlpulse/types";
+import { BATCH_LIST_CACHE_VERSION_KEY, type BatchListMeta, type BatchSummary, type ListBatchesQuery } from "@urlpulse/types";
 
 /**
  * Batch-list cache (ADR-012). A read-through Redis cache with a 30s TTL. Redis is
  * NOT authoritative: every method degrades to a cache miss / no-op on Redis
  * failure so the API keeps serving from PostgreSQL.
  *
- * Invalidation is version-based: a counter key is INCR'd on every relevant
- * mutation, and the counter is part of each cache key. Bumping it orphans all
- * previous pages at once (they expire via TTL) and makes the next read a miss —
- * immediate invalidation without SCAN/DEL. Per-URL progress changes are NOT
- * invalidated (they would defeat the cache); the 30s TTL bounds that staleness,
- * while creation, cancellation, and retry-failed invalidate immediately.
+ * Invalidation is version-based: a counter key (BATCH_LIST_CACHE_VERSION_KEY,
+ * shared with the worker) is INCR'd on every relevant mutation, and the counter
+ * is part of each cache key. Bumping it orphans all previous pages at once (they
+ * expire via TTL) and makes the next read a miss - immediate invalidation
+ * without SCAN/DEL, and shared across all API instances via Redis.
+ *
+ * What invalidates immediately: batch creation, cancellation, and retry-failed
+ * (API-driven, here) AND batch-level state transitions driven by the worker -
+ * PENDING → PROCESSING when the first URL is claimed and → COMPLETED/FAILED when
+ * the last completes (the worker bumps the same key; see apps/worker). What does
+ * NOT invalidate: per-URL progress within a batch (that would defeat the cache);
+ * the 30s TTL bounds any such staleness, and the batch detail view is uncached.
  */
 export type BatchListValue = { items: BatchSummary[]; meta: BatchListMeta };
 
@@ -27,7 +33,7 @@ export interface CacheRedis {
 }
 
 const PREFIX = "cache:batches:list";
-const VERSION_KEY = "cache:batches:list:ver";
+const VERSION_KEY = BATCH_LIST_CACHE_VERSION_KEY;
 
 export function createBatchListCache(redis: CacheRedis, ttlSeconds: number): BatchListCache {
   // The cache key includes the owning user id: a batch list is per-user data, so

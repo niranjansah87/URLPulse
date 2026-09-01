@@ -6,7 +6,7 @@ import { createConcurrencyLimiter, type RedisSemaphoreClient } from "./concurren
  * Distributed invariant test (INV-3). Runs many concurrent acquisitions against a
  * REAL Redis semaphore and asserts the number simultaneously held never exceeds
  * the limit. Because the count lives in Redis, this proves the limit is global,
- * not per-process. Self-skips when Redis is unavailable — it does NOT prove the
+ * not per-process. Self-skips when Redis is unavailable - it does NOT prove the
  * guarantee unless it actually runs.
  */
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";
@@ -79,7 +79,7 @@ describe.skipIf(!redisUp)("distributed concurrency limit (integration)", () => {
       pollMs: 10,
     });
 
-    // Fill every slot and NEVER release — simulating `limit` crashed workers.
+    // Fill every slot and NEVER release - simulating `limit` crashed workers.
     for (let i = 0; i < limit; i += 1) await limiter.acquire();
 
     // Wait past the lease TTL: the leases expire and slots are reclaimable.

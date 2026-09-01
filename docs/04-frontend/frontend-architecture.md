@@ -63,8 +63,7 @@ app/
 │   │   ├── states/         /batches/states   state showcase
 │   │   └── [id]/           /batches/[id]     detail + live progress
 │   ├── history/            /history
-│   ├── alerts/             /alerts
-│   └── settings/           /settings
+│   └── alerts/             /alerts
 │
 ├── not-found.tsx           public 404 (per reference)
 ├── global-error.tsx
@@ -103,8 +102,7 @@ features/
 │                    UrlResultsSection, OverallHealthPanel, LiveActivityPanel,
 │                    BatchDetailsPanel
 ├── history/     HistoryView
-├── alerts/      AlertsPage (mock store — no alerts backend yet)
-├── settings/    SettingsPage
+├── alerts/      AlertsPage (mock store - no alerts backend yet)
 └── marketing/   MarketingNav, MarketingFooter, StartBatchPanel, NotFoundPage
 ```
 

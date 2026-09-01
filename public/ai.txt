@@ -1,4 +1,4 @@
-# ai.txt — guidance for AI/LLM crawlers
+# ai.txt - guidance for AI/LLM crawlers
 
 # This is an informal, non-standard convention (not an official web standard).
 # It states preferences for how automated/AI agents use URLPulse's public content.

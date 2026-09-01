@@ -7,7 +7,7 @@ import { BATCH_EVENTS_CHANNEL, sseBatchUpdatedSchema, type SseBatchUpdated } fro
  * instances publish to the same channel, so a client connected to any instance
  * is notified regardless of which process changed the state.
  *
- * The event is only a notification — the client refetches authoritative state
+ * The event is only a notification - the client refetches authoritative state
  * from PostgreSQL (ADR-005). One subscriber connection is shared for all clients;
  * per-batch subscriptions are avoided.
  */
