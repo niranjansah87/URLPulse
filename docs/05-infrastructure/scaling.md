@@ -220,12 +220,22 @@ API 2 cache = new
 
 For horizontal deployment, use a shared cache such as Redis or a platform-level shared cache.
 
-Cache invalidation must occur when:
+Cache invalidation occurs immediately (a shared Redis version counter, bumped
+with `INCR`, so it holds across all API instances) on every batch-level state
+change:
 
-- A batch is created
-- A batch changes relevant state
+- A batch is created (API)
+- A batch is cancelled or retry-failed is invoked (API)
+- A batch goes PENDING → PROCESSING when its first URL is claimed (worker)
+- A batch goes → COMPLETED/FAILED when its last URL completes (worker)
 
-The 30-second cache requirement remains the maximum cache lifetime.
+The worker bumps the same version key the API cache uses. Per-URL progress
+*within* a batch is intentionally not invalidated (that would defeat the cache);
+the 30-second TTL bounds any such intermediate staleness, and the batch detail
+view is uncached and live (SSE), so processing is always observed in real time
+there.
+
+The 30-second cache lifetime remains the maximum staleness for the list view.
 
 ---
 

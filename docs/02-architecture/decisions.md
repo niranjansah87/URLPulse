@@ -260,13 +260,34 @@ Cancellation must remain correct against both queued and in-flight jobs. 
 
 ## Decision
 
-The batch list endpoint is cached for 30 seconds.
+The batch list endpoint is cached in Redis for 30 seconds
+(`BATCH_LIST_CACHE_SECONDS`).
 
-Cache invalidation occurs on relevant mutations.
+Invalidation is version-based: a shared Redis counter
+(`BATCH_LIST_CACHE_VERSION_KEY`, exported from `@urlpulse/types`) is embedded in
+every cache key. Bumping it with `INCR` orphans all cached pages at once - an
+immediate invalidation that holds across every API instance, with no `SCAN`/`DEL`.
+
+Every batch-level state change bumps the counter:
+
+- creation, cancellation, retry-failed - from the API (`services/batches.ts`);
+- PENDING → PROCESSING (first URL claimed) and → COMPLETED/FAILED (last URL done)
+  - from the worker (`apps/worker/src/jobs/url-check.ts`), which increments the
+  same key.
+
+Per-URL progress *within* a batch is intentionally NOT invalidated; that would
+churn the cache continuously during processing and defeat its purpose. The
+30-second TTL bounds that intermediate staleness, and the batch **detail** view
+is uncached and live (SSE), so in-progress checks are always observed in real time.
 
 ## Reason
 
-URLPulse requires a 30-second cache while also requiring that creation and state changes do not produce user-visible stale data. 
+URLPulse requires a 30-second cache while also requiring that creation and state
+changes do not produce user-visible stale data. Version-based invalidation on
+batch-level transitions satisfies both: the list reflects state changes
+immediately, and the cache still absorbs repeated reads between transitions. The
+version key is shared so a worker in a separate process can invalidate a cache
+that only the API reads. 
 
 ---
 

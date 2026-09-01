@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { Worker } from "bullmq";
 import {
   BATCH_EVENTS_CHANNEL,
+  BATCH_LIST_CACHE_VERSION_KEY,
   buildBatchUpdatedMessage,
   URL_CHECK_QUEUE,
   type UrlCheckJobData,
@@ -71,6 +72,10 @@ export function startWorker(): Worker<UrlCheckJobData> {
     rateLimiter,
     publish: (batchId) =>
       commandRedis.publish(BATCH_EVENTS_CHANNEL, buildBatchUpdatedMessage(batchId)).then(() => undefined),
+    // Bump the shared batch-list cache version so a batch-level state change is
+    // reflected across all API instances immediately (ADR-012). Same key the API
+    // cache uses; incrementing it orphans every cached page at once.
+    invalidateListCache: () => commandRedis.incr(BATCH_LIST_CACHE_VERSION_KEY).then(() => undefined),
     maxAttempts: config.MAX_RETRIES + 1,
     log,
   });

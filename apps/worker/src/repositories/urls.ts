@@ -18,9 +18,19 @@ export interface AlertOptions {
  * delivery, stale jobs, and cancellation races cannot corrupt state or
  * double-count counters (ADR-008/009, INV-7).
  */
+/** Outcome of persisting a URL result. `batchFinalized` is true only when THIS
+ * write drove the batch into a terminal state, so the caller can invalidate the
+ * batch-list cache exactly once per batch completion (not per URL). */
+export interface PersistOutcome {
+  outcome: "applied" | "skipped";
+  batchFinalized: boolean;
+}
+
 export interface UrlRepository {
-  claim(urlId: string): Promise<{ url: string } | null>;
-  persistResult(urlId: string, result: UrlCheckResult): Promise<"applied" | "skipped">;
+  /** `batchActivated` is true only when this claim lifted the batch PENDING →
+   * PROCESSING, so the caller can invalidate the list cache on that transition. */
+  claim(urlId: string): Promise<{ url: string; batchActivated: boolean } | null>;
+  persistResult(urlId: string, result: UrlCheckResult): Promise<PersistOutcome>;
   releaseForRetry(urlId: string): Promise<"applied" | "skipped">;
   recoverStuck(olderThanMs: number): Promise<number>;
 }
@@ -31,7 +41,7 @@ export function createUrlRepository(db: Db, alertOptions: AlertOptions): UrlRepo
      * Atomically move a URL PENDING → PROCESSING (incrementing attempt_count)
      * and lift its batch PENDING → PROCESSING. Returns the URL string if this
      * caller won the claim, or null if the row was not PENDING (already claimed,
-     * terminal, or cancelled) — in which case the worker must not do the work.
+     * terminal, or cancelled) - in which case the worker must not do the work.
      * Commits before any HTTP request (never hold a tx across external I/O).
      */
     async claim(urlId) {
@@ -43,18 +53,18 @@ export function createUrlRepository(db: Db, alertOptions: AlertOptions): UrlRepo
           RETURNING url, batch_id
         `;
         if (!row) return null;
-        await tx`
+        const lifted = await tx`
           UPDATE batches
           SET status = 'PROCESSING', started_at = COALESCE(started_at, now()), updated_at = now()
           WHERE id = ${row.batch_id} AND status = 'PENDING'
         `;
-        return { url: row.url };
+        return { url: row.url, batchActivated: lifted.count > 0 };
       });
     },
 
     /**
      * Persist a terminal result for a URL that is still PROCESSING, bump the
-     * matching batch counter, and — if the batch is now fully accounted for —
+     * matching batch counter, and - if the batch is now fully accounted for -
      * transition it to its terminal state, all in one transaction. Returns
      * "skipped" when the URL is no longer PROCESSING (cancelled/duplicate/stale),
      * guaranteeing counters move at most once per logical completion.
@@ -74,7 +84,7 @@ export function createUrlRepository(db: Db, alertOptions: AlertOptions): UrlRepo
           WHERE u.id = ${urlId} AND u.status = 'PROCESSING'
           FOR UPDATE OF u
         `;
-        if (!prior) return "skipped";
+        if (!prior) return { outcome: "skipped", batchFinalized: false };
 
         await tx`
           UPDATE urls
@@ -95,7 +105,7 @@ export function createUrlRepository(db: Db, alertOptions: AlertOptions): UrlRepo
           await tx`UPDATE batches SET failed_count = failed_count + 1, updated_at = now() WHERE id = ${prior.batch_id}`;
         }
 
-        await tx`
+        const finalized = await tx`
           UPDATE batches
           SET status = CASE WHEN failed_count > 0 THEN 'FAILED' ELSE 'COMPLETED' END,
               completed_at = now(),
@@ -137,7 +147,7 @@ export function createUrlRepository(db: Db, alertOptions: AlertOptions): UrlRepo
             ON CONFLICT (url_id, type) WHERE status <> 'resolved' DO NOTHING
           `;
         }
-        return "applied";
+        return { outcome: "applied", batchFinalized: finalized.count > 0 };
       });
     },
 

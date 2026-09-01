@@ -41,8 +41,8 @@ function job(data: unknown, attemptsMade = 0): Job<UrlCheckJobData> {
 
 function repoWith(over: Partial<UrlRepository>): UrlRepository {
   return {
-    claim: vi.fn(async () => ({ url: "https://a.com" })),
-    persistResult: vi.fn(async () => "applied" as const),
+    claim: vi.fn(async () => ({ url: "https://a.com", batchActivated: false })),
+    persistResult: vi.fn(async () => ({ outcome: "applied" as const, batchFinalized: false })),
     releaseForRetry: vi.fn(async () => "applied" as const),
     recoverStuck: vi.fn(async () => 0),
     ...over,
@@ -62,6 +62,7 @@ function proc(
   checkUrl: (url: string, opts: CheckOptions, onRequest?: () => Promise<void>) => Promise<UrlCheckResult>,
   rateLimiter: { acquire: () => Promise<void> } = passLimiter(),
   concurrency = slotLimiter(),
+  invalidateListCache: () => Promise<void> = vi.fn(async () => {}),
 ) {
   return createUrlCheckProcessor({
     repo,
@@ -70,6 +71,7 @@ function proc(
     concurrency,
     rateLimiter,
     publish: async () => {},
+    invalidateListCache,
     maxAttempts: MAX_ATTEMPTS,
     log: noopLog,
   });
@@ -161,6 +163,32 @@ describe("urlCheckProcessor", () => {
     ).rejects.toThrow("redis down");
     expect(repo.releaseForRetry).toHaveBeenCalledWith(URL_ID);
     expect(concurrency.release).toHaveBeenCalled(); // slot never leaked
+  });
+
+  it("invalidates the batch-list cache when the claim activates the batch", async () => {
+    const repo = repoWith({ claim: vi.fn(async () => ({ url: "https://a.com", batchActivated: true })) });
+    const invalidate = vi.fn(async () => {});
+    await proc(repo, vi.fn(async () => success), passLimiter(), slotLimiter(), invalidate)(
+      job({ batchId: BATCH, urlId: URL_ID }),
+    );
+    expect(invalidate).toHaveBeenCalled();
+  });
+
+  it("invalidates the batch-list cache when the result finalizes the batch", async () => {
+    const repo = repoWith({ persistResult: vi.fn(async () => ({ outcome: "applied" as const, batchFinalized: true })) });
+    const invalidate = vi.fn(async () => {});
+    await proc(repo, vi.fn(async () => success), passLimiter(), slotLimiter(), invalidate)(
+      job({ batchId: BATCH, urlId: URL_ID }),
+    );
+    expect(invalidate).toHaveBeenCalledOnce();
+  });
+
+  it("does not invalidate the cache for a non-terminal, non-activating result", async () => {
+    const invalidate = vi.fn(async () => {});
+    await proc(repoWith({}), vi.fn(async () => success), passLimiter(), slotLimiter(), invalidate)(
+      job({ batchId: BATCH, urlId: URL_ID }),
+    );
+    expect(invalidate).not.toHaveBeenCalled();
   });
 
   it("releases the concurrency slot after a successful check", async () => {
