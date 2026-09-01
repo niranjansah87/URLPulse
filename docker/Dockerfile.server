@@ -22,7 +22,9 @@ COPY packages/types/package.json packages/types/package.json
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 
-# Bring in the source the server processes actually execute.
+# Bring in the source the server processes actually execute. tsx reads each
+# workspace tsconfig, which extends tsconfig.base.json, so it must be present.
+COPY tsconfig.base.json ./
 COPY packages ./packages
 COPY apps/api ./apps/api
 COPY apps/worker ./apps/worker
