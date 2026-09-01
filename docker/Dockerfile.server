@@ -1,0 +1,48 @@
+# Shared production image for the API, worker, and one-shot migrate.
+# The API and worker run TypeScript directly via tsx (the project's real run
+# model - there is no compile step), so the runtime needs the source, the
+# workspace packages, and node_modules. All three services use this image and
+# differ only by the command in docker-compose.
+FROM node:20-alpine AS deps
+
+RUN corepack enable
+WORKDIR /app
+
+# Install with the lockfile against every workspace manifest first, so the
+# dependency layer is cached until a manifest or the lockfile changes.
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/api/package.json apps/api/package.json
+COPY apps/worker/package.json apps/worker/package.json
+COPY apps/web/package.json apps/web/package.json
+COPY packages/config/package.json packages/config/package.json
+COPY packages/outbound/package.json packages/outbound/package.json
+COPY packages/types/package.json packages/types/package.json
+# tsx (a devDependency) is the runtime here, so install the full graph, then
+# drop the pnpm content-addressable store to keep the image smaller.
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
+
+# Bring in the source the server processes actually execute.
+COPY packages ./packages
+COPY apps/api ./apps/api
+COPY apps/worker ./apps/worker
+COPY scripts ./scripts
+
+FROM node:20-alpine AS runner
+ENV NODE_ENV=production
+# Bake pnpm into a world-readable corepack home so the unprivileged runtime user
+# never has to download it at container start.
+ENV COREPACK_HOME=/usr/local/corepack
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+WORKDIR /app
+
+# Run as an unprivileged user (node:20-alpine ships the `node` user/group).
+COPY --from=deps --chown=node:node /app /app
+USER node
+
+# Liveness for the API service; overridden by the healthcheck in compose. The
+# worker (no HTTP surface) and migrate (one-shot) do not use it.
+EXPOSE 4000
+
+# Default command runs the API; compose overrides it for worker and migrate.
+CMD ["pnpm", "--filter", "@urlpulse/api", "start"]

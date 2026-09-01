@@ -39,22 +39,23 @@ A final implementation may also containerize the API, worker, and frontend if th
 
 # 3. Developer Experience (current scaffold)
 
-Infrastructure runs in Docker; application processes run on the host via pnpm for
-fast iteration:
+Application processes run on the host via pnpm for fast iteration. PostgreSQL and
+Redis are provided by you (a local install, a hosted instance, or your own
+containers) and reached via `DATABASE_URL` / `REDIS_URL`:
 
 ```bash
 pnpm install
-cp .env.example .env
-docker compose up -d      # PostgreSQL + Redis
-pnpm db:migrate           # apply SQL migrations
-pnpm dev                  # web + api + worker in parallel
+cp .env.example .env       # set DATABASE_URL and REDIS_URL
+pnpm db:migrate            # apply SQL migrations
+pnpm dev                   # web + api + worker in parallel
 ```
 
 Individual processes: `pnpm dev:web`, `pnpm dev:api`, `pnpm dev:worker`.
 
-The `docker-compose.yml` intentionally provisions only PostgreSQL and Redis. The
-web, API, and worker are not containerized for local development (see §18 and
-ADR-029/ADR-030).
+PostgreSQL and Redis are always external to this repo - there is no bundled
+compose for them. The web, API, and worker are not containerized for local
+development (see §18 and ADR-029/ADR-030). For production containers see
+[deployment.md](./deployment.md).
 
 ---
 
