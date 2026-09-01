@@ -174,7 +174,7 @@ Cancelling a batch transitions it conditionally (only from `PENDING`/`PROCESSING
 
 ## Retry Failed
 
-Retrying a batch atomically claims **only** its `FAILED` URLs back to `PENDING` (resetting attempt counts) and re-enqueues them. Successful URLs are never touched or re-run. The claim is conditional (`WHERE status = 'FAILED'`), so a second concurrent retry finds no rows - idempotent.
+Retrying a batch atomically claims **only** its `FAILED` URLs back to `PENDING` (resetting attempt counts) and re-enqueues them. Successful URLs are never touched or re-run. The claim is conditional (`WHERE status = 'FAILED'`), so a second concurrent retry finds no rows - idempotent. Because a URL's previous BullMQ job is retained and would de-duplicate a same-id re-add, the enqueuer removes any finished job under that id before re-adding, so the retry actually runs (see [`docs/03-backend/retries-and-idempotency.md`](./docs/03-backend/retries-and-idempotency.md) §17).
 
 ## Caching
 
@@ -188,6 +188,19 @@ Deliberate choices (see [`docs/04-frontend/frontend-architecture.md`](./docs/04-
 - **Client Components** own only the live layer - the SSE subscription and optimistic UI - and always reconcile against the server snapshot.
 - **Routing** gives every batch its own URL (`/batches/[id]`) that works cold in a new tab.
 - **Refresh-safe:** UI state is a projection; nothing important lives only in React state.
+
+## SEO / Public Routes
+
+Only the public landing page (`/`) is indexable; the authenticated dashboard is not. This is deliberate: batch pages contain user-submitted URLs and per-user data with no public-search value.
+
+- **Metadata** - `app/layout.tsx` sets `metadataBase`, a title template, description, icons, OG and Twitter cards; the homepage (`app/(marketing)/page.tsx`) sets an absolute title, canonical `/`, `robots: index`, and page-level OG/Twitter. The canonical origin lives in one place (`lib/site.ts`, from `NEXT_PUBLIC_SITE_URL`) so nothing ever emits a wrong host.
+- **noindex** - the `(app)` group layout sets `robots: { index: false }`, so the dashboard, history, alerts, and every `/batches/[id]` page inherit noindex.
+- **`robots.txt`** (`app/robots.ts`) allows `/`, disallows the app and auth routes, and advertises the sitemap absolutely.
+- **`sitemap.xml`** (`app/sitemap.ts`) lists only the landing page with a real (fixed) `lastModified` - no dynamic/private URLs, no fabricated timestamps.
+- **Structured data** - accurate `WebApplication` JSON-LD on the homepage (no fabricated ratings, reviews, or pricing).
+- **Assets** - favicon (svg/ico/png), Apple touch icon, OG image, and a web manifest (`public/site.webmanifest`).
+
+These are idiomatic App Router metadata routes; no custom server routes were added.
 
 ## Horizontal Scaling
 

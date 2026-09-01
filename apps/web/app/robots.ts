@@ -1,15 +1,29 @@
 import type { MetadataRoute } from "next";
-
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://urlpulse.dev";
+import { SITE_URL } from "@/lib/site";
 
 /**
- * Application pages are behind navigation and are not indexable; only marketing/
- * docs-style public routes would be. For now, disallow app routes and expose the
- * sitemap.
+ * Only the public landing page is indexable. Authenticated app routes and the
+ * thin auth pages are disallowed so crawlers do not index private dashboards or
+ * duplicate login/signup screens. The sitemap is advertised absolutely.
  */
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: [{ userAgent: "*", allow: "/", disallow: ["/batches", "/history", "/alerts"] }],
-    sitemap: `${siteUrl}/sitemap.xml`,
+    rules: [
+      {
+        userAgent: "*",
+        allow: "/",
+        disallow: [
+          "/batches",
+          "/history",
+          "/alerts",
+          "/login",
+          "/signup",
+          "/forgot-password",
+          "/reset-password",
+          "/verify-email",
+        ],
+      },
+    ],
+    sitemap: `${SITE_URL}/sitemap.xml`,
   };
 }

@@ -1,6 +1,8 @@
 {
   "name": "URLPulse",
   "short_name": "URLPulse",
+  "id": "/",
+  "start_url": "/",
   "icons": [
     {
       "src": "/icons/web-app-manifest-192x192.png",

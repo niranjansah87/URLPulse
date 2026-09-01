@@ -7,9 +7,8 @@ import { MarketingFooter } from "@/features/marketing/components/MarketingFooter
 import { MarketingNav } from "@/features/marketing/components/MarketingNav";
 import { StartBatchPanel } from "@/features/marketing/components/StartBatchPanel";
 import { Typewriter } from "@/features/marketing/components/Typewriter";
+import { SITE_URL } from "@/lib/site";
 import styles from "@/features/marketing/landing.module.css";
-
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://urlpulse.dev";
 
 export const metadata: Metadata = {
   title: { absolute: "URLPulse | Real-time URL Health Monitoring" },
@@ -19,7 +18,7 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
   openGraph: {
     type: "website",
-    url: siteUrl,
+    url: SITE_URL,
     siteName: "URLPulse",
     title: "URLPulse | Real-time URL Health Monitoring",
     description: "Monitor thousands of URLs in real time with instant status, response time, and page title.",
@@ -53,9 +52,26 @@ const BULLETS = [
   { Icon: Bell, title: "Alerts", text: "Get notified when something breaks." },
 ];
 
+// Accurate WebApplication schema: only fields the product actually has. No
+// fabricated ratings, reviews, or pricing.
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "URLPulse",
+  url: SITE_URL,
+  applicationCategory: "DeveloperApplication",
+  operatingSystem: "Web",
+  description:
+    "Bulk URL health checker: submit URLs or a CSV, check them in the background, and monitor HTTP status, response time, page title, retries, and progress from one dashboard.",
+};
+
 export default function LandingPage() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <MarketingNav />
 
       <main>
