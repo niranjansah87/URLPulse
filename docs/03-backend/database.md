@@ -526,6 +526,34 @@ node-pg-migrate). That is intentionally out of scope here.
 
 ---
 
+# 18.1 Connection Pooling (pgbouncer)
+
+Production points `DATABASE_URL` at a pgbouncer instance in **transaction
+pooling** mode. That mode reuses one server connection across many clients
+between transactions, which imposes two constraints on the postgres.js client
+(`apps/api/src/lib/db.ts`), shared by the API, worker, and migrate runner:
+
+- **`prepare: false`** - named prepared statements do not survive a server
+  connection being handed to another client, so they must be disabled.
+- **No connection-time startup parameters** - pgbouncer rejects `statement_timeout`
+  (and similar) sent at connect time (`FATAL: unsupported startup parameter`).
+
+`statement_timeout` is therefore enforced as a **database default** rather than
+per-connection:
+
+```sql
+ALTER DATABASE urlpulse SET statement_timeout = '30000';
+```
+
+Every new server connection inherits it, so the query-time cap still holds
+without the client sending a startup parameter. `DB_STATEMENT_TIMEOUT_MS`
+documents the intended value. Connecting directly to Postgres (session pooling
+or no pooler) would also accept the startup form, but the shared
+`(API + worker) x DB_POOL_MAX` connection budget is why pgbouncer fronts the
+database.
+
+---
+
 # 19. Database Invariants
 
 The following invariants are important:
