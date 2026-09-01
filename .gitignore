@@ -50,3 +50,4 @@ Thumbs.db
 .vscode/
 /.playwright-mcp
 /graphify-out
+.env.production
