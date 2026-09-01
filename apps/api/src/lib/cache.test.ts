@@ -22,29 +22,49 @@ function memoryRedis(): CacheRedis {
 describe("createBatchListCache", () => {
   it("returns null on a miss and the stored value on a hit", async () => {
     const cache = createBatchListCache(memoryRedis(), 30);
-    expect(await cache.get(USER, query)).toBeNull();
-    await cache.set(USER, query, value);
-    expect(await cache.get(USER, query)).toEqual(value);
+    const miss = await cache.get(USER, query);
+    expect(miss.value).toBeNull();
+    await cache.set(USER, query, value, miss.version);
+    expect((await cache.get(USER, query)).value).toEqual(value);
   });
 
   it("invalidation makes the previously cached page a miss", async () => {
     const cache = createBatchListCache(memoryRedis(), 30);
-    await cache.set(USER, query, value);
+    const read = await cache.get(USER, query);
+    await cache.set(USER, query, value, read.version);
     await cache.invalidate();
-    expect(await cache.get(USER, query)).toBeNull();
+    expect((await cache.get(USER, query)).value).toBeNull();
   });
 
   it("sets the value with the configured TTL", async () => {
     const redis = memoryRedis();
-    await createBatchListCache(redis, 30).set(USER, query, value);
+    const cache = createBatchListCache(redis, 30);
+    const read = await cache.get(USER, query);
+    await cache.set(USER, query, value, read.version);
     expect(redis.set).toHaveBeenCalledWith(expect.any(String), expect.any(String), "EX", 30);
   });
 
   it("does not serve one user's cached page to another user", async () => {
     const cache = createBatchListCache(memoryRedis(), 30);
-    await cache.set(USER, query, value);
-    expect(await cache.get("other-user", query)).toBeNull();
-    expect(await cache.get(USER, query)).toEqual(value);
+    const read = await cache.get(USER, query);
+    await cache.set(USER, query, value, read.version);
+    expect((await cache.get("other-user", query)).value).toBeNull();
+    expect((await cache.get(USER, query)).value).toEqual(value);
+  });
+
+  it("does not mask an invalidation that races the read (writes under the read's version)", async () => {
+    const cache = createBatchListCache(memoryRedis(), 30);
+    const read = await cache.get(USER, query); // miss at version 0
+    await cache.invalidate(); // version -> 1, between the read and the write
+    await cache.set(USER, query, value, read.version); // must land under the orphaned version 0
+    expect((await cache.get(USER, query)).value).toBeNull(); // read at version 1 stays a miss
+  });
+
+  it("skips caching when the read could not observe a version (null)", async () => {
+    const redis = memoryRedis();
+    const cache = createBatchListCache(redis, 30);
+    await cache.set(USER, query, value, null);
+    expect(redis.set).not.toHaveBeenCalled();
   });
 
   it("degrades to a miss when Redis fails (never throws)", async () => {
@@ -60,8 +80,8 @@ describe("createBatchListCache", () => {
       }),
     };
     const cache = createBatchListCache(redis, 30);
-    await expect(cache.get(USER, query)).resolves.toBeNull();
-    await expect(cache.set(USER, query, value)).resolves.toBeUndefined();
+    await expect(cache.get(USER, query)).resolves.toEqual({ value: null, version: null });
+    await expect(cache.set(USER, query, value, "0")).resolves.toBeUndefined();
     await expect(cache.invalidate()).resolves.toBeUndefined();
   });
 });

@@ -1,8 +1,13 @@
 import type { MetadataRoute } from "next";
+import { SITE_URL } from "@/lib/site";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://urlpulse.dev";
+// Fixed release date of the public landing page. A real timestamp, not
+// new Date() per request/build, so lastModified reflects actual content change.
+const LANDING_LAST_MODIFIED = new Date("2026-09-01");
 
 /** Only public/indexable routes belong here - not authenticated app pages. */
 export default function sitemap(): MetadataRoute.Sitemap {
-  return [{ url: siteUrl, lastModified: new Date(), changeFrequency: "monthly", priority: 1 }];
+  return [
+    { url: SITE_URL, lastModified: LANDING_LAST_MODIFIED, changeFrequency: "monthly", priority: 1 },
+  ];
 }

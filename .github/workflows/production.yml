@@ -1,0 +1,308 @@
+name: Production Deploy
+
+# Push to `prod` is the single production trigger. CI (lint/typecheck/test) and a
+# Docker build gate the deploy; deploy is followed by a real health check, a
+# non-destructive smoke test, and a Discord notification that always runs.
+on:
+  push:
+    branches: [prod]
+  workflow_dispatch: {}
+
+# Never run two production deploys at once, and never cancel one mid-flight —
+# a half-applied deploy is worse than a queued one.
+concurrency:
+  group: urlpulse-production
+  cancel-in-progress: false
+
+# Least privilege: the workflow only reads the repo. Deploy happens over SSH with
+# scoped secrets, not the GITHUB_TOKEN.
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "20"
+  PRODUCTION_URL: https://urlpulse.niranjansah87.com.np
+  # Browser-exposed, non-secret build args (already inlined into the client
+  # bundle at build time). Real runtime secrets stay on the server in
+  # .env.production and are never referenced here.
+  NEXT_PUBLIC_API_URL: https://urlpulse.niranjansah87.com.np/api
+  NEXT_PUBLIC_SITE_URL: https://urlpulse.niranjansah87.com.np
+
+jobs:
+  # ── CI ──────────────────────────────────────────────────────────────────────
+  # Lint, typecheck, and the full workspace test suite. PostgreSQL + Redis service
+  # containers let the *.integration.test.ts specs run for real instead of
+  # self-skipping, so the DB/queue paths are actually exercised before deploy.
+  ci:
+    name: CI (lint · typecheck · test)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: urlpulse
+          POSTGRES_PASSWORD: urlpulse
+          POSTGRES_DB: urlpulse
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U urlpulse"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4 # version comes from package.json "packageManager"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Apply migrations (test database)
+        run: pnpm --filter @urlpulse/api migrate
+        env:
+          DATABASE_URL: postgresql://urlpulse:urlpulse@localhost:5432/urlpulse
+
+      - name: Test
+        run: pnpm -r --workspace-concurrency=1 test
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://urlpulse:urlpulse@localhost:5432/urlpulse
+          REDIS_URL: redis://localhost:6379
+          BETTER_AUTH_SECRET: ci-test-secret-not-used-in-prod
+
+  # ── Build ───────────────────────────────────────────────────────────────────
+  # Build the exact production images deployment will build, so an image that
+  # cannot be built fails the pipeline here, not on the server. No push, no
+  # secrets baked in — only public NEXT_PUBLIC_* build args.
+  build:
+    name: Build images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build server image (api + worker + migrate)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.server
+          push: false
+          load: false
+          tags: urlpulse-server:ci
+          cache-from: type=gha,scope=server
+          cache-to: type=gha,scope=server,mode=max
+
+      - name: Build web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.web
+          push: false
+          load: false
+          tags: urlpulse-web:ci
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ env.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_SITE_URL=${{ env.NEXT_PUBLIC_SITE_URL }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+
+  # ── Deploy ──────────────────────────────────────────────────────────────────
+  # SSH to the production host and deploy the exact triggering commit (github.sha),
+  # not an uncontrolled pull. The heavy lifting (build, up, health-gate, prune)
+  # lives in scripts/ci/remote-deploy.sh, versioned with the commit it deploys.
+  deploy:
+    name: Deploy
+    needs: [ci, build]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Configure SSH
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          PROD_SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
+          PROD_SSH_KNOWN_HOSTS: ${{ secrets.PROD_SSH_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$PROD_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          PORT="${PROD_SSH_PORT:-22}"
+          # Prefer a pinned host key (PROD_SSH_KNOWN_HOSTS) for strict verification.
+          # Fall back to ssh-keyscan (trust-on-first-use) if it is not provided.
+          if [ -n "${PROD_SSH_KNOWN_HOSTS:-}" ]; then
+            printf '%s\n' "$PROD_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "$PORT" -H "$PROD_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Deploy commit ${{ github.sha }}
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+          PROD_SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
+          PROD_DEPLOY_DIR: ${{ secrets.PROD_DEPLOY_DIR }}
+        run: |
+          set -euo pipefail
+          PORT="${PROD_SSH_PORT:-22}"
+          ssh -i ~/.ssh/deploy_key -p "$PORT" \
+            -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            "$PROD_USER@$PROD_HOST" \
+            bash -s -- "${{ github.sha }}" "$PROD_DEPLOY_DIR" <<'REMOTE'
+          set -euo pipefail
+          SHA="$1"
+          DIR="${2:-$HOME/URLPulse}"
+          export DEPLOY_DIR="$DIR"
+          cd "$DIR"
+          # Materialize the exact commit (brings in the matching remote-deploy.sh),
+          # then hand off to it for the authoritative build/up/health-gate.
+          git fetch --prune origin
+          git checkout -f -B prod "$SHA"
+          bash scripts/ci/remote-deploy.sh "$SHA"
+          REMOTE
+
+  # ── Health check ────────────────────────────────────────────────────────────
+  # Poll the public HTTPS endpoints (through nginx → containers) with retries.
+  # On failure, pull container status + logs over SSH so the run is diagnosable.
+  health-check:
+    name: Health check
+    needs: deploy
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe public endpoints
+        run: bash scripts/ci/health-check.sh "$PRODUCTION_URL"
+
+      - name: Collect diagnostics (on failure)
+        if: failure()
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          PROD_SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
+          PROD_SSH_KNOWN_HOSTS: ${{ secrets.PROD_SSH_KNOWN_HOSTS }}
+          PROD_DEPLOY_DIR: ${{ secrets.PROD_DEPLOY_DIR }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$PROD_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          PORT="${PROD_SSH_PORT:-22}"
+          if [ -n "${PROD_SSH_KNOWN_HOSTS:-}" ]; then
+            printf '%s\n' "$PROD_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "$PORT" -H "$PROD_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          fi
+          chmod 644 ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key -p "$PORT" \
+            -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            "$PROD_USER@$PROD_HOST" \
+            bash -s -- "$PROD_DEPLOY_DIR" <<'REMOTE'
+          DIR="${1:-$HOME/URLPulse}"
+          cd "$DIR" || exit 0
+          dc() { docker compose --env-file .env.production -f docker-compose.prod.yml "$@"; }
+          echo "=== docker compose ps ==="; dc ps || true
+          echo "=== last 100 log lines (api web worker) ==="; dc logs --tail=100 api web worker || true
+          REMOTE
+
+  # ── Smoke test ──────────────────────────────────────────────────────────────
+  # Critical-path verification beyond "HTTP 200": SPA renders, API answers,
+  # DB + Redis reachable end-to-end, auth boundary enforced. Non-destructive.
+  smoke-test:
+    name: Smoke test
+    needs: health-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run smoke tests
+        run: bash scripts/ci/smoke-test.sh "$PRODUCTION_URL"
+
+  # ── Notify ──────────────────────────────────────────────────────────────────
+  # Always runs. Reports the true per-stage result to Discord and the run summary.
+  notify:
+    name: Notify Discord
+    needs: [ci, build, deploy, health-check, smoke-test]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Send Discord notification and write summary
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          CI_RESULT: ${{ needs.ci.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          DEPLOY_RESULT: ${{ needs.deploy.result }}
+          HEALTH_RESULT: ${{ needs.health-check.result }}
+          SMOKE_RESULT: ${{ needs.smoke-test.result }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          icon() { case "$1" in
+            success) echo "✅";; failure) echo "❌";; skipped) echo "⏭️";;
+            cancelled) echo "🚫";; *) echo "❔";; esac; }
+
+          # Overall success requires every gating stage to have succeeded.
+          if [ "$CI_RESULT" = success ] && [ "$BUILD_RESULT" = success ] \
+             && [ "$DEPLOY_RESULT" = success ] && [ "$HEALTH_RESULT" = success ] \
+             && [ "$SMOKE_RESULT" = success ]; then
+            STATUS="SUCCESS"; EMOJI="🚀"; COLOR=3066993
+          else
+            STATUS="FAILED"; EMOJI="🚨"; COLOR=15158332
+          fi
+
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+
+          # GitHub Actions run summary.
+          {
+            echo "## $EMOJI URLPulse Production Deployment — $STATUS"
+            echo ""
+            echo "| Stage | Result |"
+            echo "|-------|--------|"
+            echo "| CI          | $(icon "$CI_RESULT") $CI_RESULT |"
+            echo "| Build       | $(icon "$BUILD_RESULT") $BUILD_RESULT |"
+            echo "| Deploy      | $(icon "$DEPLOY_RESULT") $DEPLOY_RESULT |"
+            echo "| Health      | $(icon "$HEALTH_RESULT") $HEALTH_RESULT |"
+            echo "| Smoke test  | $(icon "$SMOKE_RESULT") $SMOKE_RESULT |"
+            echo ""
+            echo "Commit \`$SHORT_SHA\` on \`${GITHUB_REF_NAME}\` · [$PRODUCTION_URL]($PRODUCTION_URL)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Discord (skip cleanly if the webhook is not configured).
+          if [ -z "${DISCORD_WEBHOOK_URL:-}" ]; then
+            echo "DISCORD_WEBHOOK_URL not set; skipping Discord notification."
+            exit 0
+          fi
+
+          DESC=$(printf '**Branch:** %s\n**Commit:** \`%s\`\n**Message:** %s\n\nCI: %s\nBuild: %s\nDeploy: %s\nHealth: %s\nSmoke Test: %s\n\n[View run](%s) · [Production](%s)' \
+            "$GITHUB_REF_NAME" "$SHORT_SHA" "${COMMIT_MESSAGE:-—}" \
+            "$(icon "$CI_RESULT")" "$(icon "$BUILD_RESULT")" "$(icon "$DEPLOY_RESULT")" \
+            "$(icon "$HEALTH_RESULT")" "$(icon "$SMOKE_RESULT")" \
+            "$RUN_URL" "$PRODUCTION_URL")
+
+          # jq builds valid JSON and safely escapes the commit message.
+          jq -n --arg title "$EMOJI URLPulse Production Deployment — $STATUS" \
+                --arg desc "$DESC" --argjson color "$COLOR" \
+                '{embeds: [{title: $title, description: $desc, color: $color}]}' \
+            | curl -fsS -X POST -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK_URL"

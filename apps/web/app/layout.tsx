@@ -2,12 +2,11 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Toaster } from "sonner";
 import { ToastProvider } from "@/components/ui/Toast";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://urlpulse.dev";
-
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "URLPulse | URL Health Monitoring",
     template: "%s | URLPulse",
@@ -30,7 +29,7 @@ export const metadata: Metadata = {
     siteName: "URLPulse",
     title: "URLPulse | URL Health Monitoring",
     description: "Reliable background URL health checking with real-time progress.",
-    url: siteUrl,
+    url: SITE_URL,
     images: [{ url: "/og/urlpulse-og.png", width: 1200, height: 630, alt: "URLPulse" }],
   },
   twitter: {

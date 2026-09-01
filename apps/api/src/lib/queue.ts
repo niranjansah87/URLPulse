@@ -28,12 +28,20 @@ export function createUrlCheckQueue(connection: Redis): UrlCheckQueue {
 }
 
 /**
- * Enqueue one URL-check job. The BullMQ job id is the URL id, which makes
- * enqueueing idempotent: a duplicate add (e.g. from the reconciliation sweep,
- * ADR-028) for a URL whose job still exists is ignored rather than creating a
- * second logical job. Full duplicate-execution safety is the worker's job in a
- * later milestone; this only guarantees stable job identity.
+ * Enqueue one URL-check job. The BullMQ job id is the URL id, giving each URL a
+ * stable identity so concurrent enqueues converge on a single logical job.
+ *
+ * A URL can legitimately be re-enqueued after its previous job already finished:
+ * retry-failed (ADR-024) and the reconciliation sweep (ADR-028) both re-add by
+ * URL id. BullMQ de-duplicates by jobId AND retains finished jobs
+ * (removeOnComplete/removeOnFail above), so a plain re-add for a still-retained
+ * job id is a silent no-op - the URL would be reset to PENDING in PostgreSQL but
+ * never actually reprocessed, wedging the batch in PROCESSING. So remove any
+ * existing job under this id first. It is best-effort: a lock error means a job
+ * is actively running under this id, in which case the add below correctly
+ * de-dups and we must NOT create a second concurrent run.
  */
 export async function enqueueUrlCheck(queue: UrlCheckQueue, data: UrlCheckJobData): Promise<void> {
+  await queue.remove(data.urlId).catch(() => {});
   await queue.add(URL_CHECK_JOB, data, { jobId: data.urlId });
 }

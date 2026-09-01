@@ -174,7 +174,7 @@ Cancelling a batch transitions it conditionally (only from `PENDING`/`PROCESSING
 
 ## Retry Failed
 
-Retrying a batch atomically claims **only** its `FAILED` URLs back to `PENDING` (resetting attempt counts) and re-enqueues them. Successful URLs are never touched or re-run. The claim is conditional (`WHERE status = 'FAILED'`), so a second concurrent retry finds no rows - idempotent.
+Retrying a batch atomically claims **only** its `FAILED` URLs back to `PENDING` (resetting attempt counts) and re-enqueues them. Successful URLs are never touched or re-run. The claim is conditional (`WHERE status = 'FAILED'`), so a second concurrent retry finds no rows - idempotent. Because a URL's previous BullMQ job is retained and would de-duplicate a same-id re-add, the enqueuer removes any finished job under that id before re-adding, so the retry actually runs (see [`docs/03-backend/retries-and-idempotency.md`](./docs/03-backend/retries-and-idempotency.md) §17).
 
 ## Caching
 
@@ -188,6 +188,19 @@ Deliberate choices (see [`docs/04-frontend/frontend-architecture.md`](./docs/04-
 - **Client Components** own only the live layer - the SSE subscription and optimistic UI - and always reconcile against the server snapshot.
 - **Routing** gives every batch its own URL (`/batches/[id]`) that works cold in a new tab.
 - **Refresh-safe:** UI state is a projection; nothing important lives only in React state.
+
+## SEO / Public Routes
+
+Only the public landing page (`/`) is indexable; the authenticated dashboard is not. This is deliberate: batch pages contain user-submitted URLs and per-user data with no public-search value.
+
+- **Metadata** - `app/layout.tsx` sets `metadataBase`, a title template, description, icons, OG and Twitter cards; the homepage (`app/(marketing)/page.tsx`) sets an absolute title, canonical `/`, `robots: index`, and page-level OG/Twitter. The canonical origin lives in one place (`lib/site.ts`, from `NEXT_PUBLIC_SITE_URL`) so nothing ever emits a wrong host.
+- **noindex** - the `(app)` group layout sets `robots: { index: false }`, so the dashboard, history, alerts, and every `/batches/[id]` page inherit noindex.
+- **`robots.txt`** (`app/robots.ts`) allows `/`, disallows the app and auth routes, and advertises the sitemap absolutely.
+- **`sitemap.xml`** (`app/sitemap.ts`) lists only the landing page with a real (fixed) `lastModified` - no dynamic/private URLs, no fabricated timestamps.
+- **Structured data** - accurate `WebApplication` JSON-LD on the homepage (no fabricated ratings, reviews, or pricing).
+- **Assets** - favicon (svg/ico/png), Apple touch icon, OG image, and a web manifest (`public/site.webmanifest`).
+
+These are idiomatic App Router metadata routes; no custom server routes were added.
 
 ## Horizontal Scaling
 
@@ -252,7 +265,7 @@ URLPulse makes outbound HTTP requests to user-supplied URLs, so **SSRF is a prim
 - **Observability** - structured metrics and tracing (OpenTelemetry) around the rate limiter and queue depth, rather than the current log lines.
 - **Cache invalidation granularity** - per-user targeted invalidation instead of clearing the batch-list cache wholesale.
 - **Worker shutdown** - drain in-flight checks on `SIGTERM` before exit rather than relying solely on lease/reconciliation recovery.
-- **Deploy pipeline** - production container images and Nginx config now ship (see Deployment below); a CI build/push pipeline remains future work.
+- **Registry-based deploys** - CI now builds, tests, and deploys on push to `prod` (see CI/CD below); building images on the server could move to a pushed registry image for faster, more atomic rollouts.
 
 ## Assumptions
 
@@ -281,6 +294,73 @@ proxying, and horizontal-scaling notes:
 cp .env.production.example .env.production   # fill in real values
 ./scripts/deploy.sh                          # preflight → nginx → build → up → health-check
 ```
+
+`scripts/deploy.sh` is the one-time host bootstrap (Nginx, TLS/certbot, first
+boot). Ongoing releases go through CI/CD below.
+
+## CI/CD
+
+Pushing to the **`prod`** branch runs `.github/workflows/production.yml`. The
+pipeline is staged with explicit `needs` dependencies; a production release is
+considered successful only when **every** gate passes:
+
+```text
+push to prod
+   ↓
+CI            lint · typecheck · test (PostgreSQL + Redis service containers)
+   ↓          build (Docker images: server + web) — runs in parallel with CI
+Deploy        SSH to host, deploy the exact commit (github.sha), build + up -d
+   ↓
+Health check  poll https://urlpulse.niranjansah87.com.np with retries
+   ↓
+Smoke test    critical-path checks (SPA renders, API + DB + Redis, auth boundary)
+   ↓
+Discord       success/failure notification (always runs, reports the true result)
+```
+
+**Why this shape.** CI and Build gate Deploy, so broken code or an unbuildable
+image never reaches the server. Deploy checks out the exact triggering commit
+(`git reset --hard <github.sha>`) rather than an uncontrolled `git pull`, so what
+CI validated is what ships. A workflow-level `concurrency` group
+(`urlpulse-production`, `cancel-in-progress: false`) serializes deploys so two
+never race. The **health check** answers "is it up?" (shallow, retried, tolerant
+of container startup); the **smoke test** answers "does the critical path work?"
+(the SPA renders, the API answers, PostgreSQL + Redis are reachable end-to-end
+via `/api/health/ready`, and an unauthenticated protected call is rejected) — all
+non-destructive. On the server, the one-shot `migrate` service runs first
+(api/worker wait on it), migrations are idempotent, and external PostgreSQL/Redis
+are never touched.
+
+**Required GitHub Secrets** (Settings → Secrets and variables → Actions; the
+`PROD_*` set is scoped to the `production` environment):
+
+```text
+PROD_HOST              # production host (do not commit; used for SSH)
+PROD_USER              # SSH user (e.g. the deploy account)
+PROD_SSH_KEY           # private SSH key with access to the deploy user
+PROD_SSH_PORT          # optional — defaults to 22
+PROD_SSH_KNOWN_HOSTS   # optional — pinned host key for strict verification
+PROD_DEPLOY_DIR        # optional — defaults to $HOME/URLPulse on the server
+DISCORD_WEBHOOK_URL    # Discord incoming webhook for deploy notifications
+```
+
+Runtime secrets (`DATABASE_URL`, `REDIS_URL`, `BETTER_AUTH_SECRET`,
+`RESEND_API_KEY`, …) are **not** GitHub secrets — they live only in
+`~/URLPulse/.env.production` on the server and are never passed through CI or
+baked into an image. Only the non-secret `NEXT_PUBLIC_*` build args (already
+inlined into the browser bundle) appear in the workflow.
+
+**Rollback.** Deploys are Git-commit driven and the previous image is kept on the
+host (`docker image prune` never uses `-a`). To roll back, reset the `prod`
+branch to the last good commit and re-push — the pipeline redeploys that commit.
+The previous commit SHA is logged in the deploy output and the Discord message.
+There is no automatic rollback: it would need image tagging + a compose override,
+which is disproportionate for this single-host Docker deployment.
+
+**Host bootstrap** (Nginx site, TLS certificate) remains a one-time
+`scripts/deploy.sh` task; CI/CD deliberately does not re-run it. Deploy scripts:
+`scripts/ci/remote-deploy.sh` (on the host), `scripts/ci/health-check.sh` and
+`scripts/ci/smoke-test.sh` (on the runner).
 
 ## Documentation
 
