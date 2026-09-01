@@ -16,7 +16,7 @@
 
 ## Overview
 
-URLPulse lets you submit a collection of URLs — pasted directly or uploaded as CSV — and checks each one independently in the background while streaming progress and results to the browser in real time.
+URLPulse lets you submit a collection of URLs - pasted directly or uploaded as CSV - and checks each one independently in the background while streaming progress and results to the browser in real time.
 
 For every URL, URLPulse records the final **HTTP status code**, **response time**, **page title** (when available), and its **success / failure state**. Each URL is processed as its own background job, so large batches never block the API and individual URLs can succeed, fail, retry, or be cancelled independently.
 
@@ -305,4 +305,4 @@ URLPulse/
 
 ## Author
 
-**Niranjan Sah** — [niranjansah87.com.np](https://niranjansah87.com.np/) · [github.com/niranjansah87](https://github.com/niranjansah87)
+**Niranjan Sah** - [niranjansah87.com.np](https://niranjansah87.com.np/) · [github.com/niranjansah87](https://github.com/niranjansah87)
