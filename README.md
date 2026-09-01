@@ -265,7 +265,7 @@ URLPulse makes outbound HTTP requests to user-supplied URLs, so **SSRF is a prim
 - **Observability** - structured metrics and tracing (OpenTelemetry) around the rate limiter and queue depth, rather than the current log lines.
 - **Cache invalidation granularity** - per-user targeted invalidation instead of clearing the batch-list cache wholesale.
 - **Worker shutdown** - drain in-flight checks on `SIGTERM` before exit rather than relying solely on lease/reconciliation recovery.
-- **Deploy pipeline** - production container images and Nginx config now ship (see Deployment below); a CI build/push pipeline remains future work.
+- **Registry-based deploys** - CI now builds, tests, and deploys on push to `prod` (see CI/CD below); building images on the server could move to a pushed registry image for faster, more atomic rollouts.
 
 ## Assumptions
 
@@ -294,6 +294,73 @@ proxying, and horizontal-scaling notes:
 cp .env.production.example .env.production   # fill in real values
 ./scripts/deploy.sh                          # preflight → nginx → build → up → health-check
 ```
+
+`scripts/deploy.sh` is the one-time host bootstrap (Nginx, TLS/certbot, first
+boot). Ongoing releases go through CI/CD below.
+
+## CI/CD
+
+Pushing to the **`prod`** branch runs `.github/workflows/production.yml`. The
+pipeline is staged with explicit `needs` dependencies; a production release is
+considered successful only when **every** gate passes:
+
+```text
+push to prod
+   ↓
+CI            lint · typecheck · test (PostgreSQL + Redis service containers)
+   ↓          build (Docker images: server + web) — runs in parallel with CI
+Deploy        SSH to host, deploy the exact commit (github.sha), build + up -d
+   ↓
+Health check  poll https://urlpulse.niranjansah87.com.np with retries
+   ↓
+Smoke test    critical-path checks (SPA renders, API + DB + Redis, auth boundary)
+   ↓
+Discord       success/failure notification (always runs, reports the true result)
+```
+
+**Why this shape.** CI and Build gate Deploy, so broken code or an unbuildable
+image never reaches the server. Deploy checks out the exact triggering commit
+(`git reset --hard <github.sha>`) rather than an uncontrolled `git pull`, so what
+CI validated is what ships. A workflow-level `concurrency` group
+(`urlpulse-production`, `cancel-in-progress: false`) serializes deploys so two
+never race. The **health check** answers "is it up?" (shallow, retried, tolerant
+of container startup); the **smoke test** answers "does the critical path work?"
+(the SPA renders, the API answers, PostgreSQL + Redis are reachable end-to-end
+via `/api/health/ready`, and an unauthenticated protected call is rejected) — all
+non-destructive. On the server, the one-shot `migrate` service runs first
+(api/worker wait on it), migrations are idempotent, and external PostgreSQL/Redis
+are never touched.
+
+**Required GitHub Secrets** (Settings → Secrets and variables → Actions; the
+`PROD_*` set is scoped to the `production` environment):
+
+```text
+PROD_HOST              # production host (do not commit; used for SSH)
+PROD_USER              # SSH user (e.g. the deploy account)
+PROD_SSH_KEY           # private SSH key with access to the deploy user
+PROD_SSH_PORT          # optional — defaults to 22
+PROD_SSH_KNOWN_HOSTS   # optional — pinned host key for strict verification
+PROD_DEPLOY_DIR        # optional — defaults to $HOME/URLPulse on the server
+DISCORD_WEBHOOK_URL    # Discord incoming webhook for deploy notifications
+```
+
+Runtime secrets (`DATABASE_URL`, `REDIS_URL`, `BETTER_AUTH_SECRET`,
+`RESEND_API_KEY`, …) are **not** GitHub secrets — they live only in
+`~/URLPulse/.env.production` on the server and are never passed through CI or
+baked into an image. Only the non-secret `NEXT_PUBLIC_*` build args (already
+inlined into the browser bundle) appear in the workflow.
+
+**Rollback.** Deploys are Git-commit driven and the previous image is kept on the
+host (`docker image prune` never uses `-a`). To roll back, reset the `prod`
+branch to the last good commit and re-push — the pipeline redeploys that commit.
+The previous commit SHA is logged in the deploy output and the Discord message.
+There is no automatic rollback: it would need image tagging + a compose override,
+which is disproportionate for this single-host Docker deployment.
+
+**Host bootstrap** (Nginx site, TLS certificate) remains a one-time
+`scripts/deploy.sh` task; CI/CD deliberately does not re-run it. Deploy scripts:
+`scripts/ci/remote-deploy.sh` (on the host), `scripts/ci/health-check.sh` and
+`scripts/ci/smoke-test.sh` (on the runner).
 
 ## Documentation
 
