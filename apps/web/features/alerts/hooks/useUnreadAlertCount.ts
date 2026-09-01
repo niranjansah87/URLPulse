@@ -9,6 +9,13 @@ import { api } from "@/lib/api";
 const POLL_MS = 60_000;
 
 /**
+ * Dispatched on `window` after an alert is acknowledged/resolved so the header
+ * bell (a separate hook instance from the Alerts page) refetches its unread count
+ * immediately, instead of waiting for the next poll/route change.
+ */
+export const ALERTS_CHANGED_EVENT = "urlpulse:alerts-changed";
+
+/**
  * Unread (new) alert count for the header bell, from the authoritative counts
  * endpoint. The header lives in the persistent app layout, so a once-on-mount
  * fetch would go stale as alerts are raised or acknowledged. Instead it refreshes
@@ -34,10 +41,12 @@ export function useUnreadAlertCount(): number {
     const onFocus = () => void fetchCount();
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onFocus);
+    window.addEventListener(ALERTS_CHANGED_EVENT, onFocus);
     const timer = setInterval(() => void fetchCount(), POLL_MS);
     return () => {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onFocus);
+      window.removeEventListener(ALERTS_CHANGED_EVENT, onFocus);
       clearInterval(timer);
     };
   }, [fetchCount]);

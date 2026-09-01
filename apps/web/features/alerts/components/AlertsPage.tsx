@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SearchInput } from "@/components/ui/SearchInput";
-import { NotificationBell } from "@/components/ui/NotificationBell";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { Card, SectionHeader } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/Badge";
@@ -125,7 +124,6 @@ export function AlertsPage() {
               leftIcon={<Filter size={16} />}
               items={TABS.map((t) => ({ label: t.label, onSelect: () => selectTab(t.value) }))}
             />
-            <NotificationBell />
           </>
         }
       />
