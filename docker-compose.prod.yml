@@ -1,0 +1,95 @@
+# Production deployment for urlpulse.niranjansah87.com.np.
+#
+# Containers (this file):   web (Next.js)  ·  api (Fastify)  ·  worker (BullMQ)  ·  migrate (one-shot)
+# EXTERNAL (never in here):  PostgreSQL  ·  Redis  ·  Nginx
+#   - PostgreSQL / Redis: reached via DATABASE_URL / REDIS_URL.
+#   - Nginx: installed on the host, terminates TLS, and reverse-proxies to the
+#     loopback-published web (127.0.0.1:3000) and api (127.0.0.1:4000) ports.
+#     See nginx/ for the reference config and scripts/deploy.sh for the flow.
+#
+# Usage (or just run scripts/deploy.sh):
+#   cp .env.production.example .env.production   # then fill in real values
+#   docker compose --env-file .env.production -f docker-compose.prod.yml build
+#   docker compose --env-file .env.production -f docker-compose.prod.yml up -d
+#
+# `--env-file` feeds the NEXT_PUBLIC_* build args (interpolation); `env_file:`
+# on each service feeds runtime environment.
+
+services:
+  # One-shot: apply SQL migrations against the external PostgreSQL, then exit.
+  # api/worker wait for it to succeed, so concurrent replicas never race on the
+  # schema. The migration runner is idempotent, so re-runs are a no-op.
+  migrate:
+    image: urlpulse-server:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.server
+    command: ["pnpm", "--filter", "@urlpulse/api", "migrate"]
+    env_file: [.env.production]
+    networks: [urlpulse]
+    restart: "no"
+
+  api:
+    image: urlpulse-server:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.server
+    command: ["pnpm", "--filter", "@urlpulse/api", "start"]
+    env_file: [.env.production]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    # Published on loopback only, for the host-installed Nginx.
+    ports:
+      - "127.0.0.1:4000:4000"
+    networks: [urlpulse]
+    restart: unless-stopped
+    healthcheck:
+      # Liveness only (no external deps), matching /health's contract.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  worker:
+    image: urlpulse-server:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.server
+    command: ["pnpm", "--filter", "@urlpulse/worker", "start"]
+    env_file: [.env.production]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks: [urlpulse]
+    restart: unless-stopped
+    # No healthcheck: the worker has no HTTP surface, and a check that always
+    # returns 0 would be fake. Docker restarts it if the process exits; a hung
+    # worker is caught by the API reconciliation sweep reclaiming stuck URLs.
+
+  web:
+    image: urlpulse-web:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+    env_file: [.env.production]
+    depends_on: [api]
+    # Published on loopback only, for the host-installed Nginx.
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks: [urlpulse]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+networks:
+  urlpulse:
+    driver: bridge

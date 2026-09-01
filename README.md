@@ -213,10 +213,11 @@ pnpm dev:web          # Next.js only
 pnpm dev              # all three in parallel (no pre-flight checks/migrations)
 ```
 
-Optional local infrastructure via Docker Compose (PostgreSQL + Redis):
+PostgreSQL and Redis are external to this repo - point `DATABASE_URL` and
+`REDIS_URL` at your own instances (local install or hosted), then apply
+migrations:
 
 ```bash
-docker compose up -d
 pnpm db:migrate
 ```
 
@@ -251,7 +252,7 @@ URLPulse makes outbound HTTP requests to user-supplied URLs, so **SSRF is a prim
 - **Observability** - structured metrics and tracing (OpenTelemetry) around the rate limiter and queue depth, rather than the current log lines.
 - **Cache invalidation granularity** - per-user targeted invalidation instead of clearing the batch-list cache wholesale.
 - **Worker shutdown** - drain in-flight checks on `SIGTERM` before exit rather than relying solely on lease/reconciliation recovery.
-- **Deployment infrastructure** - container images and a deploy pipeline (intentionally out of scope; the app runs without Docker).
+- **Deploy pipeline** - production container images and Nginx config now ship (see Deployment below); a CI build/push pipeline remains future work.
 
 ## Assumptions
 
@@ -259,10 +260,27 @@ Where the brief was ambiguous:
 
 - **Authentication is in scope** because batches are per-user; minimal email/password auth via Better Auth with PostgreSQL-backed sessions. Ownership is enforced at the data boundary.
 - **Redis may be hosted/remote**; the launcher and app support `redis://` and `rediss://` with credentials.
-- **Docker is optional**, not required - `docker-compose.yml` is a convenience for local PostgreSQL + Redis only.
+- **PostgreSQL and Redis are external** in every environment - point `DATABASE_URL` / `REDIS_URL` at your own instances (local install or hosted). There is no bundled database/cache. Production uses `docker-compose.prod.yml` (web + api + worker; PostgreSQL, Redis, and Nginx external) - see Deployment.
 - **"Transient" failures** eligible for retry are timeouts, connection errors, and 5xx responses; 4xx and invalid/blocked URLs are permanent.
 - **CSV parsing** extracts URLs leniently: blank rows are skipped, malformed rows are reported, and duplicates within a batch collapse by `jobId`.
 
+
+## Deployment
+
+Production runs three containers - **web, api, worker** (+ a one-shot migrate) -
+with **PostgreSQL, Redis, and Nginx hosted externally** (never in the compose
+file). A **host-installed Nginx** terminates TLS for `urlpulse.niranjansah87.com.np`
+and serves the frontend and API from one origin (`/api/*` -> Fastify, everything
+else -> Next.js), proxying to the containers' loopback ports (3000 / 4000).
+`scripts/deploy.sh` runs the whole flow with a preflight checklist. Full guide -
+environment variables, migration procedure, TLS/certbot, host-Nginx config, SSE
+proxying, and horizontal-scaling notes:
+[`docs/05-infrastructure/deployment.md`](./docs/05-infrastructure/deployment.md).
+
+```bash
+cp .env.production.example .env.production   # fill in real values
+./scripts/deploy.sh                          # preflight → nginx → build → up → health-check
+```
 
 ## Documentation
 
@@ -284,11 +302,15 @@ URLPulse/
 │   ├── start.mjs         # Cross-platform one-command launcher
 │   ├── start.sh          # Linux/macOS wrapper
 │   ├── start.ps1         # Windows PowerShell wrapper
+│   ├── deploy.sh         # One-shot production deploy (preflight → nginx → docker → health)
 │   └── with-env.mjs      # Loads .env, then runs a command (used by `pnpm test`)
+├── docker/               # Production Dockerfiles (server = api/worker/migrate; web)
+├── nginx/                # Reference host-Nginx config (TLS, /api proxy, SSE)
 ├── docs/                 # Product, architecture, backend, frontend, infra, quality
 ├── public/               # Canonical brand assets
-├── docker-compose.yml    # Optional local PostgreSQL + Redis
-└── .env.example
+├── docker-compose.prod.yml  # Production: web + api + worker (external PG/Redis/Nginx)
+├── .env.example
+└── .env.production.example
 ```
 
 ## License

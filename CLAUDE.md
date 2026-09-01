@@ -310,7 +310,9 @@ packages/config   Server env loading/validation, server-only (@urlpulse/config)
 packages/outbound Global Redis rate limiter + SSRF guard (@urlpulse/outbound)
 docs/             Product, architecture, backend, frontend, infra, quality docs
 public/           Canonical brand assets; served copy in apps/web/public (ADR-029)
-docker-compose.yml   Local PostgreSQL + Redis
+docker/ nginx/  Production Dockerfiles + reference host-Nginx config
+scripts/deploy.sh  One-shot deploy (preflight, host-nginx, docker build/up, health)
+docker-compose.prod.yml  Production containers (web/api/worker); PostgreSQL, Redis, Nginx external
 ```
 
 The system is fully implemented: real batch endpoints, a BullMQ worker performing
@@ -354,7 +356,7 @@ These are hard invariants. Violating them is a correctness bug.
 
 ```bash
 pnpm install                     # install workspace deps
-docker compose up -d             # local PostgreSQL + Redis
+# PostgreSQL + Redis are external: point DATABASE_URL / REDIS_URL at your own
 pnpm db:migrate                  # apply SQL migrations (apps/api/src/migrations)
 pnpm dev                         # web + api + worker in parallel
 pnpm dev:web | dev:api | dev:worker

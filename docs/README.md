@@ -32,6 +32,7 @@ The complete product and engineering documentation for URLPulse. PostgreSQL is t
 ## Infrastructure
 
 - [Local Development](./05-infrastructure/local-development.md) - running the stack locally
+- [Deployment](./05-infrastructure/deployment.md) - production Docker + Nginx, external PostgreSQL/Redis, TLS
 - [Scaling](./05-infrastructure/scaling.md) - horizontal scaling and distributed guarantees
 
 ## Quality
