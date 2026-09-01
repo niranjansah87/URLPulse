@@ -1,7 +1,7 @@
 -- 0005_alerts: conditions detected during a URL check (server errors, slow
 -- responses, redirects, SSL expiry, title changes, recovery).
 --
--- Alerts are DERIVED from url checks, never authoritative health state — the
+-- Alerts are DERIVED from url checks, never authoritative health state - the
 -- urls/batches tables remain the source of truth. The worker writes alerts in
 -- the SAME transaction that persists a URL result, so generation is atomic with
 -- the (idempotent) result write: a duplicate/stale job that does not apply the

@@ -1,7 +1,7 @@
-# UrlPulse — Motion
+# UrlPulse - Motion
 
-**Alive, not animated.** Motion exists to explain state — progress, activity, transition,
-completion — never to impress. Durations/easings are token names from `design-tokens.md`.
+**Alive, not animated.** Motion exists to explain state - progress, activity, transition,
+completion - never to impress. Durations/easings are token names from `design-tokens.md`.
 Every animation must honor `prefers-reduced-motion` (see end + `accessibility.md`).
 
 ---
@@ -21,7 +21,7 @@ Every animation must honor `prefers-reduced-motion` (see end + `accessibility.md
   slow, low-contrast shimmer to signal activity.
 - **Live activity:** the running status badge and the signature pulse (below) indicate work
   in flight.
-- **Success:** a brief, quiet confirmation — a check drawing in or a one-time fill; no
+- **Success:** a brief, quiet confirmation - a check drawing in or a one-time fill; no
   confetti, no bounce.
 - **Error:** a small, single settle (e.g. a 2–3px shake once, or a color settle); never
   repeated or aggressive.
@@ -36,7 +36,7 @@ animations, or animation on every element. If motion doesn't communicate state, 
 
 ## Signature: the monitoring pulse
 
-A single, restrained brand motion — a thin monitoring wave that reads like an instrument,
+A single, restrained brand motion - a thin monitoring wave that reads like an instrument,
 not a sci-fi effect. It echoes the UrlPulse logo mark.
 
 **Concept:** a thin line traces left→right along a URL/check path, communicating
@@ -65,23 +65,23 @@ fades behind it.
 }
 ```
 
-**Where to use (sparingly — at most one per view):** dashboard hero, an actively-processing
+**Where to use (sparingly - at most one per view):** dashboard hero, an actively-processing
 batch, the processing/empty state. Do **not** repeat it across cards, nav, and background at
-once — it loses meaning.
+once - it loses meaning.
 
 **Implemented as** `apps/web/components/motion/HealthWave.tsx` (the primitive: an SVG
 heartbeat trace with a lit dash segment animated via `stroke-dashoffset`, `pathLength`
 normalised to 100) and `UrlPulseLoader.tsx` (the branded "coming online" screen). The loader
 is a small, living recreation of the logo-reveal video (`public/brand/urlpulse-logo-reveal
 .mp4`): one shared CSS timeline (`--upl-T`) drives every element on in-lockstep infinite
-keyframes through the brand sequence — the health ring traces itself, the heartbeat draws from
+keyframes through the brand sequence - the health ring traces itself, the heartbeat draws from
 the centre, the node appears, the URL link snaps into the ring gap, a bright pulse synchronises
-the mark, and the wordmark reveals left→right — then everything recedes and reconstructs so it
+the mark, and the wordmark reveals left→right - then everything recedes and reconstructs so it
 loops seamlessly for any hold duration. Both are pure SVG/CSS with no animation library and are
 safe in server components. Current wiring:
 - `HealthWave` renders in `ProgressSummaryCard` only while `batch.status === "PROCESSING"`,
   so it starts, stops on completion/cancellation, and reconstructs after refresh straight
-  from the authoritative snapshot — it never holds its own state.
+  from the authoritative snapshot - it never holds its own state.
 - `UrlPulseLoader` is the `app/(app)/loading.tsx` Suspense fallback; its 250ms delayed
   fade-in keeps fast route transitions from flashing it.
 
@@ -90,10 +90,10 @@ safe in server components. Current wiring:
 ## Reduced motion
 
 When `prefers-reduced-motion: reduce`:
-- Disable the pulse loop, progress shimmer, success draw, and error settle — show the final
+- Disable the pulse loop, progress shimmer, success draw, and error settle - show the final
   static state instead.
 - Replace transitions with instant or ≤ near-zero changes.
 - Never remove information that motion was conveying (e.g. progress still shows %/count).
 
-The app shell already applies theme without a flash; motion must degrade the same way —
+The app shell already applies theme without a flash; motion must degrade the same way -
 correct static state first, motion as enhancement.

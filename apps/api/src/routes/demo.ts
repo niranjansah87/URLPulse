@@ -79,7 +79,7 @@ export async function registerDemoRoutes(app: FastifyInstance, opts: DemoRoutesO
       throw new ValidationError(`The demo checks up to ${MAX_URLS} URLs. Sign up to run larger batches.`);
     }
 
-    // At most MAX_URLS (5) run concurrently — small and bounded per request.
+    // At most MAX_URLS (5) run concurrently - small and bounded per request.
     const results: DemoCheckResult[] = await Promise.all(urls.map(check));
     const body: ApiSuccess<DemoCheckResult[]> & { meta: { limit: number } } = { data: results, meta: { limit: MAX_URLS } };
     return body;

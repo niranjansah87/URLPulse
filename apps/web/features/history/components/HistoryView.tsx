@@ -298,7 +298,7 @@ export function HistoryView() {
                                 <div>{when.date}</div>
                                 <div className={styles.dateTime}>{when.time}</div>
                               </td>
-                              <td style={{ color: "var(--color-text-muted)" }}>—</td>
+                              <td style={{ color: "var(--color-text-muted)" }}>-</td>
                               <td className={styles.actionsCell} style={{ paddingRight: "var(--space-6)" }}>
                                 <Menu
                                   iconTrigger={<MoreHorizontal size={16} />}

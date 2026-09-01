@@ -1,4 +1,4 @@
-# Batch Detail — Visual Reference
+# Batch Detail - Visual Reference
 
 Reference images for a single batch: progress, URL results table, cancel / retry-failed,
 download.

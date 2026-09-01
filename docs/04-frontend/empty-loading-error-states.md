@@ -1,4 +1,4 @@
-# UrlPulse — Empty, Loading & Error States
+# UrlPulse - Empty, Loading & Error States
 
 These states are deliberate parts of the product, not afterthoughts. Each gives context and
 a next step. Visuals use tokens (`design-tokens.md`, `color-system.md`); motion per
@@ -32,7 +32,7 @@ action (when one exists)**.
 - **Batch processing:** show live progress (bar + `%` + `x / total`), a running badge, and
   the signature pulse (one instance). Convey activity via state, not a spinner.
 - **Reconnecting live updates:** a quiet inline banner "Reconnecting…" (polite live region);
-  data stays visible and is reconciled from the API on reconnect — the UI never claims to be
+  data stays visible and is reconciled from the API on reconnect - the UI never claims to be
   live when it isn't. State remains readable if updates pause.
 
 ## Completion states
@@ -44,7 +44,7 @@ action (when one exists)**.
 - **Partial failure:** neutral/mixed framing ("85% completed · 15 failed"); make **Retry
   failed** obvious and scoped to failed URLs only; successes are not re-run.
 - **Cancellation:** cancelled badge, "Batch cancelled", show what completed before cancel;
-  no alarming red — cancellation is a normal outcome (muted, not error styling).
+  no alarming red - cancellation is a normal outcome (muted, not error styling).
 
 ## Error states
 
@@ -62,5 +62,5 @@ Every error: **what happened · why (if useful) · what to do next**. Never a ba
 ## Consistency
 
 - One illustration language across empty/error states (thin technical line motifs; see
-  background rules in `frontend-design-principles.md`) — no stock "oops" graphics.
+  background rules in `frontend-design-principles.md`) - no stock "oops" graphics.
 - Same title/explanation/action rhythm everywhere so states feel like one product.

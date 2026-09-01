@@ -6,7 +6,7 @@
   user-select: none;
 }
 
-/* Mark (icon) — always visible, fixed anchor on the left. */
+/* Mark (icon) - always visible, fixed anchor on the left. */
 .markWrap {
   display: block;
   flex: none;
@@ -17,10 +17,10 @@
   width: auto;
 }
 
-/* Wordmark wrapper — the text slides toward the mark and fades on hover. The
+/* Wordmark wrapper - the text slides toward the mark and fades on hover. The
    wrapper keeps a FIXED width (it does not collapse), so the logo's overall
    footprint never changes on hover. That is what prevents a centered logo (the
-   sidebar) or a centered nav (the landing header) from jumping — the earlier
+   sidebar) or a centered nav (the landing header) from jumping - the earlier
    width-collapsing animation reflowed its neighbours. overflow:hidden clips the
    text as it slides in, so it still reads as retracting into the mark. */
 .textWrap {

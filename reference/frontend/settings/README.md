@@ -1,4 +1,4 @@
-# Settings — Visual Reference
+# Settings - Visual Reference
 
 Reference images for the Settings view (profile, theme, preferences).
 

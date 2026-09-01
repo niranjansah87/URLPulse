@@ -1,4 +1,4 @@
-# UrlPulse — Spacing & Layout
+# UrlPulse - Spacing & Layout
 
 Values are token names from `design-tokens.md` (4-based scale, layout widths, control
 heights). Desktop should feel spacious; nothing touches the edges.
@@ -38,7 +38,7 @@ heights). Desktop should feel spacious; nothing touches the edges.
 
 ## Tables
 
-- Row vertical padding `--space-4` (16) — generous, scannable.
+- Row vertical padding `--space-4` (16) - generous, scannable.
 - Cell horizontal padding `--space-4`; first/last cell align to card padding.
 - Column header row: label type (see `typography.md`), `--space-3` vertical padding.
 - Separators: 1px `--color-border` **between rows only**; no vertical rules.
@@ -54,7 +54,7 @@ heights). Desktop should feel spacious; nothing touches the edges.
 - Content padding `--layout-gutter-sm` (16).
 - Card padding `--space-4`.
 - Section spacing `--space-6`.
-- Preserve whitespace — compress scale, don't remove it. Touch targets ≥ 44px.
+- Preserve whitespace - compress scale, don't remove it. Touch targets ≥ 44px.
 
 ## Whitespace rules
 

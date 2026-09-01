@@ -6,7 +6,7 @@ import { createRateLimiter, type RedisEval } from "./rate-limiter";
  * Distributed invariant test (INV-4). Fires many acquisitions against a REAL
  * Redis sliding-window limiter and asserts that in any 1s window no more than
  * `limit` requests were admitted. Because the window lives in Redis, this holds
- * across processes. Self-skips when Redis is unavailable — it does NOT prove the
+ * across processes. Self-skips when Redis is unavailable - it does NOT prove the
  * guarantee unless it actually runs.
  */
 const REDIS_URL = process.env.REDIS_URL ?? "redis://localhost:6379";

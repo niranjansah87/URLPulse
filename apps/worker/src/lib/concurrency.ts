@@ -6,7 +6,7 @@
  * one atomic Lua script that first drops expired leases then admits only if
  * fewer than `limit` remain. Slots are TTL-leased (ADR-022): a live request
  * releases its slot in a finally, and a crashed worker's slot is reclaimed
- * automatically once its lease expires — so a crash cannot permanently consume a
+ * automatically once its lease expires - so a crash cannot permanently consume a
  * slot or deadlock the pool. The TTL must exceed the maximum time a check can
  * hold a slot (see CONCURRENCY_LEASE_TTL_MS).
  *

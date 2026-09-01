@@ -47,7 +47,7 @@ export function ResetPasswordForm() {
       const { error: resErr } = await authClient.resetPassword({ newPassword: password, token });
       if (resErr) {
         // A weak password is already caught above, so a server error here is an
-        // invalid/expired/used token — a terminal state, not a retry.
+        // invalid/expired/used token - a terminal state, not a retry.
         setInvalidToken(true);
         return;
       }

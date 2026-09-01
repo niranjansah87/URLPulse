@@ -23,7 +23,7 @@ export async function registerAlertRoutes(app: FastifyInstance, opts: AlertRoute
   app.addHook("preHandler", csrfGuard);
   app.addHook("preHandler", requireAuth);
 
-  // GET /alerts — the session user's alerts, filterable and paginated.
+  // GET /alerts - the session user's alerts, filterable and paginated.
   app.get("/alerts", async (req) => {
     const userId = requireUser(req).id;
     const parsed = listAlertsQuerySchema.safeParse(req.query);
@@ -32,7 +32,7 @@ export async function registerAlertRoutes(app: FastifyInstance, opts: AlertRoute
     return { data: items, meta };
   });
 
-  // GET /alerts/counts — dashboard tiles + unread bell badge.
+  // GET /alerts/counts - dashboard tiles + unread bell badge.
   app.get("/alerts/counts", async (req) => {
     const userId = requireUser(req).id;
     const body: ApiSuccess<AlertCounts> = { data: await service.getCounts(userId) };

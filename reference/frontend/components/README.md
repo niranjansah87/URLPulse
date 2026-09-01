@@ -7,22 +7,22 @@ this file records what the reference shows so implementers can cross-check.
 
 ## Observed in the reference
 
-- **Sidebar** — ~248px; logo (mark + wordmark) top; nav items icon+label with the active
+- **Sidebar** - ~248px; logo (mark + wordmark) top; nav items icon+label with the active
   item as a soft blue-tinted row (blue icon/text); user/profile row and a theme toggle at
   the bottom.
-- **Top header** — greeting/search; a notification bell (with unread badge); a primary
+- **Top header** - greeting/search; a notification bell (with unread badge); a primary
   **New Batch** button.
-- **Hero band** — bold two-line headline, supporting text, and a subtle browser-window +
+- **Hero band** - bold two-line headline, supporting text, and a subtle browser-window +
   monitoring-waveform + winding URL-path illustration.
-- **Metric cards** — soft-tinted icon tile, large tabular number, label, delta line
+- **Metric cards** - soft-tinted icon tile, large tabular number, label, delta line
   (green up / red down), and a thin sparkline. Four across on desktop.
-- **Status badges** — small soft-tinted pills: In Progress (blue), Completed (green),
+- **Status badges** - small soft-tinted pills: In Progress (blue), Completed (green),
   Failed (red).
-- **Progress bars** — thin rounded bar on a track, colored by state, with `%` to the right;
+- **Progress bars** - thin rounded bar on a track, colored by state, with `%` to the right;
   `x / total` shown separately.
-- **Recent batches table** — column headers, generous row height, subtle row separators,
+- **Recent batches table** - column headers, generous row height, subtle row separators,
   **no vertical separators**, a `…` actions menu, and pagination.
-- **Dark-only panels** — an **Overall Health** donut (success-rate breakdown) and a
+- **Dark-only panels** - an **Overall Health** donut (success-rate breakdown) and a
   **Live Activity** feed (recent checks with status + relative time). Both are
   informational, not decorative.
 

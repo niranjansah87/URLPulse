@@ -3,7 +3,7 @@
 -- These four tables (user/session/account/verification) are owned by Better Auth
 -- and live in the same database as the application schema (0001_init). Column
 -- names are camelCase to match Better Auth's Kysely (postgres) adapter exactly and
--- are double-quoted so PostgreSQL preserves their case — Better Auth quotes every
+-- are double-quoted so PostgreSQL preserves their case - Better Auth quotes every
 -- identifier when it queries, so the stored columns must be quoted here too.
 -- Schema captured from better-auth@1.7 via getAuthTables(); see
 -- docs/03-backend/authentication.md. Forward-only, matching the project's runner.

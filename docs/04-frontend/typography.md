@@ -1,15 +1,15 @@
-# UrlPulse — Typography
+# UrlPulse - Typography
 
 Sizes/weights/line-heights are token names from `design-tokens.md`. Typography should feel
-modern, technical, highly readable, and understated — restraint over marketing scale.
+modern, technical, highly readable, and understated - restraint over marketing scale.
 
 ---
 
 ## Families
 
-- **`--font-sans`** — a modern grotesque/geometric UI sans (Inter, Geist, or the system
+- **`--font-sans`** - a modern grotesque/geometric UI sans (Inter, Geist, or the system
   stack already in `globals.css`). Used for essentially all UI text.
-- **`--font-mono`** — a readable monospace (e.g. `ui-monospace, "SF Mono", "JetBrains Mono"`).
+- **`--font-mono`** - a readable monospace (e.g. `ui-monospace, "SF Mono", "JetBrains Mono"`).
   Used for HTTP status codes, latency values, batch ids (`#batch_24`), and anywhere digit
   alignment matters. Enable `font-variant-numeric: tabular-nums` for all metrics, table
   numbers, progress %, and durations.
@@ -29,9 +29,9 @@ modern, technical, highly readable, and understated — restraint over marketing
 | Secondary text | `--text-sm` (13) | regular | normal | supporting copy, subtitles |
 | Metadata | `--text-xs` (12) | regular | normal | timestamps, counts, "from last 7 days" |
 | Table text | `--text-base` (14) | regular | snug | cells |
-| Label / overline | `--text-xs` (12) | medium | — | UPPERCASE, letter-spacing ~.06em (e.g. "WELCOME BACK", column headers) |
-| Button | `--text-base` (14) | medium | — | no all-caps |
-| Status text (pill) | `--text-xs` (12) | medium | — | paired with icon |
+| Label / overline | `--text-xs` (12) | medium | - | UPPERCASE, letter-spacing ~.06em (e.g. "WELCOME BACK", column headers) |
+| Button | `--text-base` (14) | medium | - | no all-caps |
+| Status text (pill) | `--text-xs` (12) | medium | - | paired with icon |
 | Code / URL | `--text-sm` (13) | regular | snug | `--font-mono` for status codes/ids; URLs may be sans but must wrap/truncate cleanly |
 | Metric number | `--text-3xl` (30) | semibold | tight | tabular-nums; strong but not oversized |
 
@@ -44,7 +44,7 @@ allow wrapping in detail views. Never rely on color alone to mark a URL's state.
 ## Numbers & metrics
 
 Metric values (24, 16, 5, 3), progress %, `x / total`, latency, and durations use
-`tabular-nums` so columns align. Give the metric number clear hierarchy via weight/size —
+`tabular-nums` so columns align. Give the metric number clear hierarchy via weight/size -
 not by making it huge. Deltas ("+2%", "-25%") use `--text-xs` with a direction icon and the
 matching status foreground color.
 

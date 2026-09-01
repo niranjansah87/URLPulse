@@ -12,8 +12,8 @@ const WAVE_PATH = "M8 20 H60 L66 20 L71 26 L77 6 L83 34 L89 15 L94 20 H156";
 
 /**
  * The signature monitoring pulse (docs/04-frontend/motion.md). A thin lit
- * segment travels left→right along the wave — URL → request → response → health
- * — over a faint static track, while `active` and `processing`. Decorative:
+ * segment travels left→right along the wave - URL → request → response → health
+ * - over a faint static track, while `active` and `processing`. Decorative:
  * status is conveyed in adjacent text/badges, so this is aria-hidden. Pure
  * SVG + CSS (no library), compositor-only, and static under reduced motion.
  */

@@ -166,7 +166,7 @@ export function UrlResultsSection({ urls }: { urls: UrlResult[] }) {
                             {u.pageTitle}
                           </span>
                         ) : (
-                          <span style={{ color: "var(--color-text-muted)" }}>—</span>
+                          <span style={{ color: "var(--color-text-muted)" }}>-</span>
                         )}
                       </td>
                       <td className={styles.rowActions}>

@@ -16,7 +16,7 @@ import type { BatchRow, BatchStatus } from "../../types";
 import { StateCard } from "./StateCard";
 import styles from "./states.module.css";
 
-const NO_BACKEND = "Not available yet — no backend support for this action.";
+const NO_BACKEND = "Not available yet - no backend support for this action.";
 
 /** Most recent batch per status; the API list is newest-first. */
 function latestByStatus(rows: BatchRow[]): Partial<Record<BatchStatus, BatchRow>> {

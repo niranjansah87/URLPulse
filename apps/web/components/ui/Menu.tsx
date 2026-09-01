@@ -25,10 +25,10 @@ interface MenuProps {
   trailingIcon?: ReactNode;
   variant?: "primary" | "secondary" | "ghost";
   size?: "sm" | "md";
-  /** Icon-only trigger (IconButton) — provide an accessible name. */
+  /** Icon-only trigger (IconButton) - provide an accessible name. */
   iconTrigger?: ReactNode;
   triggerLabel?: string;
-  /** Arbitrary trigger content (e.g. a profile pill) — provide an accessible name. */
+  /** Arbitrary trigger content (e.g. a profile pill) - provide an accessible name. */
   customTrigger?: ReactNode;
 }
 

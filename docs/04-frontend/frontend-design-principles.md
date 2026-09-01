@@ -1,4 +1,4 @@
-# UrlPulse — Frontend Design Principles (Implementation Checklist)
+# UrlPulse - Frontend Design Principles (Implementation Checklist)
 
 A short, practical checklist for the agent implementing the frontend. Read alongside the
 reference (`reference/frontend/README.md`) and the specs in this folder. This is a
@@ -9,7 +9,7 @@ gut-check, not the full spec.
 ## DO
 
 - Use whitespace intentionally; let the canvas breathe.
-- Maintain a clear hierarchy — status and progress are the loudest things on screen.
+- Maintain a clear hierarchy - status and progress are the loudest things on screen.
 - Use the brand blue **sparingly** (links, active nav, in-progress, focus); primary buttons
   are the neutral near-black/near-white action color.
 - Prefer subtle 1px borders for separation.

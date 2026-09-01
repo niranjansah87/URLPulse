@@ -43,7 +43,7 @@ const FEATURES = [
 const STEPS = [
   { n: "1", title: "Add Your URLs", text: "Paste a list of URLs or upload a CSV. We'll take care of the rest." },
   { n: "2", title: "We Monitor", text: "URLs are checked in the background with real-time updates." },
-  { n: "3", title: "Get Results", text: "View status, response time, and page title — all in one place." },
+  { n: "3", title: "Get Results", text: "View status, response time, and page title - all in one place." },
 ];
 
 const BULLETS = [

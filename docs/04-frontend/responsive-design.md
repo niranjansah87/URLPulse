@@ -1,4 +1,4 @@
-# UrlPulse — Responsive Design
+# UrlPulse - Responsive Design
 
 Do not merely shrink the desktop UI. Each breakpoint has intentional behavior. Spacing
 tokens and layout widths come from `design-tokens.md` / `spacing-and-layout.md`.
@@ -48,7 +48,7 @@ disclosures.
 ## Rules
 
 - Touch targets ≥ 44×44 (`accessibility.md`).
-- Preserve whitespace — compress the scale, don't delete it.
+- Preserve whitespace - compress the scale, don't delete it.
 - Content max-width keeps line length readable on large screens; don't stretch tables edge
   to edge on ultra-wide.
 - Test light and dark at every breakpoint (`color-system.md`).

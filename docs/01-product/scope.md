@@ -234,7 +234,7 @@ Runtime validation is still performed at external input boundaries.
 
 The following are intentionally excluded.
 
-## 3.1 Authentication — now IN scope (intentional extension)
+## 3.1 Authentication - now IN scope (intentional extension)
 
 Authentication was originally out of scope; it has since been added as a
 deliberate extension. URLPulse now has email/password authentication via Better

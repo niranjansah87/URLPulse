@@ -7,7 +7,7 @@ export type Db = ReturnType<typeof postgres>;
  * Shared postgres.js connection pool for the API process. One pool per process
  * (never a connection per request); postgres.js opens connections lazily up to
  * `max` and reaps idle ones. Sizing is a shared budget across API + worker
- * processes — see DB_POOL_MAX in @urlpulse/config.
+ * processes - see DB_POOL_MAX in @urlpulse/config.
  *
  * - max                 pool ceiling for this process
  * - connect_timeout     fail fast instead of hanging when PG is unreachable

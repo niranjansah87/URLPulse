@@ -316,7 +316,7 @@ Redirects are followed **manually** (`fetch(..., { redirect: "manual" })`), up t
 `HTTP_MAX_REDIRECTS` hops, so each hop's protocol and target can be validated.
 
 Because every hop is a real outbound HTTP request, **each hop acquires its own
-global rate-limit permit** — the permit is obtained immediately before each
+global rate-limit permit** - the permit is obtained immediately before each
 `fetch`, not once per logical URL check. One URL that follows N redirects
 therefore consumes N+1 permits, keeping rate-limit accounting consistent with the
 actual outbound request count (a redirect chain can never fan one permit into
@@ -325,7 +325,7 @@ request and consumes no permit.
 
 The single distributed concurrency slot (INV-3) is held for the whole check
 across all hops: one in-flight URL check occupies one slot regardless of
-redirects. Admission (Redis) failure during a hop is an infrastructure failure —
+redirects. Admission (Redis) failure during a hop is an infrastructure failure -
 it propagates so the URL is returned to PENDING and retried, never recorded as a
 URL failure.
 

@@ -164,7 +164,7 @@ export function createBatchRepository(db: Db) {
      * batch to PROCESSING. Concurrent calls are safe: the conditional UPDATE
      * claims each FAILED row once, so a second call finds none. Returns:
      *  - "notfound":  no such batch
-     *  - "cancelled": batch is CANCELLED — retry-failed is rejected (ADR-027)
+     *  - "cancelled": batch is CANCELLED - retry-failed is rejected (ADR-027)
      *  - { claimed }: the URL ids reset (possibly empty), to be enqueued
      */
     async retryFailed(

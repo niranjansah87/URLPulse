@@ -16,7 +16,7 @@ const TONE_BG: Record<Tone, string> = {
 /** Success rate among finished checks: completed / (completed + failed). */
 function successRate(stats: BatchStatistics): string {
   const finished = stats.completed + stats.failed;
-  if (finished === 0) return "—";
+  if (finished === 0) return "-";
   return `${((stats.completed / finished) * 100).toFixed(1)}%`;
 }
 

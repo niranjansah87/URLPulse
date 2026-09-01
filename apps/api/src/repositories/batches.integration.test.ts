@@ -168,7 +168,7 @@ describe.skipIf(!dbUp)("batch repository (integration)", () => {
     await sql`UPDATE urls SET status='FAILED' WHERE id=${urlIds[0]!}`;
     await sql`UPDATE batches SET status='FAILED', failed_count=1 WHERE id=${batch.id}`;
     expect(await repo.retryFailed(USER_B, batch.id)).toBe("notfound");
-    // Still FAILED for the owner — the foreign user's call changed nothing.
+    // Still FAILED for the owner - the foreign user's call changed nothing.
     expect((await repo.getById(USER_A, batch.id))?.failedCount).toBe(1);
   });
 

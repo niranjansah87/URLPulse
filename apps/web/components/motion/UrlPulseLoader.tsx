@@ -1,7 +1,7 @@
 import { cn } from "@/lib/cn";
 import styles from "./url-pulse-loader.module.css";
 
-/** Heartbeat trace (center spike, ECG shape) and the ring arc — the same clean
+/** Heartbeat trace (center spike, ECG shape) and the ring arc - the same clean
  *  geometry the logo reveal draws, recreated as animatable UI primitives rather
  *  than the raster-derived logo paths. Both normalise pathLength to 100. */
 const WAVE_PATH = "M12 64 H42 L48 64 L52 56 L57 68 L63 26 L70 100 L76 58 L82 64 H100";
@@ -12,8 +12,8 @@ const RING_PATH = "M109.5 89.2 A52 52 0 1 0 89.2 109.5";
 /**
  * The application loader as a small, continuous, living version of the UrlPulse
  * logo reveal (public/brand/urlpulse-logo-reveal.mp4). One seamless CSS/SVG
- * timeline recreates the brand sequence — signal → health ring → heartbeat →
- * URL link → synchronising pulse → wordmark — then recedes and reconstructs, so
+ * timeline recreates the brand sequence - signal → health ring → heartbeat →
+ * URL link → synchronising pulse → wordmark - then recedes and reconstructs, so
  * it can hold for any duration without a visible restart. Pure SVG + CSS: no
  * library, no JS animation loop, no React state; server-component safe,
  * theme-aware via tokens, and static under reduced motion.

@@ -1,6 +1,6 @@
-# UrlPulse — Accessibility
+# UrlPulse - Accessibility
 
-Target: **WCAG 2.1 AA**. Accessibility is part of "premium" — it is not optional polish.
+Target: **WCAG 2.1 AA**. Accessibility is part of "premium" - it is not optional polish.
 
 ---
 
@@ -21,7 +21,7 @@ Target: **WCAG 2.1 AA**. Accessibility is part of "premium" — it is not option
 
 ## Color & contrast
 
-- Body text ≥ 4.5:1; large text and UI component boundaries ≥ 3:1 — light and dark.
+- Body text ≥ 4.5:1; large text and UI component boundaries ≥ 3:1 - light and dark.
 - Muted text is for non-essential metadata only and must still meet contrast.
 - Verify status pill foreground on its subtle background in both themes.
 

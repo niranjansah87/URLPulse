@@ -45,7 +45,7 @@ export function CreateSidebar({ recent, recentFailed }: { recent: BatchRow[]; re
         {recentFailed ? (
           <p className={styles.recentMeta}>Couldn&apos;t load recent batches.</p>
         ) : recent.length === 0 ? (
-          <p className={styles.recentMeta}>No batches yet — your first one will appear here.</p>
+          <p className={styles.recentMeta}>No batches yet - your first one will appear here.</p>
         ) : (
           recent.map((b) => {
             const view = batchStatusView(b.status);

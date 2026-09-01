@@ -4,7 +4,7 @@ import { z } from "zod";
  * Server-only configuration for URLPulse.
  *
  * SECURITY: This package reads secrets (DATABASE_URL, REDIS_URL). It must only
- * be imported by server processes (api, worker) — never by the Next.js browser
+ * be imported by server processes (api, worker) - never by the Next.js browser
  * bundle. Browser-safe values belong in NEXT_PUBLIC_* variables read by the web
  * app directly. See docs/05-infrastructure/local-development.md.
  */
@@ -32,7 +32,7 @@ const serverEnvSchema = z.object({
 
   // Alert thresholds (worker). A successful check slower than this raises a
   // SLOW_RESPONSE alert; a TLS certificate expiring within ALERT_SSL_WARN_DAYS
-  // raises SSL_EXPIRING. Derived signals only — never authoritative health state.
+  // raises SSL_EXPIRING. Derived signals only - never authoritative health state.
   ALERT_SLOW_RESPONSE_MS: z.coerce.number().int().positive().default(1_500),
   ALERT_SSL_WARN_DAYS: z.coerce.number().int().positive().default(30),
 

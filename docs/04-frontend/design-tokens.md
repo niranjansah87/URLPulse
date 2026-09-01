@@ -1,4 +1,4 @@
-# UrlPulse — Design Tokens
+# UrlPulse - Design Tokens
 
 **Authoritative numeric source of truth.** Every other design document references these
 token *names*; it must not restate raw values. Values align with the existing

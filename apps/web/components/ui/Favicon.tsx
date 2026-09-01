@@ -15,7 +15,7 @@ export function Favicon({ url, size = 16 }: { url: string; size?: number }) {
   try {
     host = new URL(url).hostname;
   } catch {
-    /* invalid URL — fall through to the globe */
+    /* invalid URL - fall through to the globe */
   }
 
   if (failed || !host) {

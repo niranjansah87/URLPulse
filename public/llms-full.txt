@@ -1,4 +1,4 @@
-# URLPulse — Full Description
+# URLPulse - Full Description
 
 URLPulse is a production-oriented, full-stack application for bulk URL health checking.
 
@@ -13,7 +13,7 @@ URLPulse is a production-oriented, full-stack application for bulk URL health ch
 - API: Fastify + TypeScript (REST), separate from the worker.
 - Worker: a separate process consuming a BullMQ queue backed by Redis.
 - Data: PostgreSQL is the authoritative source of truth; Redis provides queueing, coordination, and pub/sub.
-- Live updates: Server-Sent Events, treated as notifications only — the database remains authoritative.
+- Live updates: Server-Sent Events, treated as notifications only - the database remains authoritative.
 
 ## System guarantees
 - Global outbound rate limit of 10 requests/second across all workers.

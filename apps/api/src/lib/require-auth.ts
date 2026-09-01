@@ -30,7 +30,7 @@ export function createRequireAuth(api: SessionApi): RequireAuth {
 
 /**
  * Read the authenticated user off a request inside a protected handler. Throws
- * (401) if called on a request that did not pass `requireAuth` — a guard against
+ * (401) if called on a request that did not pass `requireAuth` - a guard against
  * wiring a handler without its preHandler, never expected at runtime.
  */
 export function requireUser(req: FastifyRequest): AuthUser {

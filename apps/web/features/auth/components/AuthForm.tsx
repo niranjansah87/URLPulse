@@ -46,7 +46,7 @@ function IconField({
  * Email + password sign-in / sign-up against the Better Auth routes on the API.
  *
  * Verification flow: a verification email is sent on sign-up. An unverified user
- * may still sign in a few times — each shows a reminder toast — after which the
+ * may still sign in a few times - each shows a reminder toast - after which the
  * API blocks sign-in (403 EMAIL_VERIFICATION_REQUIRED); we then resend the link
  * and tell them to check their inbox. Verified users sign in normally.
  */
@@ -106,7 +106,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       if (result.error) {
         const code = result.error.code;
         // Too many wrong passwords: the account is locked and a reset link was
-        // already emailed by the API — don't resend a verification email here.
+        // already emailed by the API - don't resend a verification email here.
         if (code === "ACCOUNT_LOCKED") {
           toast.error("Account temporarily locked", {
             description: "Too many failed attempts. We've emailed you a password reset link.",
