@@ -14,7 +14,9 @@ const { sendMock } = vi.hoisted(() => ({
     error: null as { message: string } | null,
   })),
 }));
-vi.mock("resend", () => ({ Resend: vi.fn(() => ({ emails: { send: sendMock } })) }));
+// A regular function (not an arrow) so `new Resend()` constructs: vitest 4
+// invokes the mock implementation with [[Construct]], which arrows reject.
+vi.mock("resend", () => ({ Resend: vi.fn(function () { return { emails: { send: sendMock } }; }) }));
 
 import {
   createEmailService,
