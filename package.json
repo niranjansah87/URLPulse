@@ -20,11 +20,18 @@
     "db:migrate": "pnpm --filter @urlpulse/api migrate"
   },
   "devDependencies": {
-    "@eslint/js": "^9.17.0",
-    "eslint": "^9.17.0",
-    "eslint-config-prettier": "^9.1.0",
-    "prettier": "^3.4.2",
-    "typescript": "^5.7.2",
-    "typescript-eslint": "^8.18.1"
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^9.1.2",
+    "prettier": "^3.9.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.69.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "esbuild": ">=0.25.0",
+      "vite": ">=6.4.3",
+      "postcss": ">=8.5.23"
+    }
   }
 }

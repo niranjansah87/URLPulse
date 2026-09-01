@@ -7,7 +7,10 @@ import { emailService } from "../lib/email";
 // fire-and-forget sends (e.g. the lockout auto-reset) whose timing can fall
 // outside a method spy. Method spies below are still used for assertions.
 vi.mock("resend", () => ({
-  Resend: vi.fn(() => ({ emails: { send: vi.fn(async () => ({ data: { id: "test" }, error: null })) } })),
+  // Regular function (not an arrow) so `new Resend()` constructs under vitest 4.
+  Resend: vi.fn(function () {
+    return { emails: { send: vi.fn(async () => ({ data: { id: "test" }, error: null })) } };
+  }),
 }));
 
 /**
