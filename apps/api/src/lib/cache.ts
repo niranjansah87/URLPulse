@@ -20,9 +20,24 @@ import { BATCH_LIST_CACHE_VERSION_KEY, type BatchListMeta, type BatchSummary, ty
  */
 export type BatchListValue = { items: BatchSummary[]; meta: BatchListMeta };
 
+/**
+ * A read-through result. `version` is the invalidation counter observed at read
+ * time; it MUST be passed back to `set` so a write lands under the version the
+ * read saw. A concurrent `invalidate()` between read and write then bumps the
+ * counter, leaving this write under an already-orphaned version instead of
+ * poisoning the current one (see BatchListCache.set). `version` is null when
+ * Redis was unreachable during the read, in which case `set` skips caching.
+ */
+export type BatchListRead = { value: BatchListValue | null; version: string | null };
+
 export interface BatchListCache {
-  get(userId: string, query: ListBatchesQuery): Promise<BatchListValue | null>;
-  set(userId: string, query: ListBatchesQuery, value: BatchListValue): Promise<void>;
+  get(userId: string, query: ListBatchesQuery): Promise<BatchListRead>;
+  set(
+    userId: string,
+    query: ListBatchesQuery,
+    value: BatchListValue,
+    version: string | null,
+  ): Promise<void>;
   invalidate(): Promise<void>;
 }
 
@@ -47,14 +62,19 @@ export function createBatchListCache(redis: CacheRedis, ttlSeconds: number): Bat
       try {
         const version = (await redis.get(VERSION_KEY)) ?? "0";
         const raw = await redis.get(keyFor(version, userId, query));
-        return raw ? (JSON.parse(raw) as BatchListValue) : null;
+        return { value: raw ? (JSON.parse(raw) as BatchListValue) : null, version };
       } catch {
-        return null; // degrade to a DB read
+        return { value: null, version: null }; // degrade to a DB read; skip caching
       }
     },
-    async set(userId, query, value) {
+    async set(userId, query, value, version) {
+      if (version === null) return; // read could not observe a version; do not cache
       try {
-        const version = (await redis.get(VERSION_KEY)) ?? "0";
+        // Write under the version observed at read time, NOT a freshly re-read
+        // one. If invalidate() bumped the counter between the read and here, this
+        // write lands under the old (now orphaned) version and the next read at
+        // the new version misses - so a mutation can never be masked by a stale
+        // write racing its invalidation.
         await redis.set(keyFor(version, userId, query), JSON.stringify(value), "EX", ttlSeconds);
       } catch {
         // best-effort; a failed cache write just means the next read is a miss

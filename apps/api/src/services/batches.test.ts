@@ -108,7 +108,7 @@ describe("batchService.listBatches cache", () => {
   it("serves from cache on a hit without querying the repository", async () => {
     const repo = fakeRepo({});
     const cached = { items: [summary("b")], meta: { page: 1, pageSize: 20, total: 1 } };
-    const cache = { get: vi.fn(async () => cached), set: vi.fn(), invalidate: vi.fn() };
+    const cache = { get: vi.fn(async () => ({ value: cached, version: "0" })), set: vi.fn(), invalidate: vi.fn() };
     const service = createBatchService({ repo, enqueue: async () => {}, cache, log: noopLog });
     await expect(service.listBatches(USER, { page: 1, pageSize: 20 })).resolves.toEqual(cached);
     expect(repo.list).not.toHaveBeenCalled();
@@ -116,7 +116,7 @@ describe("batchService.listBatches cache", () => {
 
   it("reads through and populates the cache on a miss", async () => {
     const repo = fakeRepo({});
-    const cache = { get: vi.fn(async () => null), set: vi.fn(), invalidate: vi.fn() };
+    const cache = { get: vi.fn(async () => ({ value: null, version: "0" })), set: vi.fn(), invalidate: vi.fn() };
     const service = createBatchService({ repo, enqueue: async () => {}, cache, log: noopLog });
     await service.listBatches(USER, { page: 1, pageSize: 20 });
     expect(repo.list).toHaveBeenCalledOnce();

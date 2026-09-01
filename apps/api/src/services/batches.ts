@@ -126,10 +126,12 @@ export function createBatchService({
       query: ListBatchesQuery,
     ): Promise<{ items: BatchSummary[]; meta: BatchListMeta }> {
       const cached = await cache?.get(userId, query);
-      if (cached) return cached;
+      if (cached?.value) return cached.value;
       const { items, total } = await repo.list(userId, query);
       const value = { items, meta: { page: query.page, pageSize: query.pageSize, total } };
-      await cache?.set(userId, query, value);
+      // Pass the version observed by get() so a concurrent invalidation cannot be
+      // masked by this write (see cache.set).
+      await cache?.set(userId, query, value, cached?.version ?? null);
       return value;
     },
 
