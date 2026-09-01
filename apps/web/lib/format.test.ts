@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDuration, formatRelativeTime, formatRelativeTimeShort, truncateMiddle } from "./format";
+import { formatDuration, formatRelativeTime, truncateMiddle } from "./format";
 
 const NOW = new Date("2026-08-31T12:00:00Z");
 
@@ -11,7 +11,7 @@ describe("formatDuration", () => {
     expect(formatDuration(1420)).toBe("1.42 s");
   });
   it("renders a missing value as an em dash", () => {
-    expect(formatDuration(null)).toBe("—");
+    expect(formatDuration(null)).toBe("-");
   });
 });
 
@@ -27,12 +27,6 @@ describe("formatRelativeTime", () => {
   });
   it("never reports a future timestamp as negative", () => {
     expect(formatRelativeTime("2026-08-31T12:05:00Z", NOW)).toBe("just now");
-  });
-});
-
-describe("formatRelativeTimeShort", () => {
-  it("compacts hours", () => {
-    expect(formatRelativeTimeShort("2026-08-31T09:00:00Z", NOW)).toBe("3h ago");
   });
 });
 

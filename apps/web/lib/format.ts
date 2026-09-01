@@ -1,17 +1,8 @@
 /** Presentation-only formatting helpers. Pure, deterministic, timezone-safe for UTC input. */
 
-export function formatPercent(value: number, fractionDigits = 1): string {
-  return `${value.toFixed(fractionDigits)}%`;
-}
-
-export function formatMs(ms: number | null): string {
-  if (ms === null) return "—";
-  return `${ms} ms`;
-}
-
 /** Response time: seconds for >= 1s (e.g. "1.42 s"), milliseconds otherwise. */
 export function formatDuration(ms: number | null): string {
-  if (ms === null) return "—";
+  if (ms === null) return "-";
   if (ms >= 1000) return `${(ms / 1000).toFixed(2)} s`;
   return `${ms} ms`;
 }
@@ -39,17 +30,6 @@ export function formatRelativeTime(iso: string, now: Date = new Date()): string 
   if (hr < 24) return hr === 1 ? "1 hour ago" : `${hr} hours ago`;
   const day = Math.round(hr / 24);
   return day === 1 ? "1 day ago" : `${day} days ago`;
-}
-
-/** Compact relative time for dense lists, e.g. "2m ago", "3h ago", "1d ago". */
-export function formatRelativeTimeShort(iso: string, now: Date = new Date()): string {
-  const sec = Math.max(0, Math.round((now.getTime() - new Date(iso).getTime()) / 1000));
-  if (sec < 60) return "just now";
-  const min = Math.round(sec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.round(min / 60);
-  if (hr < 24) return `${hr}h ago`;
-  return `${Math.round(hr / 24)}d ago`;
 }
 
 /** Truncate the middle of a long id/string, keeping head and tail. */
