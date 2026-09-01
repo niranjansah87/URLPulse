@@ -393,6 +393,23 @@ worker state-transition idempotency
 
 Both layers are necessary.
 
+## Re-enqueue vs. BullMQ jobId de-duplication
+
+`jobId = urlId` makes *concurrent* enqueues collapse to one job. But BullMQ also
+de-duplicates against **retained finished jobs** (`removeOnComplete`/
+`removeOnFail`): a URL that already ran leaves a job under its id in the
+completed/failed set. A plain re-add for that id is then a silent no-op — which
+is exactly what retry-failed and the reconciliation sweep do (they reset the URL
+to `PENDING` in PostgreSQL and re-enqueue by id). Without care the URL would be
+`PENDING` forever and its batch wedged in `PROCESSING`.
+
+`enqueueUrlCheck` therefore **removes any existing job under the id before
+adding** (`apps/api/src/lib/queue.ts`). The remove is best-effort: a lock error
+means a job is *actively* running under that id, in which case the subsequent add
+correctly de-dups and no second concurrent run is created. This keeps enqueue
+idempotent for concurrent submits while making a legitimate re-run (retry-failed,
+reconcile) actually execute.
+
 ---
 
 # 18. Stale Jobs
