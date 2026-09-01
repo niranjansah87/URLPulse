@@ -78,10 +78,10 @@ services:
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
     env_file: [.env.production]
     depends_on: [api]
-    # Published on loopback only, for the host-installed Nginx. Host port 3001
-    # (not 3000) to avoid a collision with another app on this shared host.
+    # Published on loopback only, for the host-installed Nginx. Host port 5173
+    # (3000/3001/3002 are taken by other apps on this shared host).
     ports:
-      - "127.0.0.1:3001:3000"
+      - "127.0.0.1:5173:3000"
     networks: [urlpulse]
     restart: unless-stopped
     healthcheck:
