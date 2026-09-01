@@ -12,17 +12,19 @@ export type Db = ReturnType<typeof postgres>;
  * - max                 pool ceiling for this process
  * - connect_timeout     fail fast instead of hanging when PG is unreachable
  * - idle_timeout        release idle connections back to PG
- * - statement_timeout   server-side cap on any single query so a slow/stuck
- *                       query cannot pin a pooled connection forever
+ * - prepare: false      required behind pgbouncer transaction pooling, which
+ *                       reuses server connections across clients and so cannot
+ *                       carry named prepared statements or connection-time
+ *                       startup params. statement_timeout is enforced as a
+ *                       database default instead (ALTER DATABASE ... SET
+ *                       statement_timeout) - see docs/03-backend/database.md.
  */
 export function createDb(): Db {
   return postgres(config.DATABASE_URL, {
     max: config.DB_POOL_MAX,
     connect_timeout: config.DB_CONNECT_TIMEOUT_SECONDS,
     idle_timeout: config.DB_IDLE_TIMEOUT_SECONDS,
-    connection: {
-      statement_timeout: config.DB_STATEMENT_TIMEOUT_MS,
-    },
+    prepare: false,
     onnotice: () => {},
   });
 }
