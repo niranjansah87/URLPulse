@@ -22,6 +22,7 @@ The complete product and engineering documentation for URLPulse. PostgreSQL is t
 - [Rate Limiting](./03-backend/rate-limiting.md) - global 10 req/s limit across all workers
 - [Retries & Idempotency](./03-backend/retries-and-idempotency.md) - retry policy and at-least-once safety
 - [Cancellation](./03-backend/cancellation.md) - cancelling queued and in-flight work safely
+- [Authentication](./03-backend/authentication.md) - Better Auth, sessions, and per-user batch ownership
 
 ## Frontend
 

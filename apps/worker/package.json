@@ -4,14 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/worker.ts",
-    "start": "tsx src/worker.ts",
+    "dev": "tsx watch --env-file-if-exists=../../.env src/worker.ts",
+    "start": "tsx --env-file-if-exists=../../.env src/worker.ts",
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
     "@urlpulse/config": "workspace:*",
+    "@urlpulse/outbound": "workspace:*",
     "@urlpulse/types": "workspace:*",
     "bullmq": "^5.34.5",
     "ioredis": "^5.4.2",

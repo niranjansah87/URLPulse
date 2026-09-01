@@ -1,0 +1,435 @@
+.shell {
+  min-height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--layout-sidebar);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-right: var(--border-width) solid var(--color-border);
+  z-index: var(--z-sticky);
+  transition: transform var(--dur-slow) var(--ease-standard);
+}
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 80px;
+  padding: 0 var(--space-6);
+}
+.logo {
+  height: 26px;
+  width: auto;
+  display: block;
+}
+.logoDark {
+  display: none;
+}
+.logoLight {
+  mix-blend-mode: multiply;
+}
+.logoDark {
+  mix-blend-mode: screen;
+}
+:global(:root[data-theme="dark"]) .logoLight {
+  display: none;
+}
+:global(:root[data-theme="dark"]) .logoDark {
+  display: block;
+}
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .logoLight {
+    display: none;
+  }
+  :global(:root:not([data-theme="light"])) .logoDark {
+    display: block;
+  }
+}
+
+.nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-4) var(--space-3);
+  overflow-y: auto;
+}
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-base);
+  color: var(--color-text-secondary);
+  transition:
+    background-color var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard);
+}
+.navItem:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
+  text-decoration: none;
+}
+.navItemActive {
+  color: var(--color-accent);
+  font-weight: var(--fw-medium);
+}
+.navItemActive:hover {
+  background: transparent;
+  color: var(--color-accent);
+}
+
+.sidebarFooter {
+  padding: var(--space-3);
+  border-top: var(--border-width) solid var(--color-border);
+}
+.footerActions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--space-1);
+}
+.profile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+}
+.avatar {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-subtle);
+  color: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+}
+.profileText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.profileName {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.profileEmail {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Main + header */
+.main {
+  margin-left: var(--layout-sidebar);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: 64px;
+  padding: 0 var(--layout-gutter);
+  background: var(--color-surface);
+  border-bottom: var(--border-width) solid var(--color-border);
+  z-index: calc(var(--z-sticky) - 1);
+}
+.headerSearch {
+  flex: 1;
+  max-width: 520px;
+}
+.headerRight {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+/* Profile pill trigger in the header. */
+.headerProfile {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 3px var(--space-2) 3px 3px;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-text);
+  transition: background-color var(--dur-fast) var(--ease-standard);
+}
+.headerProfile:hover {
+  background: var(--color-bg);
+}
+.headerProfileName {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Menu button lives in the header on mobile; the sidebar is always shown on
+   desktop. The `.header` prefix outranks IconButton's own `display:inline-flex`
+   so the button truly hides on large screens. */
+.header .menuBtn {
+  display: none;
+}
+.content {
+  flex: 1;
+  width: 100%;
+  max-width: var(--layout-max);
+  margin: 0 auto;
+  padding: var(--layout-gutter);
+}
+.mobileBar {
+  display: none;
+}
+.mobileLogoLight,
+.mobileLogoDark {
+  height: 24px;
+  width: auto;
+}
+.mobileLogoDark {
+  display: none;
+}
+:global(:root[data-theme="dark"]) .mobileLogoLight {
+  display: none;
+}
+:global(:root[data-theme="dark"]) .mobileLogoDark {
+  display: block;
+}
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .mobileLogoLight {
+    display: none;
+  }
+  :global(:root:not([data-theme="light"])) .mobileLogoDark {
+    display: block;
+  }
+}
+.backdrop {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    transform: translateX(-100%);
+    box-shadow: var(--shadow-md);
+  }
+  .sidebarOpen {
+    transform: translateX(0);
+  }
+  .main {
+    margin-left: 0;
+  }
+  .header .menuBtn {
+    display: inline-flex;
+  }
+  .mobileBar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    height: 56px;
+    padding: 0 var(--space-4);
+    background: var(--color-surface);
+    border-bottom: var(--border-width) solid var(--color-border);
+    position: sticky;
+    top: 0;
+    z-index: calc(var(--z-sticky) - 1);
+  }
+  .backdropOpen {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: calc(var(--z-sticky) - 1);
+  }
+}
+
+@media (max-width: 640px) {
+  .headerSearch {
+    display: none;
+  }
+  .headerProfileName {
+    display: none;
+  }
+  .content {
+    padding: var(--layout-gutter-sm);
+  }
+}
+
+/* --- Brand mark + collapsed rail --- */
+.brandLink {
+  display: inline-flex;
+  align-items: center;
+}
+.mark {
+  height: 28px;
+  width: 28px;
+}
+.sidebarCollapsed {
+  width: var(--layout-rail);
+}
+/* Grid centering is not defeatable by flex-basis/shrink quirks: the mark sits
+   dead-center in the collapsed rail regardless. */
+.sidebarCollapsed .brand {
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+.sidebarCollapsed .navItem {
+  justify-content: center;
+  padding: var(--space-2);
+}
+.sidebarCollapsed .profile {
+  justify-content: center;
+  padding: var(--space-2) 0;
+}
+.shellCollapsed .main {
+  margin-left: var(--layout-rail);
+}
+
+/* --- Nav: animated active pill, badge --- */
+.navItem {
+  position: relative;
+}
+.navActiveBg {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-subtle);
+  z-index: 0;
+}
+.navIcon,
+.navLabel,
+.navBadge {
+  position: relative;
+  z-index: 1;
+}
+.navLabel {
+  flex: 1;
+}
+.navBadge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--color-error);
+  color: #fff;
+  font-size: 11px;
+  font-weight: var(--fw-semibold);
+  line-height: 18px;
+  text-align: center;
+}
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  object-fit: cover;
+}
+
+/* --- Footer: collapse control --- */
+.footerActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+}
+.footerActionsCollapsed {
+  justify-content: center;
+}
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: var(--color-bg);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-pill);
+}
+.segment {
+  position: relative;
+  width: 36px;
+  height: 28px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-pill);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--dur-fast) var(--ease-standard);
+}
+.segment[aria-pressed="true"] {
+  color: var(--color-accent);
+}
+.segmentPill {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-xs);
+}
+.segmentIcon {
+  position: relative;
+  z-index: 1;
+}
+.collapseBtn {
+  width: var(--control-sm);
+  height: var(--control-sm);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--dur-fast) var(--ease-standard);
+}
+.collapseBtn:hover {
+  background: var(--color-bg);
+}
+
+/* Single icon theme toggle (header). */
+.themeToggle {
+  width: var(--control-sm);
+  height: var(--control-sm);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color var(--dur-fast) var(--ease-standard),
+    color var(--dur-fast) var(--ease-standard);
+}
+.themeToggle:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
+}

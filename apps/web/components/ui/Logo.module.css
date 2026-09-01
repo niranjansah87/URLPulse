@@ -1,0 +1,92 @@
+.logo {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  line-height: 0;
+  user-select: none;
+}
+
+/* Mark (icon) — always visible, fixed anchor on the left. */
+.markWrap {
+  display: block;
+  flex: none;
+  line-height: 0;
+}
+.mark {
+  display: block;
+  width: auto;
+}
+
+/* Wordmark wrapper — the text slides toward the mark and fades on hover. The
+   wrapper keeps a FIXED width (it does not collapse), so the logo's overall
+   footprint never changes on hover. That is what prevents a centered logo (the
+   sidebar) or a centered nav (the landing header) from jumping — the earlier
+   width-collapsing animation reflowed its neighbours. overflow:hidden clips the
+   text as it slides in, so it still reads as retracting into the mark. */
+.textWrap {
+  display: inline-block;
+  overflow: hidden;
+  margin-left: 9px;
+  opacity: 1;
+  transition: opacity 0.26s ease;
+}
+.text {
+  display: block;
+  width: auto;
+  transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.logo:hover .textWrap,
+.logo:focus-visible .textWrap {
+  opacity: 0;
+}
+.logo:hover .text,
+.logo:focus-visible .text {
+  transform: translateX(-12px);
+}
+
+.logo:focus-visible {
+  outline: 2px solid var(--color-accent, #2563eb);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+
+/* Sizes control the mark/text height; width stays auto to preserve aspect. */
+.sm .mark,
+.sm .text {
+  height: 20px;
+}
+.md .mark,
+.md .text {
+  height: 28px;
+}
+.lg .mark,
+.lg .text {
+  height: 36px;
+}
+
+/* Theme-aware asset swap (mirrors the project's existing logo pattern): light
+   assets by default, dark assets when the dark theme is active. */
+.dark {
+  display: none;
+}
+:global(:root[data-theme="dark"]) .light {
+  display: none;
+}
+:global(:root[data-theme="dark"]) .dark {
+  display: block;
+}
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .light {
+    display: none;
+  }
+  :global(:root:not([data-theme="light"])) .dark {
+    display: block;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .textWrap,
+  .text {
+    transition: none;
+  }
+}

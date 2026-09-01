@@ -1,56 +1,162 @@
-import type { FastifyInstance } from "fastify";
-import { createBatchRequestSchema, type ApiError } from "@urlpulse/types";
+import type { FastifyInstance, FastifyRequest } from "fastify";
+import {
+  listBatchesQuerySchema,
+  SSE_EVENT_BATCH_UPDATED,
+  type ApiSuccess,
+  type BatchDetail,
+  type BatchSummary,
+} from "@urlpulse/types";
+import type { BatchService } from "../services/batches";
+import type { EventBus } from "../lib/events";
+import type { RequireAuth } from "../lib/require-auth";
+import { requireUser } from "../lib/require-auth";
+import type { CsrfGuard } from "../lib/csrf";
+import { NotFoundError, ValidationError } from "../lib/errors";
+import { parseCsvUrls } from "../lib/csv";
+
+interface BatchRoutesOptions {
+  service: BatchService;
+  eventBus: EventBus;
+  requireAuth: RequireAuth;
+  csrfGuard: CsrfGuard;
+  /** Origins permitted to read the credentialed SSE stream (== CORS allowlist). */
+  allowedOrigins: readonly string[];
+}
+
+const SSE_HEARTBEAT_MS = 15_000;
 
 /**
- * Batch route surface. Endpoint names and the `:batchId` param follow
- * docs/03-backend/api.md exactly. Handlers are scaffolded placeholders that
- * return 501 until the processing logic lands in the next phase; POST /batches
- * already wires runtime validation to show where it belongs.
+ * Batch HTTP surface. Endpoint names and the :batchId param follow
+ * docs/03-backend/api.md exactly. Every route is authenticated (the plugin-wide
+ * preHandler below) and every operation is scoped to the session user's id,
+ * which comes from the session — never from the client. Ownership is enforced in
+ * the service/repository: a batch owned by another user is indistinguishable
+ * from one that does not exist (404), so ownership is never leaked.
  */
-const notImplemented = (message: string): ApiError => ({
-  error: { code: "NOT_IMPLEMENTED", message: `${message} is not implemented yet` },
-});
+export async function registerBatchRoutes(
+  app: FastifyInstance,
+  opts: BatchRoutesOptions,
+): Promise<void> {
+  const { service, eventBus, requireAuth, csrfGuard, allowedOrigins } = opts;
+  const allowed = new Set(allowedOrigins);
 
-export async function registerBatchRoutes(app: FastifyInstance): Promise<void> {
+  // Reject cross-site state-changing requests before anything else (CSRF), then
+  // authenticate. On failure each throws (403 / 401) before any batch logic runs.
+  app.addHook("preHandler", csrfGuard);
+  app.addHook("preHandler", requireAuth);
+
+  // POST /batches — JSON { urls: [...] } or a CSV multipart upload.
   app.post("/batches", async (req, reply) => {
-    const parsed = createBatchRequestSchema.safeParse(req.body);
+    const userId = requireUser(req).id;
+    const urls = req.isMultipart() ? await readCsvUrls(req) : (req.body as { urls?: unknown })?.urls;
+    const batch = await service.createBatch(userId, { urls });
+    reply.status(201);
+    const body: ApiSuccess<BatchSummary> = { data: batch };
+    return body;
+  });
+
+  // GET /batches — the session user's batches only, paginated.
+  app.get("/batches", async (req) => {
+    const userId = requireUser(req).id;
+    const parsed = listBatchesQuerySchema.safeParse(req.query);
     if (!parsed.success) {
-      reply.status(400);
-      const body: ApiError = {
-        error: {
-          code: "VALIDATION_ERROR",
-          message: "Invalid request body",
-          details: parsed.error.issues,
-        },
-      };
-      return body;
+      throw new ValidationError("Invalid list query", parsed.error.issues);
     }
-    reply.status(501);
-    return notImplemented("Batch creation");
+    const { items, meta } = await service.listBatches(userId, parsed.data);
+    return { data: items, meta };
   });
 
-  app.get("/batches", async (_req, reply) => {
-    reply.status(501);
-    return notImplemented("Batch listing");
+  // GET /batches/:batchId — authoritative persisted state from PostgreSQL.
+  app.get<{ Params: { batchId: string } }>("/batches/:batchId", async (req) => {
+    const userId = requireUser(req).id;
+    const { batchId } = req.params;
+    if (!isUuid(batchId)) throw new NotFoundError(`Batch ${batchId} not found`);
+    const batch = await service.getBatch(userId, batchId);
+    const body: ApiSuccess<BatchDetail> = { data: batch };
+    return body;
   });
 
-  app.get("/batches/:batchId", async (_req, reply) => {
-    reply.status(501);
-    return notImplemented("Batch detail");
+  // POST /batches/:batchId/cancel — idempotent; returns authoritative state.
+  app.post<{ Params: { batchId: string } }>("/batches/:batchId/cancel", async (req) => {
+    const userId = requireUser(req).id;
+    const { batchId } = req.params;
+    if (!isUuid(batchId)) throw new NotFoundError(`Batch ${batchId} not found`);
+    const batch = await service.cancelBatch(userId, batchId);
+    const body: ApiSuccess<BatchDetail> = { data: batch };
+    return body;
   });
 
-  app.post("/batches/:batchId/cancel", async (_req, reply) => {
-    reply.status(501);
-    return notImplemented("Batch cancellation");
+  // POST /batches/:batchId/retry-failed — resets only FAILED URLs and requeues.
+  app.post<{ Params: { batchId: string } }>("/batches/:batchId/retry-failed", async (req) => {
+    const userId = requireUser(req).id;
+    const { batchId } = req.params;
+    if (!isUuid(batchId)) throw new NotFoundError(`Batch ${batchId} not found`);
+    const batch = await service.retryFailed(userId, batchId);
+    const body: ApiSuccess<BatchDetail> = { data: batch };
+    return body;
   });
 
-  app.post("/batches/:batchId/retry-failed", async (_req, reply) => {
-    reply.status(501);
-    return notImplemented("Retry failed");
-  });
+  // GET /batches/:batchId/events — SSE stream of batch.updated notifications.
+  // Notifications only; the client refetches authoritative state (ADR-005).
+  app.get<{ Params: { batchId: string } }>("/batches/:batchId/events", async (req, reply) => {
+    const userId = requireUser(req).id;
+    const { batchId } = req.params;
+    if (!isUuid(batchId)) throw new NotFoundError(`Batch ${batchId} not found`);
+    // Only subscribe a client to a batch it owns; throws 404 otherwise so a
+    // subscriber can never learn that another user's batch exists.
+    await service.getBatch(userId, batchId);
 
-  app.get("/batches/:batchId/events", async (_req, reply) => {
-    reply.status(501);
-    return notImplemented("Live updates (SSE)");
+    reply.hijack();
+    const raw = reply.raw;
+    // reply.hijack() bypasses @fastify/cors, so the credentialed EventSource
+    // needs these headers written explicitly. Only reflect the Origin when it is
+    // in the allowlist — reflecting an arbitrary origin with
+    // allow-credentials:true would let any site read the user's batch events.
+    const origin = req.headers.origin;
+    const corsOrigin = typeof origin === "string" && allowed.has(origin) ? origin : undefined;
+    raw.writeHead(200, {
+      "content-type": "text/event-stream",
+      "cache-control": "no-cache, no-transform",
+      connection: "keep-alive",
+      "x-accel-buffering": "no",
+      ...(corsOrigin
+        ? {
+            "access-control-allow-origin": corsOrigin,
+            "access-control-allow-credentials": "true",
+            vary: "Origin",
+          }
+        : {}),
+    });
+    raw.write(": connected\n\n");
+
+    const remove = eventBus.addClient(batchId, (payload) => {
+      raw.write(`event: ${SSE_EVENT_BATCH_UPDATED}\ndata: ${JSON.stringify(payload)}\n\n`);
+    });
+    const heartbeat = setInterval(() => {
+      try {
+        raw.write(": hb\n\n");
+      } catch {
+        // stream gone; close handler will clean up
+      }
+    }, SSE_HEARTBEAT_MS);
+
+    const cleanup = () => {
+      clearInterval(heartbeat);
+      remove(); // deregister so we never leak client references
+    };
+    req.raw.on("close", cleanup);
+    req.raw.on("error", cleanup);
   });
+}
+
+async function readCsvUrls(req: FastifyRequest): Promise<string[]> {
+  const file = await req.file();
+  if (!file) throw new ValidationError("Expected a CSV file upload");
+  const buffer = await file.toBuffer();
+  return parseCsvUrls(buffer.toString("utf8"));
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isUuid(value: string): boolean {
+  return UUID_RE.test(value);
 }

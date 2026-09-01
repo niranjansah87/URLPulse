@@ -48,3 +48,5 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
+/.playwright-mcp
+/graphify-out

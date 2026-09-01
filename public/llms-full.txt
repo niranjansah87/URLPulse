@@ -1,0 +1,35 @@
+# URLPulse — Full Description
+
+URLPulse is a production-oriented, full-stack application for bulk URL health checking.
+
+## What it does
+- Accepts a collection of URLs (manual entry or CSV upload) and groups them into a batch.
+- Checks each URL independently as a background job and records the final HTTP status, response time, and page title.
+- Streams progress to the browser in real time and reconstructs correct state on refresh.
+- Supports batch cancellation and retrying only the failed URLs.
+
+## Architecture (high level)
+- Frontend: Next.js (App Router) + React + TypeScript.
+- API: Fastify + TypeScript (REST), separate from the worker.
+- Worker: a separate process consuming a BullMQ queue backed by Redis.
+- Data: PostgreSQL is the authoritative source of truth; Redis provides queueing, coordination, and pub/sub.
+- Live updates: Server-Sent Events, treated as notifications only — the database remains authoritative.
+
+## System guarantees
+- Global outbound rate limit of 10 requests/second across all workers.
+- Global concurrency limit of 5 in-flight checks across all workers.
+- Up to 3 retries (4 total attempts) for transient failures, with exponential backoff.
+- Idempotent job processing; duplicate delivery cannot corrupt batch state.
+- 30-second cache on the batch list with invalidation on relevant mutations.
+
+## Terminology
+- "Batch": a submitted group of URLs.
+- "URL result": the outcome of checking one URL.
+- Statuses: Queued, In Progress, Completed, Failed, Cancelled.
+
+## Public information
+- Product name: URLPulse.
+- Author: Niranjan Sah.
+- Documentation lives under /docs in the repository.
+
+This file contains only public, factual information. It excludes secrets, credentials, and private infrastructure details.

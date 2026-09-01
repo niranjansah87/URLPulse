@@ -1,0 +1,18 @@
+# URLPulse
+
+> URLPulse is a bulk URL health-monitoring application. Users submit many URLs (manually or via CSV); URLPulse checks each one independently in the background and reports status, response time, and page title, with real-time progress.
+
+URLPulse is built with Next.js, Fastify, PostgreSQL, Redis, and BullMQ. PostgreSQL is the authoritative source of truth; a separate worker performs the checks under a global outbound rate limit and concurrency cap.
+
+## Documentation
+- Project overview: /README.md
+- Product & architecture docs: /docs
+- Frontend design system: /docs/04-frontend
+
+## Public pages
+- Marketing / landing: https://urlpulse.dev
+
+## Notes
+- The application dashboard pages are behind navigation and are not intended for indexing.
+- Preferred product name: "URLPulse".
+- Author: Niranjan Sah.

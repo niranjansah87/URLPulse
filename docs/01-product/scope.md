@@ -234,21 +234,23 @@ Runtime validation is still performed at external input boundaries.
 
 The following are intentionally excluded.
 
-## 3.1 Authentication
+## 3.1 Authentication — now IN scope (intentional extension)
 
-No:
+Authentication was originally out of scope; it has since been added as a
+deliberate extension. URLPulse now has email/password authentication via Better
+Auth, with PostgreSQL-backed sessions, and every batch is owned by and scoped to
+the authenticated user. See `docs/03-backend/authentication.md`.
 
-* Login
-* Registration
-* Sessions
-* OAuth
-* User accounts
+Still excluded (kept minimal): OAuth/social login, MFA, email verification,
+organizations/teams, and role-based access control.
 
 ---
 
 ## 3.2 Authorization
 
-No role-based access control or permission system.
+Ownership-based only: a user may access and mutate exactly their own batches
+(cross-user access returns 404). There is no role-based access control or
+permission system beyond that ownership boundary.
 
 ---
 
@@ -346,7 +348,6 @@ Horizontal API correctness
 ### Not Required
 
 ```text
-Authentication
 Notifications
 Charts
 Advanced analytics
@@ -354,7 +355,8 @@ Highly polished UI
 Production cloud deployment
 ```
 
-Authentication, notifications, charts, and polished UI are out of scope for the current product.
+Notifications, charts, and polished UI are out of scope for the current product.
+Authentication is an intentional in-scope extension (see §3.1).
 
 ---
 

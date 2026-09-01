@@ -221,7 +221,11 @@ Example:
       "totalCount": 100,
       "completedCount": 37,
       "failedCount": 2,
-      "createdAt": "2026-08-31T10:00:00Z"
+      "cancelledCount": 0,
+      "createdAt": "2026-08-31T10:00:00Z",
+      "startedAt": "2026-08-31T10:00:01Z",
+      "completedAt": null,
+      "updatedAt": "2026-08-31T10:00:45Z"
     }
   ],
   "meta": {
@@ -279,6 +283,10 @@ Example:
     "completedCount": 1,
     "failedCount": 0,
     "cancelledCount": 0,
+    "createdAt": "2026-08-31T10:00:00Z",
+    "startedAt": "2026-08-31T10:00:01Z",
+    "completedAt": null,
+    "updatedAt": "2026-08-31T10:00:03Z",
     "urls": [
       {
         "id": "url-1",
@@ -287,7 +295,9 @@ Example:
         "httpStatus": 200,
         "responseTimeMs": 183,
         "pageTitle": "Example Domain",
-        "error": null
+        "error": null,
+        "startedAt": "2026-08-31T10:00:01Z",
+        "completedAt": "2026-08-31T10:00:02Z"
       },
       {
         "id": "url-2",
@@ -296,12 +306,20 @@ Example:
         "httpStatus": null,
         "responseTimeMs": null,
         "pageTitle": null,
-        "error": null
+        "error": null,
+        "startedAt": "2026-08-31T10:00:03Z",
+        "completedAt": null
       }
     ]
   }
 }
 ```
+
+Timestamps are ISO-8601 strings straight from the persisted rows: `startedAt` is set when
+work first begins (batch: first URL picked up; URL: check started), `completedAt` when the
+row reaches a terminal state (`SUCCESS` / `FAILED` / `CANCELLED`), and `updatedAt` on every
+state change. The UI derives "checked at", "duration" and "last updated" from these rather
+than from client clocks.
 
 ---
 
@@ -478,7 +496,9 @@ Recommended status codes:
 | Batch created | 201 |
 | Successful mutation | 200 |
 | Invalid request | 400 |
-| Resource not found | 404 |
+| Unauthenticated request | 401 |
+| Forbidden | 403 |
+| Resource not found (incl. not owned) | 404 |
 | Conflict with current state | 409 |
 | Rate limited API request | 429 |
 | Unexpected server failure | 500 |
@@ -503,9 +523,25 @@ Validation should occur before:
 
 # 19. API Authentication
 
-Authentication is intentionally not implemented.
+The API is authenticated with [Better Auth](https://better-auth.com), mounted on
+Fastify at `/api/auth/*` with PostgreSQL-backed sessions. See
+`docs/03-backend/authentication.md` for the full architecture.
 
-Authentication is out of scope for URLPulse.
+- **Every batch endpoint requires a session.** A request with no valid session
+  cookie is rejected with `401 UNAUTHORIZED` before any handler logic runs.
+- **All batch operations are scoped to the session user.** The owning `user_id`
+  is derived from the session, never from the request body. Every read and
+  mutation filters `WHERE user_id = <session user>`.
+- **Ownership is not leaked.** A batch owned by another user is indistinguishable
+  from one that does not exist — both return `404 NOT_FOUND` — for get, cancel,
+  retry-failed, and the SSE stream.
+- Sessions are database-backed, so they hold across restarts and across multiple
+  API instances (§20), and the SSE stream (§11) is authenticated and
+  ownership-checked before a client is subscribed.
+
+Email/password reset is implemented (Better Auth + transactional email). Out of
+scope (intentional): OAuth/social login, MFA, email verification,
+organizations/teams, and RBAC.
 
 ---
 
@@ -610,7 +646,48 @@ The API should nevertheless keep domain responses and route responsibilities cle
 
 ---
 
-# 25. Related Documents
+# 25. User Settings
+
+Per-user monitoring defaults (the check-defining fields surfaced in Settings →
+Monitoring). PostgreSQL (`user_settings`, one row per user) is authoritative; the
+UI reconstructs settings from the API on any device. Purely cosmetic UI
+preferences (timezone, language, dashboard toggles) are **not** stored server-side
+— they remain device-local in the browser.
+
+Both routes are authenticated and scoped to the session user's id (never the
+client). A user with no row yet reads the documented defaults.
+
+## GET `/settings`
+
+Returns the session user's settings.
+
+```json
+{
+  "data": {
+    "checkIntervalMinutes": 5,
+    "timeoutSeconds": 10,
+    "retryAttempts": 2,
+    "userAgent": "URLPulse Bot",
+    "statusCodesDown": "400, 401, 403, 404, 429, 500, 502, 503, 504",
+    "followRedirects": true,
+    "sslValidation": true
+  }
+}
+```
+
+## POST `/settings`
+
+Replaces the user's settings with the **full** object (validated by
+`userSettingsSchema`). The write is an atomic upsert — last write wins, which is
+correct for a user editing their own settings. Returns the saved settings in the
+same shape as GET. Invalid bodies return `400 VALIDATION_ERROR`.
+
+`statusCodesDown` is a length-bounded free-form string (the client is the editing
+surface); it is not yet applied to real checks, so it is not strictly parsed.
+
+---
+
+# 26. Related Documents
 
 ```text
 docs/01-product/requirements.md

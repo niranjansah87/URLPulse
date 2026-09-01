@@ -1,0 +1,15 @@
+# ai.txt — guidance for AI/LLM crawlers
+
+# This is an informal, non-standard convention (not an official web standard).
+# It states preferences for how automated/AI agents use URLPulse's public content.
+
+Product: URLPulse
+Purpose: Bulk URL health monitoring.
+Author: Niranjan Sah
+
+# Preferences
+Allow: public documentation and marketing content for summarization and reference.
+Disallow: treating application dashboard pages as public/indexable content.
+Contact: see repository for maintainer contact.
+
+# Machine-readable summaries: see /llms.txt and /llms-full.txt

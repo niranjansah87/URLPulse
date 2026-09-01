@@ -1,15 +1,31 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import type { BatchRepository } from "./repositories/batches";
 
 // Server config is validated at import time; provide safe test values first.
 process.env.DATABASE_URL ??= "postgresql://urlpulse:urlpulse@localhost:5432/urlpulse";
 process.env.REDIS_URL ??= "redis://localhost:6379";
 
 const { buildServer } = await import("./server");
+const { createBatchService } = await import("./services/batches");
 
 let app: ReturnType<typeof buildServer>;
 
 beforeAll(async () => {
-  app = buildServer();
+  // Inject a service so buildServer does not open a BullMQ/Redis connection;
+  // this test only exercises the infra-free /health route.
+  const repo = {
+    createWithUrls: vi.fn(),
+    getById: vi.fn(),
+    list: vi.fn(),
+    findReconcilableJobs: vi.fn(),
+  } as unknown as BatchRepository;
+  const service = createBatchService({
+    repo,
+    enqueue: async () => {},
+    log: { info: () => {}, warn: () => {} },
+  });
+  const eventBus = { start: async () => {}, addClient: () => () => {}, clientCount: () => 0 };
+  app = buildServer({ service, eventBus });
   await app.ready();
 });
 

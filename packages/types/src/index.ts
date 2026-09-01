@@ -38,6 +38,8 @@ export const urlResultSchema = z.object({
   responseTimeMs: z.number().int().nullable(),
   pageTitle: z.string().nullable(),
   error: z.string().nullable(),
+  startedAt: z.string().nullable(),
+  completedAt: z.string().nullable(),
 });
 export type UrlResult = z.infer<typeof urlResultSchema>;
 
@@ -49,6 +51,9 @@ export const batchSummarySchema = z.object({
   failedCount: z.number().int(),
   cancelledCount: z.number().int(),
   createdAt: z.string(),
+  startedAt: z.string().nullable(),
+  completedAt: z.string().nullable(),
+  updatedAt: z.string(),
 });
 export type BatchSummary = z.infer<typeof batchSummarySchema>;
 
@@ -59,10 +64,146 @@ export type BatchDetail = z.infer<typeof batchDetailSchema>;
 
 // --- Request shapes ---
 
+/**
+ * A single submittable URL. Whitespace is trimmed (normalization, edge-cases §2)
+ * and the scheme is constrained to http/https (api.md validation; ftp/other are
+ * rejected). JSON and CSV inputs both validate through this schema so the two
+ * paths cannot diverge.
+ */
+/** Resource bounds (INV-12): a batch cannot be unbounded in count or URL length. */
+export const MAX_URLS_PER_BATCH = 10_000;
+export const MAX_URL_LENGTH = 2_048;
+
+export const httpUrlSchema = z
+  .string()
+  .trim()
+  .max(MAX_URL_LENGTH, `URL exceeds ${MAX_URL_LENGTH} characters`)
+  .url()
+  .refine((u) => /^https?:\/\//i.test(u), {
+    message: "URL must use http or https",
+  });
+
 export const createBatchRequestSchema = z.object({
-  urls: z.array(z.string().url()).min(1),
+  urls: z
+    .array(httpUrlSchema)
+    .min(1, "at least one URL is required")
+    .max(MAX_URLS_PER_BATCH, `a batch may contain at most ${MAX_URLS_PER_BATCH} URLs`),
 });
 export type CreateBatchRequest = z.infer<typeof createBatchRequestSchema>;
+
+// --- List query + pagination (api.md §8) ---
+
+export const listBatchesQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+export type ListBatchesQuery = z.infer<typeof listBatchesQuerySchema>;
+
+export interface BatchListMeta {
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+// --- Alerts (conditions detected during a URL check) ---
+
+export const alertSeveritySchema = z.enum(["critical", "warning", "info"]);
+export type AlertSeverity = z.infer<typeof alertSeveritySchema>;
+
+export const alertStatusSchema = z.enum(["new", "acknowledged", "resolved"]);
+export type AlertStatus = z.infer<typeof alertStatusSchema>;
+
+/** What was detected. Drives the title/severity the worker records. */
+export const alertTypeSchema = z.enum([
+  "SERVER_ERROR", // 5xx response
+  "UNREACHABLE", // timeout, connection/DNS error, blocked target
+  "CLIENT_ERROR", // 4xx response
+  "SLOW_RESPONSE", // response time over threshold
+  "REDIRECT", // resolved via one or more redirects
+  "SSL_EXPIRING", // TLS certificate expiring soon
+  "TITLE_CHANGED", // page <title> differs from the previous check
+  "RECOVERED", // a URL with an open failure alert now succeeds
+]);
+export type AlertType = z.infer<typeof alertTypeSchema>;
+
+export const alertSchema = z.object({
+  id: z.string().uuid(),
+  type: alertTypeSchema,
+  title: z.string(),
+  detail: z.string(),
+  batchId: z.string().uuid(),
+  url: z.string(),
+  severity: alertSeveritySchema,
+  status: alertStatusSchema,
+  detectedAt: z.string(),
+});
+export type Alert = z.infer<typeof alertSchema>;
+
+export const listAlertsQuerySchema = z.object({
+  status: alertStatusSchema.optional(),
+  severity: alertSeveritySchema.optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+export type ListAlertsQuery = z.infer<typeof listAlertsQuerySchema>;
+
+/** Counts used by the alerts dashboard tiles and the unread bell badge. */
+export const alertCountsSchema = z.object({
+  critical: z.number().int(),
+  warning: z.number().int(),
+  info: z.number().int(),
+  resolved: z.number().int(),
+  unread: z.number().int(),
+  total: z.number().int(),
+});
+export type AlertCounts = z.infer<typeof alertCountsSchema>;
+
+// --- User settings (per-user monitoring defaults; api.md) ---
+
+export const userAgentSchema = z.enum(["URLPulse Bot", "Chrome (desktop)", "Safari (mobile)"]);
+export type UserAgentOption = z.infer<typeof userAgentSchema>;
+
+/**
+ * Per-user monitoring configuration persisted server-side (PostgreSQL is the
+ * source of truth). These are the check-defining fields; cosmetic UI prefs
+ * (timezone, language, dashboard toggles) stay device-local in the browser.
+ * `statusCodesDown` is a free-form, length-bounded string (the editing surface
+ * is the client) — it is not yet applied to real checks, so it is not strictly
+ * parsed here.
+ */
+export const userSettingsSchema = z.object({
+  checkIntervalMinutes: z.number().int().min(1).max(1440),
+  timeoutSeconds: z.number().int().min(1).max(120),
+  retryAttempts: z.number().int().min(0).max(10),
+  userAgent: userAgentSchema,
+  statusCodesDown: z.string().max(200),
+  followRedirects: z.boolean(),
+  sslValidation: z.boolean(),
+});
+export type UserSettings = z.infer<typeof userSettingsSchema>;
+
+export const DEFAULT_USER_SETTINGS: UserSettings = {
+  checkIntervalMinutes: 5,
+  timeoutSeconds: 10,
+  retryAttempts: 2,
+  userAgent: "URLPulse Bot",
+  statusCodesDown: "400, 401, 403, 404, 429, 500, 502, 503, 504",
+  followRedirects: true,
+  sslValidation: true,
+};
+
+// --- Canonical error codes (api.md §5/§17) ---
+
+export const ERROR_CODES = [
+  "VALIDATION_ERROR",
+  "UNAUTHORIZED",
+  "FORBIDDEN",
+  "NOT_FOUND",
+  "CONFLICT",
+  "NOT_IMPLEMENTED",
+  "INTERNAL_ERROR",
+] as const;
+export type ErrorCode = (typeof ERROR_CODES)[number];
 
 // --- API response envelopes (see api.md sections 4-5) ---
 
@@ -88,6 +229,19 @@ export const sseBatchUpdatedSchema = z.object({
 export type SseBatchUpdated = z.infer<typeof sseBatchUpdatedSchema>;
 
 export const SSE_EVENT_BATCH_UPDATED = "batch.updated" as const;
+
+/** Redis Pub/Sub channel carrying batch.updated notifications across instances. */
+export const BATCH_EVENTS_CHANNEL = "events:batch-updated" as const;
+
+/**
+ * Serialize a batch.updated notification. `version` is a monotonic-ish publish
+ * timestamp used only to drop obviously out-of-order events on the client;
+ * correctness comes from refetching authoritative state (ADR-005).
+ */
+export function buildBatchUpdatedMessage(batchId: string): string {
+  const payload: SseBatchUpdated = { batchId, version: Date.now() };
+  return JSON.stringify(payload);
+}
 
 // --- Queue contract shared by API (producer) and worker (consumer) ---
 

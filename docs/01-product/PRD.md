@@ -72,9 +72,10 @@ Correctness and consistency are more important than visual complexity.
 
 The primary user is a developer, engineer, QA engineer, SEO/technical user, or other technical user who needs to check the health of multiple URLs efficiently.
 
-The initial product does not require authentication or user accounts.
-
-Authentication and notifications are explicitly outside the scope of this implementation.
+Authentication has been added as a deliberate extension: users sign up / sign in
+with email and password (Better Auth, PostgreSQL-backed sessions) and each batch
+is owned by and scoped to its authenticated user. See
+`docs/03-backend/authentication.md`. Notifications remain out of scope.
 
 ---
 

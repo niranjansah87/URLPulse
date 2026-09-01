@@ -1,0 +1,178 @@
+/* Dashboard layout + hero. Values reference global tokens. */
+
+.hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 240px;
+  padding: var(--space-8) var(--space-10);
+  margin-bottom: var(--space-6);
+  /* Subtle tint so the band reads as a distinct container against the page. */
+  background: linear-gradient(130deg, var(--color-surface) 0%, var(--color-bg) 100%);
+  overflow: hidden;
+}
+.overline {
+  font-size: var(--text-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-3);
+}
+.headline {
+  font-size: var(--text-4xl);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+  letter-spacing: -0.02em;
+  max-width: 14ch;
+}
+.heroText {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-lg);
+  color: var(--color-text-secondary);
+  max-width: 40ch;
+}
+.heroActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+  flex-wrap: wrap;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-6);
+  margin-bottom: var(--space-6);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--space-6);
+  align-items: start;
+}
+.rightCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+/* Recent batches */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.search {
+  width: 280px;
+  max-width: 100%;
+}
+.batchName {
+  font-weight: var(--fw-medium);
+  color: var(--color-text);
+}
+.batchId {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.progressCell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 180px;
+}
+.progressBar {
+  flex: 1;
+}
+.progressPct {
+  min-width: 4ch;
+  font-variant-numeric: tabular-nums;
+}
+.rowActions {
+  text-align: right;
+}
+.rowLink {
+  color: inherit;
+}
+.rowLink:hover {
+  text-decoration: none;
+  color: var(--color-accent);
+}
+
+/* Overall health */
+.donutWrap {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-2) 0 var(--space-4);
+}
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+.legendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  flex: none;
+}
+.legendLabel {
+  color: var(--color-text-secondary);
+}
+.legendValue {
+  margin-left: auto;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1200px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 1024px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .heroArt {
+    display: none;
+  }
+}
+@media (max-width: 640px) {
+  .metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .hero {
+    padding: var(--space-6);
+  }
+  .headline {
+    font-size: var(--text-3xl);
+  }
+  .controls {
+    flex-wrap: wrap;
+  }
+  .search {
+    width: 100%;
+  }
+}
+
+.batchName {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}

@@ -1,0 +1,327 @@
+/* Batch Detail page layout + section styles. Values reference global tokens. */
+
+.pageHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.title {
+  font-size: var(--text-2xl);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+}
+.headerActions {
+  margin-left: auto;
+  display: flex;
+  gap: var(--space-2);
+}
+.metaRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.metaSep {
+  color: var(--color-border-strong);
+}
+
+/* Two-column overview layout */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--space-6);
+  align-items: start;
+}
+.mainCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+.rightCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+@media (max-width: 1024px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Progress summary card */
+.progressHeadRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+}
+.progressPct {
+  font-size: var(--text-3xl);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--lh-tight);
+  color: var(--color-accent);
+}
+.progressCount {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.pulseRow {
+  margin-top: var(--space-3);
+}
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+}
+.metricCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.metricCardHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.metricIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.metricMini {
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--color-border);
+  overflow: hidden;
+  margin-top: var(--space-1);
+}
+.metricMiniFill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+}
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+  padding-top: var(--space-6);
+  border-top: var(--border-width) solid var(--color-border);
+}
+.metaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.metaLabel {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.metaValue {
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+@media (max-width: 640px) {
+  .metricGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* URL results controls */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.controlsSearch {
+  flex: 1;
+  max-width: 320px;
+}
+.urlCell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 200px;
+}
+.urlText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rowActions {
+  text-align: right;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: var(--border-width) solid var(--color-border);
+}
+.paginationInfo {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.pager {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.pageBtn {
+  min-width: var(--control-sm);
+  height: var(--control-sm);
+  padding: 0 var(--space-2);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-standard);
+}
+.pageBtn:hover {
+  background: var(--color-bg);
+}
+.pageBtnActive,
+.pageBtnActive:hover {
+  background: var(--color-action);
+  color: var(--color-on-action);
+  border-color: var(--color-action);
+}
+
+/* Right column: legend + activity + details */
+.donutWrap {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-2) 0 var(--space-4);
+}
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+.legendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  flex: none;
+}
+.legendLabel {
+  color: var(--color-text-secondary);
+}
+.legendValue {
+  margin-left: auto;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.activityList {
+  display: flex;
+  flex-direction: column;
+}
+.activityItem {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+.activityItem:last-child {
+  border-bottom: none;
+}
+.activityIcon {
+  flex: none;
+  margin-top: 2px;
+}
+.activityBody {
+  min-width: 0;
+}
+.activityText {
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.activityMeta {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.liveTag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--color-success-fg);
+}
+.liveDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-success);
+}
+
+.detailsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.detailRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  font-size: var(--text-sm);
+}
+.detailKey {
+  color: var(--color-text-muted);
+}
+.detailVal {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.placeholder {
+  padding: var(--space-12) var(--space-6);
+}
+
+.liveTagMuted {
+  color: var(--color-text-muted);
+}
+.liveDotMuted {
+  background: var(--color-text-muted);
+}

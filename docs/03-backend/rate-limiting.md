@@ -312,13 +312,22 @@ The limiter controls admission to outbound work, not successful responses.
 
 # 15. Redirects
 
-Redirect behavior must be explicitly defined by the HTTP client configuration.
+Redirects are followed **manually** (`fetch(..., { redirect: "manual" })`), up to
+`HTTP_MAX_REDIRECTS` hops, so each hop's protocol and target can be validated.
 
-The implementation should determine whether redirects are followed automatically.
+Because every hop is a real outbound HTTP request, **each hop acquires its own
+global rate-limit permit** — the permit is obtained immediately before each
+`fetch`, not once per logical URL check. One URL that follows N redirects
+therefore consumes N+1 permits, keeping rate-limit accounting consistent with the
+actual outbound request count (a redirect chain can never fan one permit into
+several requests). A target blocked by SSRF validation is rejected before any
+request and consumes no permit.
 
-If one logical URL check can generate multiple outbound HTTP requests because of redirects, the rate-limit accounting must be consistent with the actual outbound request behavior.
-
-This decision must be finalized before implementation.
+The single distributed concurrency slot (INV-3) is held for the whole check
+across all hops: one in-flight URL check occupies one slot regardless of
+redirects. Admission (Redis) failure during a hop is an infrastructure failure —
+it propagates so the URL is returned to PENDING and retried, never recorded as a
+URL failure.
 
 ---
 

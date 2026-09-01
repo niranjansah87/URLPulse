@@ -89,6 +89,7 @@ The `batches` table represents a submitted URL-checking operation.
 | Column | Type | Nullable | Description |
 |---|---|---:|---|
 | `id` | UUID | No | Unique batch identifier |
+| `user_id` | text | Yes | Owning user (`"user".id`); set from the session on create. See §4.3 |
 | `status` | enum/text | No | Current batch lifecycle state |
 | `total_count` | integer | No | Total URLs in batch |
 | `completed_count` | integer | No | URLs completed successfully |
@@ -119,7 +120,22 @@ The exact transition rules are defined in `job-lifecycle.md`.
 
 ---
 
-## 4.2 Why Store Counters?
+## 4.2 Ownership
+
+`user_id` references the Better Auth `"user"` table (`ON DELETE CASCADE`) and is
+set from the authenticated session when a batch is created — never from the
+request body. Every batch read and mutation filters `WHERE user_id = <session
+user>`, so a user only ever sees or changes their own batches; a batch owned by
+someone else is reported as `404`, not leaked.
+
+The column is nullable so the migration is safe against pre-auth rows: a batch
+with no owner matches no user and is simply invisible. The application always
+sets `user_id` on new batches. Auth tables and this column are added in
+migrations `0002`/`0003`; see `docs/03-backend/authentication.md`.
+
+---
+
+## 4.4 Why Store Counters?
 
 Counters make batch progress queries cheap.
 
